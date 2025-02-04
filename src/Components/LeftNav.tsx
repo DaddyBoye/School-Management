@@ -55,7 +55,7 @@ const LeftNav = () => {
         <img 
           src={NavImage} 
           alt="School" 
-          className="w-full h-32 object-contain"
+          className="w-full h-40 object-contain"
         />
       </div>
     </div>

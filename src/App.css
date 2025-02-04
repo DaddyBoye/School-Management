@@ -40,3 +40,17 @@
 .read-the-docs {
   color: #888;
 }
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px; /* Adjust width */
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #e5e7eb; /* Light gray */
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #6b7280; /* Darker gray */
+  border-radius: 10px;
+}

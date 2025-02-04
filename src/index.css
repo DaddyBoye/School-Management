@@ -68,3 +68,27 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Make the scrollbar super thin */
+.scrollbar-thiner::-webkit-scrollbar {
+  width: 5px !important; /* Ultra-thin width */
+}
+
+/* Style the track */
+.scrollbar-thiner::-webkit-scrollbar-track {
+  background: #d6d1d1; /* Light gray */
+  border-radius: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* Style the scrollbar thumb */
+.scrollbar-thiner::-webkit-scrollbar-thumb {
+  background: #6b7280; /* Darker gray */
+  border-radius: 10px;
+}
+
+/* Remove scrollbar arrows */
+.scrollbar-thiner::-webkit-scrollbar-button {
+  display: none; /* Hides the up/down arrows */
+}
