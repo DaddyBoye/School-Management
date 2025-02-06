@@ -63,7 +63,7 @@ const TeacherList = () => {
   });
 
   return (
-    <div className="w-full px-4 bg-white border rounded-xl shadow-sm">
+    <div className="w-full px-4 bg-white border-2 rounded-xl shadow-sm">
       <div className="px-4 pt-4">
         <div className="flex justify-between items-center mb-4">
           <div className="text-xl text-black font-semibold">Teacher List</div>

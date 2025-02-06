@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell } from 'lucide-react';
+import { Bell } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -7,43 +7,27 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title }) => {
   return (
-    <header className="w-full mt-2 rounded-tl-lg bg-white border-b">
-      <div className="flex items-center justify-between px-6 py-4">
-        {/* Left - Page Title & Search */}
-        <div className="flex items-center gap-6">
-          <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-          
-          {/* Search Bar */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search"
-              className="pl-10 pr-4 py-2 w-[300px] bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+    <header className="fixed top-0 w-full bg-white border-b z-30 shadow-sm md:pr-52 pl-12 md:pl-0">
+      <div className="flex items-center justify-between px-4 md:px-6 py-3">
+        {/* Page Title */}
+        <h1 className="text-lg md:text-xl font-semibold text-gray-900">
+          {title}
+        </h1>
 
-        {/* Right - Profile and Notifications */}
-        <div className="flex items-center gap-4">
+        {/* Right - Notification & Profile */}
+        <div className="flex items-center gap-3 ">
           {/* Notification Icon */}
           <button className="p-2 hover:bg-gray-100 rounded-full">
             <Bell className="h-5 w-5 text-gray-500" />
           </button>
 
           {/* Profile Section */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <img
               src="/api/placeholder/32/32"
               alt="User profile"
               className="w-8 h-8 rounded-full"
             />
-            <div className="text-sm">
-              <p className="font-medium text-gray-900">Gabriel Style</p>
-              <p className="text-gray-500">Admin</p>
-            </div>
           </div>
         </div>
       </div>

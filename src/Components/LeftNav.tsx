@@ -10,7 +10,7 @@ const LeftNav = () => {
   };
 
   return (
-    <div className="h-screen w-56 fixed top-0 left-0 bg-blue-500 text-white py-4 flex flex-col">
+    <div className="h-full w-full bg-blue-500 text-white z-50 py-4 flex flex-col">
       {/* Logo and School Name */}
       <div className="px-4 mb-8">
         <div className="flex items-center gap-2">
@@ -24,7 +24,7 @@ const LeftNav = () => {
       </div>
 
       {/* Navigation Links */}
-      <nav className="space-y-1 pl-2 flex-grow">
+      <nav className="space-y-1 pl-2 flex-grow overflow-y-auto">
         {[
           { path: '/', label: 'Dashboard', icon: Home },
           { path: '/communication', label: 'Communication', icon: MessageSquare },

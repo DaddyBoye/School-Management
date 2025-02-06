@@ -17,7 +17,7 @@ const StudentDistribution = () => {
   const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'];
 
   return (
-    <div className="bg-white w-96 p-4 rounded-2xl border-2">
+    <div className="bg-white p-4 rounded-2xl border-2">
       <div className="flex justify-between items-center">
         <h2 className="text-xl text-black font-semibold">Students</h2>
         
