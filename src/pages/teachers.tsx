@@ -135,33 +135,33 @@ const TeachersList = () => {
     }
   };
 
-  const addTeacher = async (newTeacher: Teacher) => {
-    setIsSubmitting(true);
-    setFormErrors({});
+  const addTeacher = async (newTeacher: Omit<Teacher, 'id'>) => {
+  setIsSubmitting(true);
+  setFormErrors({});
 
-    try {
-      const validationErrors = await validateTeacherData(newTeacher);
-      
-      if (Object.keys(validationErrors).length > 0) {
-        setFormErrors(validationErrors);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("teachers")
-        .insert([newTeacher])
-        .select();
-
-      if (error) throw error;
-
-      setTeachers([...teachers, data[0]]);
-      setShowAddModal(false);
-    } catch (error) {
-      setFormErrors({ submit: (error as Error).message });
-    } finally {
-      setIsSubmitting(false);
+  try {
+    const validationErrors = await validateTeacherData(newTeacher as Teacher);
+    
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      return;
     }
-  };
+
+    const { data, error } = await supabase
+      .from("teachers")
+      .insert([newTeacher])
+      .select();
+
+    if (error) throw error;
+
+    setTeachers([...teachers, data[0]]);
+    setShowAddModal(false);
+  } catch (error) {
+    setFormErrors({ submit: (error as Error).message });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const startEditing = (teacher: Teacher) => {
     setIsEditing(true);
@@ -544,26 +544,25 @@ const TeachersList = () => {
                 </button>
               </div>
               
-              <form
-                className="space-y-4"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target as HTMLFormElement);
-                  const newTeacher: Teacher = {
-                    id: 0, // Temporary ID, will be replaced by the database
-                    name: formData.get("name") as string,
-                    email: formData.get("email") as string,
-                    phone: formData.get("phone") as string,
-                    class: formData.get("class") as string,
-                    subject: formData.get("subject") as string,
-                    education: formData.get("education") as string,
-                    experience: formData.get("experience") as string,
-                    address: formData.get("address") as string,
-                    joinDate: new Date().toISOString().split('T')[0],
-                  };
-                  await addTeacher(newTeacher);
-                }}
-              >
+ <form
+  className="space-y-4"
+  onSubmit={async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const newTeacher: Omit<Teacher, 'id'> = {
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+      class: formData.get("class") as string,
+      subject: formData.get("subject") as string,
+      education: formData.get("education") as string,
+      experience: formData.get("experience") as string,
+      address: formData.get("address") as string,
+      joinDate: new Date().toISOString().split('T')[0],
+    };
+    await addTeacher(newTeacher);
+  }}
+>
                 <div className="grid md:grid-cols-2 gap-4">
                   <input
                     type="text"
