@@ -5,7 +5,7 @@ import { Menu } from 'lucide-react';
 import Header from './Components/Header';
 import Dashboard from './pages/dashboard';
 import Communication from './pages/communication';
-import Events from './pages/events';
+import Teachers from './pages/teachers';
 import ExamResult from './pages/exam-result';
 import Messages from './pages/messages';
 import News from './pages/news';
@@ -21,7 +21,7 @@ const AppContent = () => {
     const titles: { [key: string]: string } = {
       '/': 'Dashboard',
       '/communication': 'Communication',
-      '/events': 'Events',
+      '/teachers': 'Teachers',
       '/exam-result': 'Exam Result',
       '/messages': 'Messages',
       '/news': 'News',
@@ -53,7 +53,7 @@ const AppContent = () => {
         <main className="md:p-6 p-4">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/events" element={<Events />} />
+            <Route path="/events" element={<Teachers />} />
             <Route path="/exam-result" element={<ExamResult />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/news" element={<News />} />

@@ -28,7 +28,7 @@ const LeftNav = () => {
         {[
           { path: '/', label: 'Dashboard', icon: Home },
           { path: '/communication', label: 'Communication', icon: MessageSquare },
-          { path: '/events', label: 'Events', icon: Calendar },
+          { path: '/events', label: 'Teachers', icon: Calendar },
           { path: '/messages', label: 'Messages', icon: MessageSquare },
           { path: '/timetable', label: 'Timetable', icon: FileText },
           { path: '/news', label: 'News', icon: Bell },
