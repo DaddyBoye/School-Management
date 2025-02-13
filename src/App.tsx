@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import LeftNav from './Components/LeftNav';
+import Signup from "./Components/Signup";
+
 import { Menu } from 'lucide-react';
 import Header from './Components/Header';
 import Dashboard from './pages/dashboard';
