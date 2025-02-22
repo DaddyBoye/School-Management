@@ -21,8 +21,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onClose }) => {
         console.log('Logged out successfully');
 
         // Clear localStorage
-        localStorage.removeItem('user'); // Remove user data
-        localStorage.clear(); // Optional: Clear all localStorage data
+        localStorage.removeItem('user');
 
         // Clear session (if needed)
         window.location.href = '/role-selection'; // Redirect to the role selection page
