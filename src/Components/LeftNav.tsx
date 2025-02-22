@@ -2,9 +2,31 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, Calendar, FileText, Bell, CheckSquare, Settings, GraduationCap } from 'lucide-react';
 import NavImage from '../images/school 1.png';
 
-const LeftNav = () => {
+interface LeftNavProps {
+  userRole: string | undefined;
+  accessibleRoutes: Record<string, string[]>; // Key: role, Value: array of accessible routes
+}
+
+const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
   const location = useLocation();
-  
+
+  // Define all navigation links
+  const navigationLinks = [
+    { path: '/', label: 'Dashboard', icon: Home },
+    { path: '/teachers', label: 'Teachers', icon: Calendar },
+    { path: '/messages', label: 'Messages', icon: MessageSquare },
+    { path: '/timetable', label: 'Timetable', icon: FileText },
+    { path: '/attendance', label: 'Attendance', icon: Bell },
+    { path: '/exam-result', label: 'Exam Result', icon: CheckSquare },
+    { path: '/settings', label: 'Settings', icon: Settings },
+    { path: '/payroll', label: 'Payroll', icon: FileText },
+  ];
+
+  // Filter navigation links based on the user's role
+  const filteredLinks = userRole
+    ? navigationLinks.filter(({ path }) => accessibleRoutes[userRole]?.includes(path))
+    : [];
+
   const isActive = (path: string) => {
     return location.pathname === path;
   };
@@ -25,16 +47,7 @@ const LeftNav = () => {
 
       {/* Navigation Links */}
       <nav className="space-y-1 pl-2 flex-grow overflow-y-auto">
-        {[
-          { path: '/', label: 'Dashboard', icon: Home },
-          { path: '/communication', label: 'Communication', icon: MessageSquare },
-          { path: '/events', label: 'Teachers', icon: Calendar },
-          { path: '/messages', label: 'Messages', icon: MessageSquare },
-          { path: '/timetable', label: 'Timetable', icon: FileText },
-          { path: '/news', label: 'News', icon: Bell },
-          { path: '/exam-result', label: 'Exam Result', icon: CheckSquare },
-          { path: '/settings', label: 'Settings', icon: Settings },
-        ].map(({ path, label, icon: Icon }) => (
+        {filteredLinks.map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
             to={path}
