@@ -45,7 +45,7 @@ const AppContent = () => {
       return titles[path] || 'Dashboard';
     };
   
-    const hideNavAndHeader = location.pathname === '/roleselection' || location.pathname === '/auth';
+    const hideNavAndHeader = location.pathname === '/role-selection' || location.pathname === '/auth';
   
     return (
       <div className="flex flex-col md:flex-row h-full w-full font-sans bg-[#ffffff]">
