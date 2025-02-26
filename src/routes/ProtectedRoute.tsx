@@ -15,8 +15,8 @@ const ProtectedRoute = ({ children, roles }: { children: JSX.Element; roles: str
   }
 
   if (!user) {
-    console.log('User not authenticated. Redirecting to /roleselection.');
-    return <Navigate to="/roleselection" state={{ from: location }} replace />;
+    console.log('User not authenticated. Redirecting to /role-selection.');
+    return <Navigate to="/role-selection" state={{ from: location }} replace />;
   }
 
   if (!userRole || !roles.includes(userRole)) {
