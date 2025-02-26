@@ -1,29 +1,36 @@
 import { useState, useEffect } from 'react';
 import { supabase } from "../supabase";
+import { sendEmail } from '../services/emailService';
+import { generatePassword } from '../services/passwordGenerator';
 import { Search, Plus, X, Edit2, Mail, Phone, Book, Calendar, MapPin, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/Components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/Components/ui/alert-dialog";
 
-const TeachersList = () => {
-  interface Teacher {
-    id: number;
-    name: string;
-    class: string;
-    subject: string;
-    email: string;
-    phone: string;
-    education: string;
-    experience: string;
-    address: string;
-    joinDate: string;
-  }
+interface Teacher {
+  id: string; // UUID
+  user_id: string; // UUID (references auth.users)
+  first_name: string; // Teacher's first name
+  last_name: string; // Teacher's last name
+  email: string; // Teacher's email (unique)
+  class: string; // Class or grade the teacher is assigned to
+  subject: string; // Subject the teacher teaches
+  education: string; // Teacher's educational background
+  experience: string; // Teacher's experience
+  address: string; // Teacher's address
+  phone: string; // Teacher's phone number
+  joinDate: string; // Date the teacher joined (in ISO format, e.g., "2023-10-01")
+  school_id: string; // UUID (references schools)
+  created_at: string; // Timestamp for record creation
+  updated_at: string; // Timestamp for record updates
+}
 
-  interface FormErrors {
-    email?: string;
-    phone?: string;
-    submit?: string;
-  }
+interface FormErrors {
+  email?: string;
+  phone?: string;
+  submit?: string;
+}
 
+const TeachersList = ({ schoolId, schoolName }: { schoolId: string; schoolName: string }) => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selectedClass, setSelectedClass] = useState("All Classes");
   const [selectedSubject, setSelectedSubject] = useState("All Subjects");
@@ -40,14 +47,19 @@ const TeachersList = () => {
 
   useEffect(() => {
     fetchTeachers();
-  }, []);
+  }, [schoolId]);
 
   const fetchTeachers = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.from("teachers").select("*");
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("*")
+        .eq("school_id", schoolId); // Fetch teachers for the specific school
+
       if (error) throw error;
-      setTeachers(data);
+
+      setTeachers(data || []);
     } catch (error) {
       if (error instanceof Error) {
         setError(`Failed to fetch teachers: ${error.message}`);
@@ -60,13 +72,14 @@ const TeachersList = () => {
   };
 
   const filteredTeachers = teachers.filter(teacher => {
-    const matchesSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = teacher.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          teacher.last_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = selectedClass === "All Classes" || teacher.class === selectedClass;
     const matchesSubject = selectedSubject === "All Subjects" || teacher.subject === selectedSubject;
     return matchesSearch && matchesClass && matchesSubject;
   });
 
-  const validateTeacherData = async (teacherData: Teacher, currentTeacherId: number | null = null) => {
+  const validateTeacherData = async (teacherData: Teacher, currentTeacherId: string | null = null) => {
     const errors: FormErrors = {};
     
     // Check for existing email
@@ -78,17 +91,6 @@ const TeachersList = () => {
       
     if (emailCheck && emailCheck.id !== currentTeacherId) {
       errors.email = "This email is already being used by another teacher";
-    }
-
-    // Check for existing phone
-    const { data: phoneCheck } = await supabase
-      .from("teachers")
-      .select("id, phone")
-      .eq("phone", teacherData.phone)
-      .single();
-      
-    if (phoneCheck && phoneCheck.id !== currentTeacherId) {
-      errors.phone = "This phone number is already being used by another teacher";
     }
 
     return errors;
@@ -135,40 +137,100 @@ const TeachersList = () => {
     }
   };
 
-  const addTeacher = async (newTeacher: Omit<Teacher, 'id'>) => {
-  setIsSubmitting(true);
-  setFormErrors({});
-
-  try {
-    const validationErrors = await validateTeacherData(newTeacher as Teacher);
-    
-    if (Object.keys(validationErrors).length > 0) {
-      setFormErrors(validationErrors);
-      return;
+  const addTeacher = async (newTeacher: Omit<Teacher, 'id'>, schoolName: string) => {
+    setIsSubmitting(true);
+    setFormErrors({});
+  
+    console.log("Starting addTeacher function...");
+    console.log("New Teacher Data:", newTeacher);
+  
+    try {
+      const password = generatePassword(); // Generate a 6-digit password
+      console.log('Generated Password:', password);
+  
+      // Step 1: Create a user in the auth.users table
+      console.log("Creating new user in auth.users...");
+      const { data: { user }, error: authError } = await supabase.auth.signUp({
+        email: newTeacher.email,
+        password: password,
+        options: {
+          data: {
+            role: 'teacher',
+          },
+        },
+      });
+  
+      if (authError) {
+        console.error("Error creating user in auth.users:", authError);
+        if (authError.message.includes('50 seconds')) {
+          setFormErrors({ submit: 'Please wait 50 seconds before trying again.' });
+        } else {
+          setFormErrors({ submit: authError.message });
+        }
+        throw authError;
+      }
+  
+      if (!user) {
+        console.error("User creation failed. No user object returned.");
+        throw new Error("Failed to create user in auth.users table.");
+      }
+  
+      console.log("User created successfully. User ID:", user.id);
+  
+      // Step 2: Add the teacher to the teachers table
+      console.log("Inserting teacher into teachers table...");
+      const { data: teacherData, error: teacherError } = await supabase
+        .from("teachers")
+        .insert([{ 
+          ...newTeacher,
+          user_id: user.id, // Link to the auth user
+          school_id: schoolId, // Associate with the specific school
+        }])
+        .select()
+        .single();
+  
+      if (teacherError) {
+        console.error("Error inserting teacher into teachers table:", teacherError);
+        throw teacherError;
+      }
+  
+      console.log("Teacher added successfully:", teacherData);
+  
+      // Step 3: Send welcome email
+      console.log('Attempting to send email to:', newTeacher.email);
+      await sendEmail(
+        newTeacher.email,
+        `${newTeacher.first_name} ${newTeacher.last_name}`,
+        schoolName,
+        password,
+        'https://esemes.vercel.app/auth',
+        'gabrieladjeiboye@gmail.com',
+        'Gabriel Adjei-Boye'
+      );
+      console.log('Email sent successfully.');
+  
+      setTeachers([...teachers, teacherData]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Error in addTeacher function:", error);
+  
+      if (error instanceof Error) {
+        setFormErrors({ submit: error.message });
+      } else {
+        setFormErrors({ submit: "An unknown error occurred." });
+      }
+    } finally {
+      console.log("addTeacher function completed.");
+      setIsSubmitting(false);
     }
-
-    const { data, error } = await supabase
-      .from("teachers")
-      .insert([newTeacher])
-      .select();
-
-    if (error) throw error;
-
-    setTeachers([...teachers, data[0]]);
-    setShowAddModal(false);
-  } catch (error) {
-    setFormErrors({ submit: (error as Error).message });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
+  };
+  
   const startEditing = (teacher: Teacher) => {
     setIsEditing(true);
-    setEditFormData(teacher); // Ensure editFormData is populated
-  };  
+    setEditFormData(teacher);
+  };
 
-  const deleteTeacher = async (teacherId: number) => {
+  const deleteTeacher = async (teacherId: string) => {
     setIsSubmitting(true);
     setError(null);
 
@@ -180,11 +242,7 @@ const TeachersList = () => {
 
       if (error) throw error;
 
-      if (error) {
-        setError((error as Error).message);
-      } else {
-        setError('An unknown error occurred');
-      }
+      setTeachers(teachers.filter(teacher => teacher.id !== teacherId));
       setSelectedTeacher(null);
       setTeacherToDelete(null);
     } catch (error: any) {
@@ -279,7 +337,7 @@ const TeachersList = () => {
               {filteredTeachers.map((teacher) => (
                 <div key={teacher.id} className="p-4">
                   <div className="md:grid md:grid-cols-5 md:gap-4 space-y-2 md:space-y-0">
-                    <div className="font-medium">{teacher.name}</div>
+                    <div className="font-medium">{teacher.first_name} {teacher.last_name}</div>
                     <div className="text-gray-600">
                       <span className="md:hidden">Class: </span>
                       {teacher.class}
@@ -321,7 +379,7 @@ const TeachersList = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {teacherToDelete?.name}'s record. This action cannot be undone.
+              This will permanently delete {teacherToDelete?.first_name}'s record. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -373,11 +431,11 @@ const TeachersList = () => {
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
                       <span className="text-2xl font-bold text-blue-600">
-                        {selectedTeacher.name.charAt(0)}
+                        {selectedTeacher.first_name.charAt(0)}
                       </span>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold">{selectedTeacher.name}</h3>
+                      <h3 className="text-xl font-bold">{selectedTeacher.first_name} {selectedTeacher.last_name}</h3>
                       <p className="text-gray-500">{selectedTeacher.subject} Teacher</p>
                     </div>
                   </div>
@@ -418,10 +476,17 @@ const TeachersList = () => {
                   <div className="grid md:grid-cols-2 gap-4">
                     <input
                       type="text"
-                      placeholder="Full Name"
+                      placeholder="First Name"
                       className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.name || ''}
-                      onChange={(e) => setEditFormData(editFormData ? {...editFormData, name: e.target.value} : null)}
+                      value={editFormData?.first_name || ''}
+                      onChange={(e) => setEditFormData(editFormData ? {...editFormData, first_name: e.target.value} : null)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Last Name"
+                      className="border bg-gray-300 rounded-lg px-4 py-2"
+                      value={editFormData?.last_name || ''}
+                      onChange={(e) => setEditFormData(editFormData ? {...editFormData, last_name: e.target.value} : null)}
                     />
                     <input
                       type="email"
@@ -544,30 +609,43 @@ const TeachersList = () => {
                 </button>
               </div>
               
- <form
-  className="space-y-4"
-  onSubmit={async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const newTeacher: Omit<Teacher, 'id'> = {
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      class: formData.get("class") as string,
-      subject: formData.get("subject") as string,
-      education: formData.get("education") as string,
-      experience: formData.get("experience") as string,
-      address: formData.get("address") as string,
-      joinDate: new Date().toISOString().split('T')[0],
-    };
-    await addTeacher(newTeacher);
-  }}
->
+              <form
+                className="space-y-4"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target as HTMLFormElement);
+                  const newTeacher: Omit<Teacher, 'id'> = {
+                    first_name: formData.get("first_name") as string,
+                    last_name: formData.get("last_name") as string,
+                    email: formData.get("email") as string,
+                    phone: formData.get("phone") as string,
+                    class: formData.get("class") as string,
+                    subject: formData.get("subject") as string,
+                    education: formData.get("education") as string,
+                    experience: formData.get("experience") as string,
+                    address: formData.get("address") as string,
+                    joinDate: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+                    user_id: "", // Will be populated after creating the auth user
+                    school_id: schoolId, // Passed from the parent component
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  };
+                  await addTeacher(newTeacher, schoolName);
+                }}
+              >
                 <div className="grid md:grid-cols-2 gap-4">
                   <input
                     type="text"
-                    name="name"
-                    placeholder="Full Name"
+                    name="first_name"
+                    placeholder="First Name"
+                    required
+                    className="border bg-gray-300 rounded-lg px-4 py-2"
+                    disabled={isSubmitting}
+                  />
+                  <input
+                    type="text"
+                    name="last_name"
+                    placeholder="Last Name"
                     required
                     className="border bg-gray-300 rounded-lg px-4 py-2"
                     disabled={isSubmitting}
