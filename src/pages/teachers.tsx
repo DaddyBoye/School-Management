@@ -203,7 +203,7 @@ const TeachersList = ({ schoolId, schoolName }: { schoolId: string; schoolName: 
         `${newTeacher.first_name} ${newTeacher.last_name}`,
         schoolName,
         password,
-        'https://esemes.vercel.app/auth',
+        'https://esemes.vercel.app/',
         'gabrieladjeiboye@gmail.com',
         'Gabriel Adjei-Boye'
       );
