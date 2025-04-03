@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, Calendar, FileText, Bell, CheckSquare, Settings, GraduationCap } from 'lucide-react';
+import { Home, MessageSquare, Calendar, GraduationCap } from 'lucide-react';
 import NavImage from '../images/school 1.png';
 
 interface LeftNavProps {
   userRole: string | undefined;
-  accessibleRoutes: Record<string, string[]>; // Key: role, Value: array of accessible routes
+  accessibleRoutes: Record<string, string[]>;
 }
 
 const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
@@ -14,12 +14,12 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
   const navigationLinks = [
     { path: '/', label: 'Dashboard', icon: Home },
     { path: '/teachers', label: 'Teachers', icon: Calendar },
-    { path: '/messages', label: 'Messages', icon: MessageSquare },
-    { path: '/timetable', label: 'Timetable', icon: FileText },
-    { path: '/attendance', label: 'Attendance', icon: Bell },
-    { path: '/exam-result', label: 'Exam Result', icon: CheckSquare },
-    { path: '/settings', label: 'Settings', icon: Settings },
-    { path: '/payroll', label: 'Payroll', icon: FileText },
+    { path: '/students', label: 'Students', icon: MessageSquare },
+    { path: '/studentfees', label: 'Fees', icon: Calendar },
+    { path: '/studentgrades', label: 'Grades', icon: Calendar },
+    { path: '/classsubjectmanager', label: 'Teacher Assignments', icon: Calendar },
+    { path: '/subjectclassmanager', label: 'Subject Class Manager', icon: Calendar },
+    { path: '/feemanager', label: 'Fee Manager', icon: Calendar }
   ];
 
   // Filter navigation links based on the user's role

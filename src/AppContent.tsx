@@ -5,29 +5,30 @@ import { Menu } from 'lucide-react';
 import Header from './Components/Header';
 import Dashboard from './pages/dashboard';
 import Teachers from './pages/teachers';
-import ExamResult from './pages/exam-result';
-import Messages from './pages/messages';
-import Payroll from './pages/payroll';
-import Settings from './pages/settings';
-import Timetable from './pages/timetable';
+import Students from './pages/students';
+import StudentGrades from './pages/studentgrades';
 import RoleSelection from './pages/roleselection';
 import AuthPage from './pages/authpage';
-import Attendance from './pages/attendance';
 import ProtectedRoute from '../src/routes/ProtectedRoute';
 import { useAuth } from '../src/context/AuthContext';
+import StudentDashboard from './pages/studentdashboard';
+import TeacherDashboard from './pages/teacherdashboard';
+import StudentFees from './pages/studentfees';
+import ClassSubjectManager from './pages/classsubjectmanager';
+import SubjectClassManager from './pages/subjectclassmanager';
+import FeeManager from './pages/feemanager';
 
 const AppContent = () => {
     const [isNavOpen, setIsNavOpen] = React.useState(false);
     const location = useLocation();
     const { userRole } = useAuth();
-    const schoolId = localStorage.getItem('school_id');
-    const schoolName = localStorage.getItem('school_name');
+    const schoolId = localStorage.getItem('school_id') || '';
+    const schoolName = localStorage.getItem('school_name') || '';
   
     const accessibleRoutes = {
-      admin: ['/', '/teachers', '/messages', '/timetable', '/attendance', '/exam-result', '/settings', '/payroll'],
-      teacher: ['/', '/messages', '/timetable', '/attendance', '/exam-result'],
-      student: ['/', '/messages', '/timetable', '/exam-result', '/attendance'],
-      parent: ['/', '/messages', '/exam-result'],
+      admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager'],
+      teacher: ['/'],
+      student: ['/'],
     };
   
     const getPageTitle = () => {
@@ -35,12 +36,12 @@ const AppContent = () => {
       const titles: { [key: string]: string } = {
         '/': 'Dashboard',
         '/teachers': 'Teachers',
-        '/exam-result': 'Exam Result',
-        '/messages': 'Messages',
-        '/payroll': 'Payroll',
-        '/settings': 'Settings',
-        '/timetable': 'Timetable',
-        '/attendance': 'Attendance',
+        '/studentfees': 'Student Fees',
+        '/studentgrades': 'Student Grades',
+        '/students': 'Students',
+        '/classsubjectmanager': 'Teacher Assignments',
+        '/subjectclassmanager': 'Subject Class Manager',
+        '/feemanager': 'Fee Manager',
       };
       return titles[path] || 'Dashboard';
     };
@@ -48,7 +49,7 @@ const AppContent = () => {
     const hideNavAndHeader = location.pathname === '/role-selection' || location.pathname === '/auth';
   
     return (
-      <div className="flex flex-col md:flex-row h-full w-full font-sans bg-[#ffffff]">
+      <div className="flex flex-col md:flex-row min-h-screen w-full font-sans bg-[#ffffff]">
         {!hideNavAndHeader && (
           <>
             <button
@@ -77,7 +78,11 @@ const AppContent = () => {
                 path="/"
                 element={
                   <ProtectedRoute roles={['admin', 'teacher', 'student', 'parent']}>
-                    <Dashboard />
+                    <>
+                      {userRole === 'admin' && <Dashboard />}
+                      {userRole === 'teacher' && <TeacherDashboard />}
+                      {userRole === 'student' && <StudentDashboard />}
+                    </>
                   </ProtectedRoute>
                 }
               />
@@ -93,51 +98,51 @@ const AppContent = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/exam-result"
-                element={
-                  <ProtectedRoute roles={['admin', 'teacher', 'student', 'parent']}>
-                    <ExamResult />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/messages"
-                element={
-                  <ProtectedRoute roles={['admin', 'teacher', 'student', 'parent']}>
-                    <Messages />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/payroll"
+               <Route
+                path="/studentfees"
                 element={
                   <ProtectedRoute roles={['admin']}>
-                    <Payroll />
+                    <StudentFees schoolId={schoolId} currentSemester="2025 Spring" />
+                  </ProtectedRoute>
+                }
+              />
+               <Route
+                path="/studentgrades"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <StudentGrades schoolId={schoolId} currentSemester="2025 Spring" />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/settings"
+                path="/classsubjectmanager"
                 element={
-                  <ProtectedRoute roles={['admin', 'teacher', 'student', 'parent']}>
-                    <Settings />
+                  <ProtectedRoute roles={['admin']}>
+                    <ClassSubjectManager schoolId={schoolId} />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/timetable"
+                path="/subjectclassmanager"
                 element={
-                  <ProtectedRoute roles={['admin', 'teacher', 'student', 'parent']}>
-                    <Timetable />
+                  <ProtectedRoute roles={['admin']}>
+                    <SubjectClassManager schoolId={schoolId} />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/attendance"
+                path="/feemanager"
                 element={
-                  <ProtectedRoute roles={['admin', 'student']}>
-                    <Attendance />
+                  <ProtectedRoute roles={['admin']}>
+                    <FeeManager schoolId={schoolId}/>
+                  </ProtectedRoute>
+                }
+                />
+              <Route
+                path="/students"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <Students schoolId={schoolId} schoolName={schoolName}/>
                   </ProtectedRoute>
                 }
               />

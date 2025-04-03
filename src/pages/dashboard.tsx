@@ -7,7 +7,7 @@ import EarningsChart from '../Components/Earnings';
 
 const Dashboard: React.FC = () => {
   return (
-    <div className="w-full">
+    <div className="w-full min-h-screen">
       <div className="space-y-6">
         <DashboardStats />
         <div className="flex flex-col lg:flex-row gap-4">
