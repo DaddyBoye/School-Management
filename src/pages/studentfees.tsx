@@ -88,9 +88,53 @@ interface Collector {
   role: string;
 }
 
+interface FeeData {
+  id: number;
+  fee_types?: {
+    name: string;
+    amount: number;
+    due_date: string;
+  };
+  paid: number;
+  due_date: string;
+  status: string;
+  semester: string;
+  created_at: string;
+  collector_type?: string;
+  collector_id?: number;
+  allPayments?: any[];
+}
+
+interface ProcessedFee {
+  id: number;
+  type: string;
+  amount: number;
+  paid: number;
+  dueDate: string;
+  status: string;
+  semester: string;
+  paymentDate: string;
+  collector_type?: string;
+  collector_id?: number;
+  collector?: string;
+  allPayments?: any[];
+}
+
 interface StudentHistory {
   semester: string;
-  payments: any[];
+  payments: Array<{
+    id: number;
+    type: string;
+    amount: number;
+    paid: number;
+    dueDate: string;
+    status: string;
+    semester: string;
+    paymentDate: string;
+    collector_type?: string;
+    collector_id?: number;
+    collector?: string;
+  }>;
 }
 
 const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ schoolId, currentSemester }) => {
@@ -294,20 +338,21 @@ useEffect(() => {
     }
   };
 
-  const getFeeAmountForStudent = (student: Student, feeTypeId: number) => {
+  const getFeeAmountForStudent = (student: Student | null, feeTypeId: number): number => {
+    if (!student) return 0;
+    
     const feeType = feeTypes.find(ft => ft.id === feeTypeId);
     if (!feeType) return 0;
   
-    if (!feeType.is_class_specific) return feeType.amount;
+    if (!feeType.is_class_specific) return feeType.amount || 0;
   
     if (!feeType.applicable_classes?.includes(student.class_id)) return 0;
   
-    // Updated reference here:
     const classPricing = feeType.fee_class_pricing?.find(
       pricing => pricing.class_id === student.class_id
     );
   
-    return classPricing?.amount || feeType.amount;
+    return classPricing?.amount || feeType.amount || 0;
   };
 
   const fetchStudentsForSchool = async (schoolId: string) => {
@@ -329,7 +374,7 @@ useEffect(() => {
             name: `${student.first_name} ${student.last_name}`,
             class_id: student.class_id,
             fees: fees,
-          };
+          } as Student; // Explicitly type as Student
         })
       );
   
@@ -402,71 +447,116 @@ useEffect(() => {
     }
   };
   
-  // Helper function to process the fees data
-  const processFeesData = (feesData: any[]) => {
-    return feesData.map(fee => {
-      let collectorName = 'Unknown';
-      if (fee.collector_type && fee.collector_id && collectors.length > 0) {
-        const collector = collectors.find(c => 
-          c.role.toLowerCase() === fee.collector_type.toLowerCase() && 
-          c.id.toString() === fee.collector_id.toString()
-        );
-        if (collector) collectorName = collector.name;
-      }
-  
-      return {
+// Helper function to process the fees data with aggregation
+const processFeesData = (feesData: FeeData[]): ProcessedFee[] => {
+  // First, group fees by type
+  const feesByType = feesData.reduce((acc: Record<string, ProcessedFee>, fee: FeeData) => {
+    const feeType = fee.fee_types?.name || 'Unknown';
+    if (!acc[feeType]) {
+      acc[feeType] = {
         id: fee.id,
-        type: fee.fee_types?.name || 'Unknown',
+        type: feeType,
         amount: fee.fee_types?.amount || 0,
-        paid: fee.paid || 0,
+        paid: 0,
         dueDate: fee.fee_types?.due_date || fee.due_date,
-        status: fee.status || 'unpaid',
+        status: 'unpaid',
         semester: fee.semester,
         paymentDate: fee.created_at,
         collector_type: fee.collector_type,
         collector_id: fee.collector_id,
-        collector: collectorName
+        collector: 'Unknown',
+        allPayments: []
       };
-    });
-  };
-  
-  const recordPayment = async (
-    studentId: number, 
-    feeTypeId: number, 
-    fullAmount: number, 
-    paidAmount: number, 
-    collectorType: string, 
-    collectorId: number, 
-    semester: string, 
-    dueDate: string
-  ) => {
-    try {
-      const { data, error } = await supabase
-        .from('student_fees')
-        .insert([
-          {
-            student_id: studentId,
-            fee_type_id: feeTypeId,
-            amount: fullAmount,
-            paid: paidAmount,
-            due_date: dueDate,
-            status: paidAmount >= fullAmount ? 'paid' : 'partial',
-            semester: semester,
-            collector_type: collectorType,
-            collector_id: collectorId,
-            school_id: schoolId  // Add this line to include school_id
-          }
-        ])
-        .select();
-  
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error recording payment:', error);
-      message.error('Failed to record payment');
-      return null;
     }
-  };
+    
+    // Sum up the paid amounts
+    acc[feeType].paid += fee.paid || 0;
+    acc[feeType].allPayments?.push(fee);
+    
+    // Determine the most recent payment date
+    if (!acc[feeType].paymentDate || moment(fee.created_at).isAfter(acc[feeType].paymentDate)) {
+      acc[feeType].paymentDate = fee.created_at;
+    }
+    
+    // Update collector info from the most recent payment
+    if (fee.collector_type && fee.collector_id) {
+      acc[feeType].collector_type = fee.collector_type;
+      acc[feeType].collector_id = fee.collector_id;
+    }
+    
+    return acc;
+  }, {} as Record<string, ProcessedFee>);
+
+  // Then process each aggregated fee to determine status and collector name
+  return Object.values(feesByType).map(fee => {
+    // Determine status based on aggregated paid amount
+    fee.status = fee.paid >= fee.amount ? 'paid' : 
+                 fee.paid > 0 ? 'partial' : 'unpaid';
+    
+    // Find collector name if available
+    if (fee.collector_type && fee.collector_id && collectors.length > 0) {
+      const collector = collectors.find(c => 
+        c.role.toLowerCase() === fee.collector_type?.toLowerCase() && 
+        c.id.toString() === fee.collector_id?.toString()
+      );
+      if (collector) fee.collector = collector.name;
+    }
+
+    return fee;
+  });
+};
+  
+const recordPayment = async (
+  studentId: number, 
+  feeTypeId: number, 
+  fullAmount: number, 
+  paidAmount: number, 
+  collectorType: string, 
+  collectorId: number, 
+  semester: string, 
+  dueDate: string
+) => {
+  try {
+    // First check if there are existing payments for this fee type
+    const { data: existingPayments, error: fetchError } = await supabase
+      .from('student_fees')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('fee_type_id', feeTypeId)
+      .eq('semester', semester);
+
+    if (fetchError) throw fetchError;
+
+    const totalPaidSoFar = existingPayments?.reduce((sum, payment) => sum + (payment.paid || 0), 0) || 0;
+    const newTotalPaid = totalPaidSoFar + paidAmount;
+
+    // Record the new payment
+    const { data, error } = await supabase
+      .from('student_fees')
+      .insert([
+        {
+          student_id: studentId,
+          fee_type_id: feeTypeId,
+          amount: fullAmount,
+          paid: paidAmount,
+          due_date: dueDate,
+          status: newTotalPaid >= fullAmount ? 'paid' : 'partial',
+          semester: semester,
+          collector_type: collectorType,
+          collector_id: collectorId,
+          school_id: schoolId
+        }
+      ])
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error recording payment:', error);
+    message.error('Failed to record payment');
+    return null;
+  }
+};
   
   const handlePaymentSubmit = async () => {
     if (!selectedFeeType || !selectedCollector || paymentAmount <= 0) {
@@ -1041,7 +1131,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     },
     {
       title: 'Fee Type',
-      key: 'feeStatus',
+      key: 'feeType',
       render: (_: unknown, student: Student) => {
         return (
           <div>
@@ -1049,21 +1139,12 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
               const amount = getFeeAmountForStudent(student, feeType.id);
               if (amount <= 0) return null; // Skip fees not applicable to this student
               
-              const studentFee = student.fees?.find(f => f.type === feeType.name);
-              const paid = studentFee?.paid || 0;
-              const status = studentFee?.status || 'unpaid';
-              
               return (
                 <div key={feeType.id} style={{ marginBottom: 8 }}>
                   <Text strong>{feeType.name}</Text>
-                  <div>
-                    <Text type={status === 'paid' ? 'success' : status === 'partial' ? 'warning' : 'danger'}>
-                      ${paid} / ${amount}
-                    </Text>
-                    {feeType.is_class_specific && (
-                      <Tag color="blue" style={{ marginLeft: 8 }}>Class-Specific</Tag>
-                    )}
-                  </div>
+                  {feeType.is_class_specific && (
+                    <Tag color="blue" style={{ marginLeft: 8 }}>Class-Specific</Tag>
+                  )}
                 </div>
               );
             })}
@@ -1072,84 +1153,101 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
       }
     },
     {
-      title: 'Amount Paid',
-      key: 'amountPaid',
+      title: 'Amount (Paid/Due)',
+      key: 'amountCombined',
       render: (_: unknown, student: Student) => {
-        // Group fees by type and calculate total paid for each fee type
-        const feeSummary = student.fees.reduce((acc: { [key: string]: { totalPaid: number; totalAmount: number } }, fee) => {
-          if (!acc[fee.type]) {
-            acc[fee.type] = { totalPaid: 0, totalAmount: fee.amount };
-          }
-          acc[fee.type].totalPaid += fee.paid;
-          return acc;
-        }, {});
-  
         return (
           <Space direction="vertical">
-            {Object.keys(feeSummary).map((feeType) => (
-              <div key={feeType} style={{ marginBottom: 5 }}>
-                <Text strong style={{ color: feeSummary[feeType].totalPaid >= feeSummary[feeType].totalAmount ? '#52c41a' : '#faad14' }}>
-                  ${feeSummary[feeType].totalPaid}
-                </Text>
-                <Text type="secondary"> / ${feeSummary[feeType].totalAmount}</Text>
-              </div>
-            ))}
+            {feeTypes.map(feeType => {
+              const amountDue = getFeeAmountForStudent(student, feeType.id);
+              if (amountDue <= 0) return null;
+              
+              // Calculate total paid for this fee type
+              const studentFees = student.fees?.filter(f => f.type === feeType.name) || [];
+              const totalPaid = studentFees.reduce((sum, fee) => sum + (fee.paid || 0), 0);
+              const status = totalPaid >= amountDue ? 'paid' : totalPaid > 0 ? 'partial' : 'unpaid';
+              
+              return (
+                <div key={feeType.id} style={{ marginBottom: 5 }}>
+                  <Text 
+                    strong 
+                    style={{ 
+                      color: status === 'paid' ? '#52c41a' : 
+                             status === 'partial' ? '#faad14' : 
+                             '#ff4d4f'
+                    }}
+                  >
+                    ${(totalPaid || 0).toFixed(2)}/${amountDue.toFixed(2)}
+                  </Text>
+                </div>
+              );
+            })}
           </Space>
         );
-      },
-      responsive: ['lg' as const]
+      }
+    },
+    {
+      title: 'Balance',
+      key: 'balance',
+      render: (_: unknown, student: Student) => {
+        return (
+          <Space direction="vertical">
+            {feeTypes.map(feeType => {
+              const amount = getFeeAmountForStudent(student, feeType.id);
+              if (amount <= 0) return null;
+              
+              const studentFees = student.fees?.filter(f => f.type === feeType.name) || [];
+              const totalPaid = studentFees.reduce((sum, fee) => sum + (fee.paid || 0), 0);
+              const balance = amount - totalPaid;
+              
+              return (
+                <div key={feeType.id} style={{ marginBottom: 5 }}>
+                  <Text 
+                    strong 
+                    style={{ 
+                      color: balance <= 0 ? '#52c41a' : 
+                             totalPaid > 0 ? '#faad14' : 
+                             '#ff4d4f'
+                    }}
+                  >
+                    ${(balance || 0).toFixed(2)}
+                  </Text>
+                </div>
+              );
+            })}
+          </Space>
+        );
+      }
     },
     {
       title: 'Due Date',
       key: 'dueDate',
       render: (_: unknown, student: Student) => {
-        // Group fees by type and extract the due date for each fee type
-        const feeSummary = student.fees.reduce((acc: Record<string, { dueDate: string; status: string }>, fee: { type: string; dueDate: string; status: string }) => {
-          if (!acc[fee.type]) {
-            acc[fee.type] = { dueDate: fee.dueDate, status: fee.status };
-          }
-          return acc;
-        }, {});
-  
         return (
           <Space direction="vertical">
-            {Object.keys(feeSummary).map((feeType) => (
-              <div key={feeType} style={{ marginBottom: 5 }}>
-                <Text type={moment(feeSummary[feeType].dueDate).isBefore(moment()) && feeSummary[feeType].status !== 'paid' ? 'danger' : 'secondary'}>
-                  {moment(feeSummary[feeType].dueDate).format('MMM DD, YYYY')}
-                </Text>
-              </div>
-            ))}
+            {feeTypes.map(feeType => {
+              const amount = getFeeAmountForStudent(student, feeType.id);
+              if (amount <= 0) return null;
+              
+              const studentFee = student.fees?.find(f => f.type === feeType.name);
+              const dueDate = studentFee?.dueDate || feeType.due_date;
+              const status = studentFee?.status || 'unpaid';
+              const isOverdue = moment(dueDate).isBefore(moment()) && status !== 'paid';
+              
+              return (
+                <div key={feeType.id} style={{ marginBottom: 5 }}>
+                  <Text 
+                    type={isOverdue ? 'danger' : 'secondary'}
+                  >
+                    {moment(dueDate).format('MMM DD, YYYY')}
+                  </Text>
+                </div>
+              );
+            })}
           </Space>
         );
       },
       responsive: ['xl' as const]
-    },
-    {
-      title: 'Status',
-      key: 'overallStatus',
-      render: (_: unknown, student: Student) => {
-        const status = getFeeStatus(student);
-  
-        switch (status) {
-          case 'none':
-            return (
-              <Badge status="default" text={<Text strong style={{ color: '#8c8c8c' }}>None Paid</Text>} />
-            );
-          case 'partial':
-            return (
-              <Badge status="warning" text={<Text strong style={{ color: '#faad14' }}>Partial</Text>} />
-            );
-          case 'full':
-            return (
-              <Badge status="success" text={<Text strong style={{ color: '#52c41a' }}>Full</Text>} />
-            );
-          default:
-            return (
-              <Badge status="default" text={<Text strong style={{ color: '#8c8c8c' }}>Unknown</Text>} />
-            );
-        }
-      }
     },
     {
       title: 'Actions',
