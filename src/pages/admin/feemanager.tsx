@@ -28,7 +28,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 
 const { Option } = Select;
 const { TabPane } = Tabs;

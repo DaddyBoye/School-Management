@@ -9,7 +9,7 @@ import {
   PlusOutlined, DeleteOutlined, SwapOutlined,
   FilterOutlined, SettingOutlined 
 } from '@ant-design/icons';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 
 const { Option } = Select;
 const { Title, Text } = Typography;

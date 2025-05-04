@@ -20,7 +20,7 @@ declare module 'jspdf' {
   }
 }
 import moment from 'moment';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 
 const { Option } = Select;
 const { Text } = Typography;

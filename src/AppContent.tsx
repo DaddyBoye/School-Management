@@ -3,33 +3,37 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import LeftNav from './Components/LeftNav';
 import { Menu } from 'lucide-react';
 import Header from './Components/Header';
-import Dashboard from './pages/dashboard';
-import Teachers from './pages/teachers';
-import Students from './pages/students';
-import StudentGrades from './pages/studentgrades';
+import Dashboard from './pages/admin/dashboard';
+import Teachers from './pages/admin/teachers';
+import Students from './pages/admin/students';
+import StudentGrades from './pages/admin/studentgrades';
 import RoleSelection from './pages/roleselection';
 import AuthPage from './pages/authpage';
 import ProtectedRoute from '../src/routes/ProtectedRoute';
 import { useAuth } from '../src/context/AuthContext';
-import StudentDashboard from './pages/studentdashboard';
-import TeacherDashboard from './pages/teacherdashboard';
-import StudentFees from './pages/studentfees';
-import ClassSubjectManager from './pages/classsubjectmanager';
-import SubjectClassManager from './pages/subjectclassmanager';
-import FeeManager from './pages/feemanager';
+import StudentDashboard from './pages/students/studentdashboard';
+import TeacherDashboard from './pages/teachers/teacherdashboard';
+import StudentFees from './pages/admin/studentfees';
+import ClassSubjectManager from './pages/admin/classsubjectmanager';
+import SubjectClassManager from './pages/admin/subjectclassmanager';
+import FeeManager from './pages/admin/feemanager';
+import TeacherStudentView from './pages/teachers/teacherstudentview';
+import TeacherGrades from './pages/teachers/teachergrades';
+import TeacherStudentRankings from './pages/teachers/teacherrankings';
+import TeacherAttendance from './pages/teachers/teacherattendance';
 
 const AppContent = () => {
-    const [isNavOpen, setIsNavOpen] = React.useState(false);
-    const location = useLocation();
-    const { userRole } = useAuth();
-    const schoolId = localStorage.getItem('school_id') || '';
-    const schoolName = localStorage.getItem('school_name') || '';
-  
-    const accessibleRoutes = {
-      admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager'],
-      teacher: ['/'],
-      student: ['/'],
-    };
+  const [isNavOpen, setIsNavOpen] = React.useState(false);
+  const location = useLocation();
+  const { user, userRole } = useAuth(); // Get user and userRole from auth context
+  const schoolId = localStorage.getItem('school_id') || '';
+  const schoolName = localStorage.getItem('school_name') || '';
+
+  const accessibleRoutes = {
+    admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager'],
+    teacher: ['/', '/teacherstudentview', '/teachergrades', '/teacherrankings', '/teacherattendance'],
+    student: ['/'],
+  };
   
     const getPageTitle = () => {
       const path = location.pathname;
@@ -42,6 +46,10 @@ const AppContent = () => {
         '/classsubjectmanager': 'Teacher Assignments',
         '/subjectclassmanager': 'Subject Class Manager',
         '/feemanager': 'Fee Manager',
+        '/teacherstudentview': 'My Students',
+        '/teachergrades': 'Student Grades',
+        '/teacherrankings': 'Student Rankings',
+        '/teacherattendance': 'Attendance',
       };
       return titles[path] || 'Dashboard';
     };
@@ -143,6 +151,54 @@ const AppContent = () => {
                 element={
                   <ProtectedRoute roles={['admin']}>
                     <Students schoolId={schoolId} schoolName={schoolName}/>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/teacherstudentview"
+                element={
+                  <ProtectedRoute roles={['teacher']}>
+                    <TeacherStudentView 
+                      teacherId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/teachergrades"
+                element={
+                  <ProtectedRoute roles={['teacher']}>
+                    <TeacherGrades 
+                      teacherId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/teacherrankings"
+                element={
+                  <ProtectedRoute roles={['teacher']}>
+                    <TeacherStudentRankings 
+                      teacherId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+              
+              <Route
+                path="/teacherattendance"
+                element={
+                  <ProtectedRoute roles={['teacher']}>
+                    <TeacherAttendance 
+                      teacherId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
                   </ProtectedRoute>
                 }
               />

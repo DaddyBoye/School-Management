@@ -19,7 +19,11 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
     { path: '/studentgrades', label: 'Grades', icon: Calendar },
     { path: '/classsubjectmanager', label: 'Teacher Assignments', icon: Calendar },
     { path: '/subjectclassmanager', label: 'Subject Class Manager', icon: Calendar },
-    { path: '/feemanager', label: 'Fee Manager', icon: Calendar }
+    { path: '/feemanager', label: 'Fee Manager', icon: Calendar },
+    { path: '/teacherstudentview', label: 'My Students', icon: Calendar },
+    { path: '/teachergrades', label: 'Student Grades', icon: Calendar },
+    { path: '/teacherrankings', label: 'Student Rankings', icon: Calendar },
+    { path: '/teacherattendance', label: 'Student Attendance', icon: Calendar },
   ];
 
   // Filter navigation links based on the user's role

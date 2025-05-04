@@ -14,65 +14,73 @@ const AuthPage: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
+  
     try {
-      // Step 1: Sign in with email and password
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      // 1. Authenticate with email/password
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
+  
       if (authError) throw authError;
-
-      if (data.user) {
-        // Step 2: Determine the table to query based on the user's role
-        const tableName = role === 'teacher' ? 'teachers' : role === 'student' ? 'students' : 'administrators';
-
-        // Step 3: Fetch the user's role-specific data from the relevant table
-        const { data: userData, error: queryError } = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('user_id', data.user.id) // Match the user_id in the table with the authenticated user's ID
-          .single();
-
-        if (queryError) throw queryError;
-
-        // Step 4: Verify that the user's school_id matches the selected school_id
-        if (userData.school_id !== schoolId) {
-          throw new Error('You are not authorized to access this school.');
-        }
-
-        // Step 5: Update the user's metadata with role, school_id, and role-specific ID
-        await supabase.auth.updateUser({
-          data: {
-            role,
-            school_id: schoolId,
-            [role === 'teacher' ? 'teacher_id' : role === 'student' ? 'student_id' : 'admin_id']: userData.id,
-          },
-        });
-
-        const { data: schoolData, error: schoolError } = await supabase
+      if (!authData.user) throw new Error('No user returned from authentication');
+  
+      // 2. Check if user exists in the specified role table for the specified school
+      const { data: roleData, error: roleError } = await supabase
+        .from(role === 'teacher' ? 'teachers' : 
+              role === 'student' ? 'students' : 
+              'administrators')
+        .select('id, school_id')
+        .eq('user_id', authData.user.id)
+        .eq('school_id', schoolId);
+  
+      if (roleError) throw roleError;
+  
+      // 3. Verify the user has this role in this school
+      if (!roleData || roleData.length === 0) {
+        await supabase.auth.signOut();
+        throw new Error(`You are not registered as a ${role} in this school.`);
+      }
+  
+      const roleRecord = roleData[0];
+  
+      // 4. Update user metadata with role and school info
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          role,
+          school_id: schoolId,
+          [`${role}_id`]: roleRecord.id,
+        },
+      });
+  
+      if (updateError) throw updateError;
+  
+      // 5. Get school name for storage
+      const { data: schoolData, error: schoolError } = await supabase
         .from('schools')
         .select('name')
         .eq('id', schoolId)
         .single();
-      
+  
       if (schoolError) throw schoolError;
-
-        // Step 6: Store user data in local storage
-        await Promise.all([
-          localStorage.setItem('user', JSON.stringify(data.user)),
-          localStorage.setItem('school_id', schoolId),
-          localStorage.setItem('school_name', schoolData.name),
-          localStorage.setItem(`${role}_id`, userData.id)
-        ]);
-
-        // Step 7: Redirect to the dashboard or home page
-        navigate('/');
-      }
+  
+      // 6. Store session data
+      localStorage.setItem('user', JSON.stringify(authData.user));
+      localStorage.setItem('userRole', role);
+      localStorage.setItem('school_id', schoolId);
+      localStorage.setItem('school_name', schoolData.name);
+      localStorage.setItem(`${role}_id`, roleRecord.id);
+  
+      // 7. Redirect to dashboard
+      navigate('/');
+  
     } catch (err) {
       console.error('Login Error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during login.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      // Ensure clean state on error
+      await supabase.auth.signOut();
+      localStorage.removeItem('user');
+      localStorage.removeItem('userRole');
     }
   };
 

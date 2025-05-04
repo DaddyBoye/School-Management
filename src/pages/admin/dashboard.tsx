@@ -1,9 +1,9 @@
 import React from 'react';
-import DashboardStats from '../Components/DashboardStats';
-import StudentDistribution from '../Components/StudentDistribution';
-import TeacherList from '../Components/TeacherList';
-import AttendanceChart from '../Components/Attendance';
-import EarningsChart from '../Components/Earnings';
+import DashboardStats from '../../Components/DashboardStats';
+import StudentDistribution from '../../Components/StudentDistribution';
+import TeacherList from '../../Components/TeacherList';
+import AttendanceChart from '../../Components/Attendance';
+import EarningsChart from '../../Components/Earnings';
 
 const Dashboard: React.FC = () => {
   return (

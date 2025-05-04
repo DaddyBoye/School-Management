@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase } from "../supabase";
-import { sendEmail } from '../services/emailService';
-import { generatePassword } from '../services/passwordGenerator';
+import { supabase } from "../../supabase";
+import { sendEmail } from '../../services/emailService';
+import { generatePassword } from '../../services/passwordGenerator';
 import { Search, Plus, X, Edit2, Mail, Phone, Book, Calendar, MapPin, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/Components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/Components/ui/alert-dialog";

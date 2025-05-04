@@ -54,3 +54,26 @@
   background: #6b7280; /* Darker gray */
   border-radius: 10px;
 }
+
+/* Add these transitions for smoother animations */
+.notification-enter {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.notification-enter-active {
+  transform: translateY(0);
+  opacity: 1;
+  transition: all 0.3s ease-out;
+}
+
+.notification-exit {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.notification-exit-active {
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: all 0.3s ease-in;
+}

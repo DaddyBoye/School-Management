@@ -10,7 +10,7 @@ import {
   DeleteOutlined, FilterOutlined, InfoCircleOutlined, 
   SettingOutlined, EditOutlined 
 } from '@ant-design/icons';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 
 const { Option } = Select;
 const { Title, Text } = Typography;

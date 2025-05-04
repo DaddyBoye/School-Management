@@ -31,7 +31,7 @@ import {
 import moment from 'moment';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { supabase } from '../supabase'; // Import Supabase client
+import { supabase } from '../../supabase'; // Import Supabase client
 
 const { Option } = Select;
 const { Title, Text } = Typography;
