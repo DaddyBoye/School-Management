@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { Calendar, Users, UserCheck, UserX, ChevronDown, ChevronUp, Award, Check, TrendingUp, Loader2, Clock, History, MessageSquare, BarChart } from 'lucide-react';
+import { Calendar, Users, UserCheck, UserX, Award, Check, TrendingUp, Loader2, Clock, History, BarChart, Search, Filter } from 'lucide-react';
 import { supabase } from "../../supabase";
 import { AnimatePresence } from 'framer-motion';
 import { ToastNotification } from '@/Components/ToastNotification';
-
-
 
 // Define interfaces
 interface Student {
@@ -34,6 +32,280 @@ interface Class {
   id: string;
   name: string;
 }
+
+// Predefined notes/tags for quick selection
+const PREDEFINED_NOTES = [
+  { label: 'Sick', value: 'Sick', applicableStatuses: ['Absent', 'Late', 'Excused'] },
+  { label: 'Doctor Appointment', value: 'Doctor appointment', applicableStatuses: ['Absent', 'Late', 'Excused'] },
+  { label: 'Family Emergency', value: 'Family emergency', applicableStatuses: ['Absent', 'Late', 'Excused'] },
+  { label: 'Transport Issue', value: 'Transport issue', applicableStatuses: ['Late'] },
+  { label: 'School Activity', value: 'Participating in school activity', applicableStatuses: ['Excused'] },
+  { label: 'Field Trip', value: 'On field trip', applicableStatuses: ['Excused'] },
+  { label: 'Late Arrival', value: 'Arrived late', applicableStatuses: ['Late'] },
+  { label: 'Early Departure', value: 'Left early', applicableStatuses: ['Late'] },
+  { label: 'Weather Delay', value: 'Delayed by weather', applicableStatuses: ['Late'] },
+  { label: 'Other', value: 'Other reason', applicableStatuses: ['Absent', 'Late', 'Excused'] },
+];
+
+const AttendanceQuickEditModal = ({
+  student,
+  isOpen,
+  onClose,
+  onSave,
+  currentStatus,
+  currentNote = ''
+}: {
+  student: Student | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (status: 'Present' | 'Absent' | 'Late' | 'Excused', note?: string) => void;
+  currentStatus: 'Present' | 'Absent' | 'Late' | 'Excused' | null;
+  currentNote?: string;
+}) => {
+  const [status, setStatus] = useState<'Present' | 'Absent' | 'Late' | 'Excused' | null>(currentStatus);
+  const [note, setNote] = useState(currentNote);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPredefinedNotes, setShowPredefinedNotes] = useState(false);
+
+  // Reset form when student changes
+  useEffect(() => {
+    setStatus(currentStatus);
+    setNote(currentNote);
+    setShowPredefinedNotes(false);
+  }, [student, currentStatus, currentNote]);
+
+  const handleSave = async () => {
+    if (!status) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onSave(status, note);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleNoteSelect = (selectedNote: string) => {
+    setNote(prev => {
+      if (prev.includes(selectedNote)) {
+        return prev;
+      }
+      return prev ? `${prev}, ${selectedNote}` : selectedNote;
+    });
+    setShowPredefinedNotes(false);
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case '1':
+        case 'p':
+          setStatus('Present');
+          break;
+        case '2':
+        case 'a':
+          setStatus('Absent');
+          break;
+        case '3':
+        case 'l':
+          setStatus('Late');
+          break;
+        case '4':
+        case 'e':
+          setStatus('Excused');
+          break;
+        case 'Enter':
+          handleSave();
+          break;
+        case 'Escape':
+          onClose();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, status, note]);
+
+  if (!isOpen || !student) return null;
+
+  const filteredPredefinedNotes = PREDEFINED_NOTES.filter(note => 
+    status ? note.applicableStatuses.includes(status) : true
+  );
+
+  return (
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-30 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div 
+        className="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              {currentStatus ? 'Edit Attendance' : 'Record Attendance'}
+            </h2>
+            <button 
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 p-1 rounded-full transition-colors"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-lg">
+                {student.first_name.charAt(0)}{student.last_name.charAt(0)}
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-800">
+                  {student.first_name} {student.last_name}
+                </h3>
+                <p className="text-sm text-gray-500">Roll No: {student.roll_no}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Status Buttons */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button
+              onClick={() => setStatus('Present')}
+              className={`px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 ${
+                status === 'Present'
+                  ? 'bg-green-500 text-white shadow-md'
+                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+              } transition-all`}
+            >
+              <Check className="w-5 h-5" />
+              Present
+              <span className="text-xs opacity-70">(1/P)</span>
+            </button>
+            <button
+              onClick={() => setStatus('Absent')}
+              className={`px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 ${
+                status === 'Absent'
+                  ? 'bg-red-500 text-white shadow-md'
+                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+              } transition-all`}
+            >
+              <UserX className="w-5 h-5" />
+              Absent
+              <span className="text-xs opacity-70">(2/A)</span>
+            </button>
+            <button
+              onClick={() => setStatus('Late')}
+              className={`px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 ${
+                status === 'Late'
+                  ? 'bg-yellow-500 text-white shadow-md'
+                  : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+              } transition-all`}
+            >
+              <Clock className="w-5 h-5" />
+              Late
+              <span className="text-xs opacity-70">(3/L)</span>
+            </button>
+            <button
+              onClick={() => setStatus('Excused')}
+              className={`px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 ${
+                status === 'Excused'
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              } transition-all`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Excused
+              <span className="text-xs opacity-70">(4/E)</span>
+            </button>
+          </div>
+
+          {/* Note Field */}
+          {status && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Note/Reason
+                <button
+                  type="button"
+                  onClick={() => setShowPredefinedNotes(!showPredefinedNotes)}
+                  className="ml-2 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md text-gray-600"
+                >
+                    {status !== 'Present' && (showPredefinedNotes ? 'Hide Suggestions' : 'Show Suggestions')}
+                </button>
+              </label>
+              
+              {showPredefinedNotes && status !== 'Present' &&(
+                <div className="mb-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex flex-wrap gap-2">
+                    {filteredPredefinedNotes.map((noteItem) => (
+                      <button
+                        key={noteItem.value}
+                        type="button"
+                        onClick={() => handleNoteSelect(noteItem.value)}
+                        className="px-2 py-1 text-xs bg-white border border-gray-200 rounded-md hover:bg-gray-100"
+                      >
+                        {noteItem.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <textarea
+                className="w-full px-4 py-3 border border-gray-300 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Add any notes or reasons..."
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-1">Optional note for this status</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+            disabled={!status || isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" />
+                {currentStatus ? 'Update' : 'Save'}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const BulkAttendanceModal = ({ 
   isOpen, 
@@ -406,22 +678,25 @@ const AttendanceHistoryModal = ({
             <div className="divide-y divide-gray-200">
               {filteredRecords.map(record => (
                 <div key={record.id} className="p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${statusColors[record.status]}`}>
                         {statusIcons[record.status]}
                       </div>
-                      <div>
-                        <p className="font-medium">{new Date(record.date).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}</p>
-                        {record.reason && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            {record.reason}
-                          </p>
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          {new Date(record.date).toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                        {record.reason && record.reason !== 'No reason provided' && (
+                          <div className="mt-2 bg-gray-50 p-3 rounded-md">
+                            <p className="text-sm font-medium text-gray-700 mb-1">Teacher's Note:</p>
+                            <p className="text-sm text-gray-600">{record.reason}</p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -446,18 +721,23 @@ const AttendanceHistoryModal = ({
       </div>
     </div>
   );
-};
-const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
+};const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
   // Data state
   const [students, setStudents] = useState<Student[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [excludedStudents, setExcludedStudents] = useState<string[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceReasons, setAttendanceReasons] = useState<Record<string, string>>({});
   const [assignedClass, setAssignedClass] = useState<Class | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<{
+    studentId: string | null;
+    status: 'Present' | 'Absent' | 'Late' | 'Excused' | null;
+    note: string;
+  }>({ studentId: null, status: null, note: '' });
   
   // UI state
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
-  const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState<'Present' | 'Absent' | 'Late' | 'Excused' | null>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -469,6 +749,8 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
     bulkAction: false
   });
   const [connectionError, setConnectionError] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Present' | 'Absent' | 'Late' | 'Excused' | 'Not Marked'>('All');
 
   // Notification state
   const [notifications, setNotifications] = useState<Array<{
@@ -485,6 +767,36 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, 5000);
   };
+
+  // Apply filters whenever students, searchQuery, or statusFilter changes
+  useEffect(() => {
+    if (!students.length) return;
+
+    const filtered = students.filter(student => {
+      // Search filter
+      const matchesSearch = 
+        `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.roll_no.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Status filter
+      const studentStatus = getStudentStatus(student.user_id);
+      const matchesStatus = 
+        statusFilter === 'All' ||
+        (statusFilter === 'Not Marked' && !studentStatus) ||
+        (statusFilter === studentStatus);
+      
+      return matchesSearch && matchesStatus;
+    });
+
+    // Sort alphabetically by last name, then first name
+    const sorted = [...filtered].sort((a, b) => {
+      const nameA = `${a.last_name} ${a.first_name}`.toLowerCase();
+      const nameB = `${b.last_name} ${b.first_name}`.toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    setFilteredStudents(sorted);
+  }, [students, searchQuery, statusFilter]);
 
   // Check connection and fetch initial data
   const checkConnectionAndFetchData = async () => {
@@ -620,30 +932,37 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
     setShowBulkModal(true);
   };
 
-  // Update attendance status with class constraint
-  const updateAttendanceStatus = async (studentId: string, status: 'Present' | 'Absent' | 'Late' | 'Excused', reason?: string) => {
+  // Update the updateAttendanceStatus function to handle comments better:
+  const updateAttendanceStatus = async (
+    studentId: string, 
+    status: 'Present' | 'Absent' | 'Late' | 'Excused', 
+    reason?: string
+  ) => {
     if (!assignedClass) return;
-
+  
     try {
-      // Check if record already exists for this student and date
+      // Clear reason if status is Present
+      const finalReason = status === 'Present' ? undefined : reason;
+  
+      // Check if record already exists
       const existingRecord = attendanceRecords.find(
         record => record.student_id === studentId && 
                  record.date === selectedDate &&
                  record.class_id === assignedClass.id
       );
-
+  
       if (existingRecord) {
         // Update existing record
         const { error } = await supabase
           .from('attendance_records')
           .update({
             status,
-            reason: reason || existingRecord.reason,
+            reason: finalReason,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingRecord.id)
           .eq('class_id', assignedClass.id);
-
+  
         if (error) throw error;
       } else {
         // Create new record
@@ -653,15 +972,15 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
             student_id: studentId,
             date: selectedDate,
             status,
-            reason,
+            reason: finalReason,
             teacher_id: teacherId,
             class_id: assignedClass.id
           });
-
+  
         if (error) throw error;
       }
-
-      // Refresh attendance data
+  
+      // Refresh data
       fetchAttendanceRecords(assignedClass.id);
       showNotification('Attendance updated successfully', 'success');
     } catch (error) {
@@ -1070,22 +1389,32 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
                 <label htmlFor="attendance-date" className="block text-sm font-medium text-gray-700">Select Date</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                    </svg>
+                    <Calendar className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     id="attendance-date"
                     type="date"
-                    aria-label="Attendance date"
                     className="w-full bg-white rounded-lg pl-10 pr-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     max={new Date().toISOString().split('T')[0]}
                   />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button 
+                      onClick={() => {
+                        const datePicker = document.getElementById('attendance-date');
+                        if (datePicker instanceof HTMLInputElement) datePicker.showPicker();
+                      }}
+                      className="text-gray-400 bg-slate-100 hover:text-gray-600"
+                      type="button"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
-            
               {/* Time Range Selector */}
               <div className="space-y-2">
                 <label htmlFor="time-range" className="block text-sm font-medium text-gray-700">View Range</label>
@@ -1224,15 +1553,68 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
   
             {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Student List */}
+              {/* Student List - now wider (lg:col-span-2) */}
               <div className="lg:col-span-2 space-y-6">
                 <Card className="border-0 shadow-md rounded-xl overflow-hidden">
                   <CardHeader className="bg-white border-b pb-4">
-                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-gray-800">
-                      <Users className="w-5 h-5 text-blue-600" />
-                      Class Attendance - {selectedDate}
-                    </CardTitle>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <CardTitle className="text-lg font-bold flex items-center gap-2 text-gray-800">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        Class Attendance - {selectedDate}
+                      </CardTitle>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Search Bar */}
+                        <div className="relative bg-slate-100">
+                          <div className="absolute inset-y-0 left-0 pl-3  flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Search students..."
+                            className="pl-10 pr-4 py-2 border bg-slate-100 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                          />
+                          {searchQuery && (
+                            <button
+                              onClick={() => setSearchQuery('')}
+                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Status Filter */}
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Filter className="h-4 w-4 text-gray-400" />
+                          </div>
+                          <select
+                            className="pl-10 pr-4 py-2 border bg-slate-100 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none w-full"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                          >
+                            <option value="All">All Statuses</option>
+                            <option value="Present">Present</option>
+                            <option value="Absent">Absent</option>
+                            <option value="Late">Late</option>
+                            <option value="Excused">Excused</option>
+                            <option value="Not Marked">Not Marked</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex ml-2 items-center pr-3 pointer-events-none">
+                            <svg className="h-4 w-4 text-gray-400 ml-2" fill="none" viewBox="0 0 20 20" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </CardHeader>
+                  
                   <CardContent className="pt-5 pb-3">
                     {loading.students ? (
                       <div className="space-y-3">
@@ -1251,17 +1633,23 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
                           </div>
                         ))}
                       </div>
-                    ) : students.length === 0 ? (
+                    ) : filteredStudents.length === 0 ? (
                       <div className="text-center py-12 px-4">
                         <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <UserX className="w-8 h-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-700 mb-1">No Students Found</h3>
-                        <p className="text-gray-500">No students are currently enrolled in your class.</p>
+                        <h3 className="text-lg font-medium text-gray-700 mb-1">
+                          {students.length === 0 ? 'No Students Found' : 'No Matching Students'}
+                        </h3>
+                        <p className="text-gray-500">
+                          {students.length === 0 
+                            ? 'No students are currently enrolled in your class.' 
+                            : 'No students match your search and filter criteria.'}
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {students.map((student) => (
+                        {filteredStudents.map((student) => (
                           <div key={student.user_id} className="border border-gray-200 rounded-xl overflow-hidden hover:border-blue-300 transition-colors">
                             <div className="p-4 bg-white flex items-center justify-between">
                               <div className="flex items-center gap-4">
@@ -1284,83 +1672,38 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
                                     onClick={() => openAttendanceHistory(student)}
                                     className="text-gray-500 bg-gray-100 p-2 rounded-full hover:bg-gray-200 hover:text-blue-600 transition-colors"
                                     title="View attendance history"
+                                    aria-label="View attendance history"
                                   >
                                     <History className="w-5 h-5" />
                                   </button>
                                   <button
-                                    onClick={() => setExpandedStudent(expandedStudent === student.user_id ? null : student.user_id)}
-                                    className="text-blue-600 bg-blue-50 p-2 rounded-full hover:bg-blue-100 transition-colors"
+                                    onClick={() => {
+                                      setPendingChanges({
+                                        studentId: student.user_id,
+                                        status: getStudentStatus(student.user_id) as any || null,
+                                        note: attendanceReasons[student.user_id] || ''
+                                      });
+                                    }}
+                                    className={`p-2 rounded-full transition-colors ${
+                                      getStudentStatus(student.user_id)
+                                        ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                        : 'text-white bg-green-500 hover:bg-green-600'
+                                    }`}
+                                    aria-label={getStudentStatus(student.user_id) ? "Edit attendance" : "Add attendance"}
                                   >
-                                    {expandedStudent === student.user_id ? (
-                                      <ChevronUp className="w-5 h-5" />
+                                    {getStudentStatus(student.user_id) ? (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
                                     ) : (
-                                      <ChevronDown className="w-5 h-5" />
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                      </svg>
                                     )}
                                   </button>
                                 </div>
                               </div>
                             </div>
-                            
-                            <AnimatePresence>
-                              {expandedStudent === student.user_id && (
-                                <div className="p-5 border-t bg-gray-50">
-                                  <div className="grid grid-cols-4 gap-3 mb-4">
-                                    <button
-                                      onClick={() => updateAttendanceStatus(student.user_id, 'Present')}
-                                      className={`px-3 py-2 rounded-lg text-sm font-medium ${getStudentStatus(student.user_id) === 'Present' 
-                                        ? 'bg-green-500 text-white' 
-                                        : 'bg-green-100 text-green-800 hover:bg-green-200'} 
-                                        transition-colors`}
-                                    >
-                                      Present
-                                    </button>
-                                    <button
-                                      onClick={() => updateAttendanceStatus(student.user_id, 'Absent')}
-                                      className={`px-3 py-2 rounded-lg text-sm font-medium ${getStudentStatus(student.user_id) === 'Absent' 
-                                        ? 'bg-red-500 text-white' 
-                                        : 'bg-red-100 text-red-800 hover:bg-red-200'} 
-                                        transition-colors`}
-                                    >
-                                      Absent
-                                    </button>
-                                    <button
-                                      onClick={() => updateAttendanceStatus(student.user_id, 'Late')}
-                                      className={`px-3 py-2 rounded-lg text-sm font-medium ${getStudentStatus(student.user_id) === 'Late' 
-                                        ? 'bg-yellow-500 text-white' 
-                                        : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'} 
-                                        transition-colors`}
-                                    >
-                                      Late
-                                    </button>
-                                    <button
-                                      onClick={() => updateAttendanceStatus(student.user_id, 'Excused')}
-                                      className={`px-3 py-2 rounded-lg text-sm font-medium ${getStudentStatus(student.user_id) === 'Excused' 
-                                        ? 'bg-blue-500 text-white' 
-                                        : 'bg-blue-100 text-blue-800 hover:bg-blue-200'} 
-                                        transition-colors`}
-                                    >
-                                      Excused
-                                    </button>
-                                  </div>
-                                  <div className="mt-3">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Reason (if absent/late)</label>
-                                    <div className="relative">
-                                      <input
-                                        type="text"
-                                        className="w-full px-4 py-3 border bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Enter reason for absence or tardiness..."
-                                        onBlur={(e) => {
-                                          if (e.target.value && (getStudentStatus(student.user_id) === 'Absent' || getStudentStatus(student.user_id) === 'Late')) {
-                                            updateAttendanceStatus(student.user_id, getStudentStatus(student.user_id) as 'Absent' | 'Late', e.target.value);
-                                          }
-                                        }}
-                                      />
-                                      <MessageSquare className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </AnimatePresence>
                           </div>
                         ))}
                       </div>
@@ -1408,8 +1751,8 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
                 </Card>
               </div>
   
-              {/* Right Sidebar */}
-              <div className="space-y-6">
+              {/* Right Sidebar - now narrower (lg:col-span-1) */}
+              <div className="lg:col-span-1 space-y-6">
                 {/* Top Attendees */}
                 <Card className="border-0 shadow-md rounded-xl overflow-hidden">
                   <CardHeader className="bg-white border-b pb-4">
@@ -1524,7 +1867,7 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
               </div>
             </div>
           </>
-        )}
+        )}        
   
         {/* Bulk Action Modal */}
         <BulkAttendanceModal
@@ -1537,6 +1880,28 @@ const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
           handleSubmit={() => applyBulkStatus(excludedStudents)}
         />
   
+        {/* Quick Edit Modal */}
+        <AttendanceQuickEditModal
+          isOpen={!!pendingChanges.studentId}
+          onClose={() => setPendingChanges({ studentId: null, status: null, note: '' })}
+          student={students.find(s => s.user_id === pendingChanges.studentId) || null}
+          currentStatus={pendingChanges.status}
+          currentNote={pendingChanges.note}
+          onSave={async (status, note) => {
+            if (pendingChanges.studentId) {
+              await updateAttendanceStatus(
+                pendingChanges.studentId,
+                status,
+                note || undefined
+              );
+              setAttendanceReasons(prev => ({
+                ...prev,
+                [pendingChanges.studentId!]: note || ''
+              }));
+            }
+          }}
+        />
+
         {/* Attendance History Modal */}
         <AttendanceHistoryModal
           isOpen={showHistoryModal}
