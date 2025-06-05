@@ -5,9 +5,10 @@ import NavImage from '../images/school 1.png';
 interface LeftNavProps {
   userRole: string | undefined;
   accessibleRoutes: Record<string, string[]>;
+  schoolName: string | null;
 }
 
-const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
+const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
   const location = useLocation();
 
   // Define all navigation links
@@ -24,6 +25,11 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
     { path: '/teachergrades', label: 'Student Grades', icon: Calendar },
     { path: '/teacherrankings', label: 'Student Rankings', icon: Calendar },
     { path: '/teacherattendance', label: 'Student Attendance', icon: Calendar },
+    { path: '/timetablemanager', label: 'Timetables', icon: Calendar },
+    { path: '/teachertimetable', label: 'My Timetables', icon: Calendar },
+    { path: '/studentgradesview', label: 'My Grades', icon: Calendar },
+    { path: '/studentfeeview', label: 'My Fees', icon: Calendar },
+    { path: '/studenttimetable', label: 'My Timetables', icon: Calendar },
   ];
 
   // Filter navigation links based on the user's role
@@ -45,7 +51,7 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
               <GraduationCap size={20} />
             </div>
           </div>
-          <span className="font-semibold">Schoolname</span>
+          <span className="font-semibold">{schoolName}</span>
         </div>
       </div>
 

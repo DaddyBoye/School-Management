@@ -80,6 +80,7 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   const [grades, setGrades] = useState<Grade[]>([]);
   const [gradeCategories, setGradeCategories] = useState<GradeCategory[]>([]);
   const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubject[]>([]);
+  const [allClassSubjects, setAllClassSubjects] = useState<TeacherSubject[]>([]);
   const [assignedClass, setAssignedClass] = useState<Class | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   
@@ -108,16 +109,20 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     type: 'success' | 'error';
   }>>([]);
 
-// Update your operation handlers to add notifications
-const showNotification = (message: string, type: 'success' | 'error') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setNotifications((prev) => [...prev, { id, message, type }]);
-    
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 3000);
-  };
+  // Search and sort state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+
+  // Update your operation handlers to add notifications
+  const showNotification = (message: string, type: 'success' | 'error') => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setNotifications((prev) => [...prev, { id, message, type }]);
+      
+      // Auto-remove after 3 seconds
+      setTimeout(() => {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      }, 3000);
+    };
 
   // Fetch teacher data
   useEffect(() => {
@@ -131,13 +136,15 @@ const showNotification = (message: string, type: 'success' | 'error') => {
           .select('class_id, classes!teachers_class_id_fkey(id, name)')
           .eq('user_id', teacherId)
           .single();
-
+  
         if (teacherError) throw teacherError;
-
+  
         if (teacherData?.classes) {
-          setAssignedClass(Array.isArray(teacherData.classes) ? teacherData.classes[0] : teacherData.classes);
+          const assignedClassData = Array.isArray(teacherData.classes) ? teacherData.classes[0] : teacherData.classes;
+          setAssignedClass(assignedClassData);
           if (viewMode === 'myClass') {
-            setSelectedClass(teacherData.classes[0]?.id);
+            setSelectedClass(assignedClassData.id);
+            fetchAllClassSubjects(assignedClassData.id); // Fetch all subjects for the class
           }
         }
 
@@ -196,59 +203,85 @@ const showNotification = (message: string, type: 'success' | 'error') => {
     }
   }, [teacherId, schoolId, viewMode]);
 
+  const fetchAllClassSubjects = async (classId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('class_subjects')
+        .select(`
+          subject_id,
+          subjects:subject_id (name, code),
+          classes:class_id (name)
+        `)
+        .eq('class_id', classId);
+  
+      if (error) throw error;
+  
+      const formattedSubjects = (data || []).map(item => ({
+        subject_id: item.subject_id,
+        class_id: classId,
+        subject_name: Array.isArray(item.subjects) ? (item.subjects[0] as { name: string })?.name : (item.subjects as { name: string })?.name,
+        subject_code: Array.isArray(item.subjects) ? (item.subjects[0] as { code: string })?.code : (item.subjects as { code: string })?.code,
+        class_name: Array.isArray(item.classes) ? (item.classes[0] as { name: string })?.name : (item.classes as { name: string })?.name
+      }));
+  
+      setAllClassSubjects(formattedSubjects);
+    } catch (error) {
+      console.error('Error fetching all class subjects:', error);
+    }
+  };
+
   // Fetch grade categories
-// In your grade categories useEffect
-useEffect(() => {
-    const fetchGradeCategories = async () => {
-      try {
-        setIsLoading(true);
-        let subjectIds: string[] = [];
-  
-        if (viewMode === 'myClass' && assignedClass?.id) {
-          subjectIds = teacherSubjects
-            .filter(s => s.class_id === assignedClass.id)
-            .map(s => s.subject_id);
-        } else if (viewMode === 'subjectsTaught') {
-          // Always include selectedSubject if available
-          if (selectedSubject) {
-            subjectIds = [selectedSubject];
-          } else {
-            // If no subject selected but in subjectsTaught view, use all teacher subjects
-            subjectIds = teacherSubjects.map(s => s.subject_id);
+  useEffect(() => {
+      const fetchGradeCategories = async () => {
+        try {
+          setIsLoading(true);
+          let subjectIds: string[] = [];
+    
+          if (viewMode === 'myClass' && assignedClass?.id) {
+            subjectIds = teacherSubjects
+              .filter(s => s.class_id === assignedClass.id)
+              .map(s => s.subject_id);
+          } else if (viewMode === 'subjectsTaught') {
+            // Always include selectedSubject if available
+            if (selectedSubject) {
+              subjectIds = [selectedSubject];
+            } else {
+              // If no subject selected but in subjectsTaught view, use all teacher subjects
+              subjectIds = teacherSubjects.map(s => s.subject_id);
+            }
           }
+    
+          console.log('Fetching categories for:', subjectIds);
+          
+          if (subjectIds.length === 0) {
+            setGradeCategories([]);
+            return;
+          }
+    
+          const { data, error } = await supabase
+            .from('grade_categories')
+            .select('*')
+            .in('subject_id', subjectIds);
+    
+          if (error) throw error;
+    
+          console.log('Received categories:', data?.map(c => ({
+            id: c.id,
+            subject_id: c.subject_id,
+            name: c.name
+          })));
+    
+          setGradeCategories(data || []);
+    
+        } catch (error) {
+          console.error('Error fetching categories:', error);
+        } finally {
+          setIsLoading(false);
         }
-  
-        console.log('Fetching categories for:', subjectIds);
-        
-        if (subjectIds.length === 0) {
-          setGradeCategories([]);
-          return;
-        }
-  
-        const { data, error } = await supabase
-          .from('grade_categories')
-          .select('*')
-          .in('subject_id', subjectIds);
-  
-        if (error) throw error;
-  
-        console.log('Received categories:', data?.map(c => ({
-          id: c.id,
-          subject_id: c.subject_id,
-          name: c.name
-        })));
-  
-        setGradeCategories(data || []);
-  
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    fetchGradeCategories();
-  }, [viewMode, assignedClass, selectedSubject, teacherSubjects]);
+      };
+    
+      fetchGradeCategories();
+    }, [viewMode, assignedClass, selectedSubject, teacherSubjects]);
 
   // Fetch students
   useEffect(() => {
@@ -331,9 +364,75 @@ useEffect(() => {
     }));
   };
 
+  const filteredStudents = students.filter(student => {
+    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
+                         student.roll_no.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesSearch;
+  });
+  
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    if (!sortConfig) return 0;
+    
+    // Sort by name
+    if (sortConfig.key === 'name') {
+      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+      return sortConfig.direction === 'ascending' 
+        ? nameA.localeCompare(nameB) 
+        : nameB.localeCompare(nameA);
+    }
+    
+    // Sort by roll number
+    if (sortConfig.key === 'rollNo') {
+      return sortConfig.direction === 'ascending' 
+        ? a.roll_no.localeCompare(b.roll_no) 
+        : b.roll_no.localeCompare(a.roll_no);
+    }
+    
+    // Sort by performance (only in My Class view)
+    if (sortConfig.key === 'performance' && viewMode === 'myClass') {
+      const perfA = studentsWithPerformance.find(s => s.id === a.id)?.overallAvg || 0;
+      const perfB = studentsWithPerformance.find(s => s.id === b.id)?.overallAvg || 0;
+      return sortConfig.direction === 'ascending' 
+        ? (perfA || 0) - (perfB || 0)
+        : (perfB || 0) - (perfA || 0);
+    }
+    
+    // Sort by subject performance (Subjects Taught view)
+    if (sortConfig.key === 'subjectPerformance' && viewMode === 'subjectsTaught' && selectedSubject) {
+      const perfA = calculateSubjectAverage(a.user_id, selectedSubject) || 0;
+      const perfB = calculateSubjectAverage(b.user_id, selectedSubject) || 0;
+      return sortConfig.direction === 'ascending' 
+        ? perfA - perfB
+        : perfB - perfA;
+    }
+    
+    return 0;
+  });
+  
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };  
+
   const getClassSubjects = () => {
     if (!assignedClass) return [];
-    return teacherSubjects
+    
+    // Combine teacher's subjects with all class subjects, removing duplicates
+    const combinedSubjects = [...allClassSubjects];
+    
+    teacherSubjects.forEach(teacherSubject => {
+      if (!combinedSubjects.some(s => s.subject_id === teacherSubject.subject_id)) {
+        combinedSubjects.push(teacherSubject);
+      }
+    });
+  
+    return combinedSubjects
       .filter(subject => subject.class_id === assignedClass.id)
       .sort((a, b) => a.subject_name.localeCompare(b.subject_name));
   };
@@ -354,10 +453,9 @@ useEffect(() => {
 
   const calculateCategoryAverage = (studentId: string, categoryId: string) => {
     const categoryGrades = getCategoryGrades(studentId, categoryId);
-    if (categoryGrades.length === 0) return null;
-  
+    if (categoryGrades.length === 0) return 0; // Return 0 instead of null for no grades
+    
     const total = categoryGrades.reduce((sum, grade) => {
-      // Calculate percentage based on max_score
       return sum + (grade.score / grade.max_score * 100);
     }, 0);
     
@@ -365,51 +463,58 @@ useEffect(() => {
   };
 
   const calculateSubjectAverage = (studentId: string, subjectId?: string) => {
-    // Always use selectedSubject in subjectsTaught view
     const targetSubjectId = viewMode === 'subjectsTaught' ? selectedSubject : subjectId;
-    
-    // Debug output
-    console.log('Filtering categories for:', {
-      targetSubjectId,
-      allCategories: gradeCategories.map(c => c.subject_id),
-      viewMode,
-      selectedSubject
-    });
+    if (!targetSubjectId) return null;
   
     const relevantCategories = gradeCategories.filter(cat => 
-      String(cat.subject_id) === String(targetSubjectId) // Ensure type matching
+      String(cat.subject_id) === String(targetSubjectId)
     );
-
+  
     if (relevantCategories.length === 0) return null;
-
+  
     let weightedSum = 0;
     let totalWeight = 0;
-
+  
     relevantCategories.forEach(category => {
       const avg = calculateCategoryAverage(studentId, category.id);
-      if (avg !== null) {
-        weightedSum += avg * category.weight;
-        totalWeight += category.weight;
-      }
+      weightedSum += avg * category.weight;
+      totalWeight += category.weight;
     });
-
-    return totalWeight > 0 ? weightedSum / totalWeight : null;
+  
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
   };
 
   const calculateClassAverage = () => {
     if (students.length === 0) return null;
-
+  
     let total = 0;
     let count = 0;
-
-    students.forEach(student => {
-      const avg = calculateSubjectAverage(student.user_id);
-      if (avg !== null) {
-        total += avg;
+  
+    // For My Class view, calculate average across all subjects
+    if (viewMode === 'myClass' && assignedClass) {
+      const classSubjects = getClassSubjects();
+      
+      classSubjects.forEach(subject => {
+        const subjectAvg = students.reduce((sum, student) => {
+          const avg = calculateSubjectAverage(student.user_id, subject.subject_id);
+          return sum + (avg || 0);
+        }, 0) / students.length;
+        
+        total += subjectAvg;
         count++;
-      }
-    });
-
+      });
+    } 
+    // For Subjects Taught view, calculate average for the selected subject
+    else if (viewMode === 'subjectsTaught' && selectedSubject) {
+      const subjectAvg = students.reduce((sum, student) => {
+        const avg = calculateSubjectAverage(student.user_id, selectedSubject);
+        return sum + (avg || 0);
+      }, 0) / students.length;
+      
+      total = subjectAvg;
+      count = 1;
+    }
+  
     return count > 0 ? total / count : null;
   };
 
@@ -444,7 +549,8 @@ useEffect(() => {
         };
       });
       
-      const validAverages = performance.filter(p => p.average !== null).map(p => p.average as number);
+      // Calculate overall average considering all subjects
+      const validAverages = performance.map(p => p.average || 0);
       const overallAvg = validAverages.length > 0 
         ? validAverages.reduce((sum, avg) => sum + avg, 0) / validAverages.length
         : null;
@@ -736,6 +842,24 @@ const categoriesForSelectedSubject = gradeCategories.filter(
               </div>
             )}
 
+          <div className="flex-grow min-w-[250px]">
+            <label className="block text-sm font-medium text-gray-500 mb-1">Search Students</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by name or roll number..."
+                className="w-full bg-white rounded-lg pl-10 pr-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <div className="absolute left-3 top-2.5 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
             {/* Class Average Badge */}
             <div className="ml-auto flex items-center gap-2">
               <div className="text-sm font-medium text-gray-500">Class Average:</div>
@@ -844,28 +968,36 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                 const subjectCategories = gradeCategories.filter(cat => cat.subject_id === subject.subject_id);
                 const isExpanded = expandedSubjects[subject.subject_id] || false;
                 const subjectClassAvg = students.length > 0 
-                  ? students.reduce((sum, student) => {
-                      const avg = calculateSubjectAverage(student.user_id, subject.subject_id);
-                      return avg !== null ? sum + avg : sum;
-                    }, 0) / students.length
-                  : null;
+                ? students.reduce((sum, student) => {
+                    const avg = calculateSubjectAverage(student.user_id, subject.subject_id) || 0;
+                    return sum + avg;
+                  }, 0) / students.length
+                : null;
                 
                 return (
                   <div key={subject.subject_id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                    <button
-                      onClick={() => toggleSubject(subject.subject_id)}
-                      className="w-full flex items-center justify-between bg-white p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-                    >
-                      <div className="flex items-center gap-3">
-                        {isExpanded ? (
-                          <ChevronDown className="w-5 h-5 text-gray-500" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-gray-500" />
+                  {/* Subject header */}
+                  <button
+                    onClick={() => toggleSubject(subject.subject_id)}
+                    className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      !teacherSubjects.some(s => s.subject_id === subject.subject_id) ? 'bg-gray-100' : 'bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isExpanded ? (
+                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                      )}
+                      <h2 className="text-lg font-medium">
+                        {subject.subject_name} <span className="text-gray-500 text-sm">({subject.subject_code})</span>
+                        {!teacherSubjects.some(s => s.subject_id === subject.subject_id) && (
+                          <span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                            Not Teaching
+                          </span>
                         )}
-                        <h2 className="text-lg font-medium">
-                          {subject.subject_name} <span className="text-gray-500 text-sm">({subject.subject_code})</span>
-                        </h2>
-                      </div>
+                      </h2>
+                    </div>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <span 
@@ -923,7 +1055,7 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                              {students.map(student => {
+                              {sortedStudents.map(student => {
                                 const subjectAvg = calculateSubjectAverage(student.user_id, subject.subject_id);
                                 
                                 return (
@@ -942,42 +1074,42 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                                     </td>
                                     
                                     {subjectCategories.map(category => {
-                                        const categoryAvg = calculateCategoryAverage(student.user_id, category.id);
-                                        const categoryGrades = getCategoryGrades(student.user_id, category.id);
-                                        
-                                        return (
-                                            <td key={category.id} className="px-4 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-2">
-                                                <span 
-                                                className="font-medium" 
-                                                style={{ color: getScoreColor(categoryAvg) }}
-                                                >
-                                                {categoryAvg?.toFixed(1) || 'N/A'}%
-                                                </span>
-                                                
-                                                {/* Comment indicator - show if any grade in this category has comments */}
-                                                {categoryGrades.some(grade => grade.comments?.trim()) && (
-                                                    <button 
-                                                        onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setViewingComments(
-                                                            categoryGrades.filter(grade => grade.comments?.trim())
-                                                        );
-                                                        }}
-                                                        className="relative group text-white bg-blue-600 hover:bg-blue-500 p-1 rounded"
-                                                    >
-                                                        <MessageSquare className="w-4 h-4" />
-                                                        <div className="absolute z-10 w-64 hidden group-hover:block bg-white border rounded-md shadow-lg p-2 left-0 mt-1">
-                                                        <p className="text-xs text-gray-700 line-clamp-3">
-                                                            {categoryGrades.find(grade => grade.comments?.trim())?.comments}
-                                                        </p>
-                                                        </div>
-                                                    </button>
-                                                    )}
-                                            </div>
-                                            </td>
-                                        );
-                                        })}
+                                      const categoryAvg = calculateCategoryAverage(student.user_id, category.id);
+                                      const categoryGrades = getCategoryGrades(student.user_id, category.id);
+                                      const canEdit = teacherSubjects.some(s => s.subject_id === subject.subject_id);
+                                      
+                                      return (
+                                        <td key={category.id} className="px-4 py-4 whitespace-nowrap">
+                                          <div className="flex items-center gap-2">
+                                            <span 
+                                              className="font-medium" 
+                                              style={{ color: getScoreColor(categoryAvg) }}
+                                            >
+                                              {categoryAvg?.toFixed(1) || 'N/A'}%
+                                            </span>
+                                            
+                                            {canEdit && categoryGrades.some(grade => grade.comments?.trim()) && (
+                                              <button 
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setViewingComments(
+                                                    categoryGrades.filter(grade => grade.comments?.trim())
+                                                  );
+                                                }}
+                                                className="relative group text-white bg-blue-600 hover:bg-blue-500 p-1 rounded"
+                                              >
+                                                <MessageSquare className="w-4 h-4" />
+                                                <div className="absolute z-10 w-64 hidden group-hover:block bg-white border rounded-md shadow-lg p-2 left-0 mt-1">
+                                                  <p className="text-xs text-gray-700 line-clamp-3">
+                                                    {categoryGrades.find(grade => grade.comments?.trim())?.comments}
+                                                  </p>
+                                                </div>
+                                              </button>
+                                            )}
+                                          </div>
+                                        </td>
+                                      );
+                                    })}
                                     
                                     <td className="px-4 py-4 whitespace-nowrap">
                                       <div className="flex items-center gap-2">
@@ -1024,19 +1156,38 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Student
-                      </th>
-                      {classSubjects.map(subject => (
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={() => requestSort('name')}
+                    >
+                      Student
+                      {sortConfig?.key === 'name' && (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </th>
+                      {getClassSubjects().map(subject => (
                         <th key={subject.subject_id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex flex-col">
                             <span>{subject.subject_code}</span>
                             <span className="text-xs font-normal normal-case text-gray-400">{subject.subject_name}</span>
+                            {!teacherSubjects.some(s => s.subject_id === subject.subject_id) && (
+                              <span className="text-xs text-gray-500">(Not Teaching)</span>
+                            )}
                           </div>
                         </th>
                       ))}
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th 
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => requestSort('performance')}
+                      >
                         Overall
+                        {sortConfig?.key === 'performance' && (
+                          <span className="ml-1">
+                            {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                          </span>
+                        )}
                       </th>
                     </tr>
                   </thead>
@@ -1142,21 +1293,37 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
-                        Student
-                      </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 cursor-pointer"
+                      onClick={() => requestSort('name')}
+                    >
+                      Student
+                      {sortConfig?.key === 'name' && (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </th>
                       {gradeCategories.map(category => (
                         <th key={category.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           {category.name} <span className="font-normal lowercase">({category.weight}%)</span>
                         </th>
                       ))}
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => requestSort('subjectPerformance')}
+                      >
                         Overall
+                        {sortConfig?.key === 'subjectPerformance' && (
+                          <span className="ml-1">
+                            {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                          </span>
+                        )}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {students.map(student => {
+                    {sortedStudents.map(student => {
                       const subjectAvg = calculateSubjectAverage(student.user_id);
 
                       return (
@@ -1200,7 +1367,7 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                                   </div>
                                   <button
                                     onClick={() => startNewGrade(student.user_id, category.id)}
-                                    className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50 transition-colors"
+                                    className="text-blue-500 hover:text-blue-700 p-1 bg-slate-300 rounded-full hover:bg-blue-50 transition-colors"
                                     title="Add grade"
                                   >
                                     <Plus className="w-4 h-4" />
@@ -1248,10 +1415,10 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                                         <div className="flex gap-1">
                                         <button
                                             onClick={() => startEditGrade(grade)}
-                                            className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                            className="text-gray-500 hover:text-gray-700 p-1 rounded-full bg-slate-300 hover:bg-gray-200 transition-colors"
                                             title="Edit grade"
                                         >
-                                            <Edit className="w-3 h-3" />
+                                            <Edit className="w-4 h-4" />
                                         </button>
                                         <button
                                               onClick={() => {
@@ -1261,11 +1428,11 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                                                 }
                                                 setGradeToDelete(grade.id);  // Now guaranteed to be `string`
                                               }}
-                                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition-colors"
+                                            className="text-red-500 hover:text-red-700 p-1 bg-stone-300 rounded-full hover:bg-red-100 transition-colors"
                                             title="Delete grade"
                                             aria-label={`Delete grade from ${new Date(grade.date_given).toLocaleDateString()}`}
                                         >
-                                            <X className="w-3 h-3" />
+                                            <X className="w-4 h-4" />
                                         </button>
                                         </div>
                                     </div>

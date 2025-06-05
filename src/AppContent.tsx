@@ -17,10 +17,15 @@ import StudentFees from './pages/admin/studentfees';
 import ClassSubjectManager from './pages/admin/classsubjectmanager';
 import SubjectClassManager from './pages/admin/subjectclassmanager';
 import FeeManager from './pages/admin/feemanager';
+import TimetableManager from './pages/admin/timetablemanager';
 import TeacherStudentView from './pages/teachers/teacherstudentview';
 import TeacherGrades from './pages/teachers/teachergrades';
 import TeacherStudentRankings from './pages/teachers/teacherrankings';
 import TeacherAttendance from './pages/teachers/teacherattendance';
+import TeacherTimetable from './pages/teachers/teachertimetable';
+import StudentGradesView from './pages/students/studentgradesview';
+import StudentFeeView from './pages/students/studentfeeview';
+import StudentTimetable from './pages/students/studenttimetable';
 
 const AppContent = () => {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
@@ -30,9 +35,9 @@ const AppContent = () => {
   const schoolName = localStorage.getItem('school_name') || '';
 
   const accessibleRoutes = {
-    admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager'],
-    teacher: ['/', '/teacherstudentview', '/teachergrades', '/teacherrankings', '/teacherattendance'],
-    student: ['/'],
+    admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager'],
+    teacher: ['/', '/teacherstudentview', '/teachergrades', '/teacherrankings', '/teacherattendance', '/teachertimetable'],
+    student: ['/', '/studentgradesview', '/studentfeeview', '/studenttimetable'],
   };
   
     const getPageTitle = () => {
@@ -50,6 +55,11 @@ const AppContent = () => {
         '/teachergrades': 'Student Grades',
         '/teacherrankings': 'Student Rankings',
         '/teacherattendance': 'Attendance',
+        '/timetablemanager': 'Timetables',
+        '/teachertimetable': 'My Timetable',
+        '/studentgradesview': 'My Grades',
+        '/studentfeeview': 'My Fees',
+        '/studenttimetable': 'My Timetable',
       };
       return titles[path] || 'Dashboard';
     };
@@ -57,7 +67,7 @@ const AppContent = () => {
     const hideNavAndHeader = location.pathname === '/role-selection' || location.pathname === '/auth';
   
     return (
-      <div className="flex flex-col md:flex-row min-h-screen w-full font-sans bg-[#ffffff]">
+      <div className="flex flex-col md:flex-row min-h-screen min-w-fit font-sans bg-[#ffffff]">
         {!hideNavAndHeader && (
           <>
             <button
@@ -72,7 +82,7 @@ const AppContent = () => {
                 fixed top-0 left-0 h-screen w-64 md:w-56 bg-blue-500 z-40 transition-transform duration-200 ease-in-out
                 ${isNavOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
             >
-              <LeftNav userRole={userRole ?? undefined} accessibleRoutes={accessibleRoutes} />
+              <LeftNav userRole={userRole ?? undefined} accessibleRoutes={accessibleRoutes} schoolName={schoolName} />
             </div>
           </>
         )}
@@ -147,6 +157,14 @@ const AppContent = () => {
                 }
                 />
               <Route
+                path="/timetablemanager"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <TimetableManager schoolId={schoolId}/>
+                  </ProtectedRoute>
+                }
+                />
+              <Route
                 path="/students"
                 element={
                   <ProtectedRoute roles={['admin']}>
@@ -154,7 +172,6 @@ const AppContent = () => {
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/teacherstudentview"
                 element={
@@ -166,7 +183,6 @@ const AppContent = () => {
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/teachergrades"
                 element={
@@ -197,6 +213,52 @@ const AppContent = () => {
                   <ProtectedRoute roles={['teacher']}>
                     <TeacherAttendance 
                       teacherId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/teachertimetable"
+                element={
+                  <ProtectedRoute roles={['teacher']}>
+                    <TeacherTimetable 
+                      teacherId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/studentgradesview"
+                element={
+                  <ProtectedRoute roles={['student']}>
+                    <StudentGradesView 
+                      studentId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/studentfeeview"
+                element={
+                  <ProtectedRoute roles={['student']}>
+                    <StudentFeeView 
+                      studentId={user?.id || ''} 
+                      schoolId={schoolId}
+                    />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/studenttimetable"
+                element={
+                  <ProtectedRoute roles={['student']}>
+                    <StudentTimetable 
+                      studentId={user?.id || ''} 
                       schoolId={schoolId}
                     />
                   </ProtectedRoute>

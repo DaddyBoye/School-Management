@@ -152,7 +152,7 @@ const AttendanceQuickEditModal = ({
             </h2>
             <button 
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 p-1 rounded-full transition-colors"
+              className="text-gray-500 bg-slate-100 hover:text-gray-700 p-1 rounded-full transition-colors"
               aria-label="Close"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -721,8 +721,14 @@ const AttendanceHistoryModal = ({
       </div>
     </div>
   );
-};const TeacherAttendance: React.FC<{ teacherId: string }> = ({ teacherId }) => {
-  // Data state
+};
+
+interface TeacherAttendanceProps {
+  teacherId: string;
+  schoolId: string;
+}
+
+const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, schoolId }) => {  // Data state
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [excludedStudents, setExcludedStudents] = useState<string[]>([]);
@@ -870,8 +876,9 @@ const AttendanceHistoryModal = ({
         .from('students')
         .select('*')
         .eq('class_id', classId)
+        .eq('school_id', schoolId)
         .order('roll_no', { ascending: true });
-  
+    
       if (studentsError) throw studentsError;
       setStudents(studentsData || []);
     } catch (error) {
@@ -898,11 +905,12 @@ const AttendanceHistoryModal = ({
       } else if (timeRange === 'month') {
         startDate.setDate(now.getDate() - 30);
       }
-
+  
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
         .select('*')
         .eq('class_id', classId)
+        .eq('school_id', schoolId) // Add school filter
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', now.toISOString().split('T')[0])
         .order('date', { ascending: false });
@@ -958,10 +966,12 @@ const AttendanceHistoryModal = ({
           .update({
             status,
             reason: finalReason,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            school_id: schoolId // Add school filter
           })
           .eq('id', existingRecord.id)
-          .eq('class_id', assignedClass.id);
+          .eq('class_id', assignedClass.id)
+          .eq('school_id', schoolId);
   
         if (error) throw error;
       } else {
@@ -974,7 +984,8 @@ const AttendanceHistoryModal = ({
             status,
             reason: finalReason,
             teacher_id: teacherId,
-            class_id: assignedClass.id
+            class_id: assignedClass.id,
+            school_id: schoolId // Add school filter
           });
   
         if (error) throw error;
@@ -992,16 +1003,16 @@ const AttendanceHistoryModal = ({
   // Apply bulk status with class constraint
   const applyBulkStatus = async (excludedStudents: string[] = []) => {
     if (!bulkStatus || !assignedClass) return;
-  
+
     try {
       setLoading(prev => ({ ...prev, bulkAction: true }));
       
       // Get existing records for the selected date and class
       const existingRecords = attendanceRecords.filter(
         record => record.date === selectedDate && 
-                 record.class_id === assignedClass.id
+                record.class_id === assignedClass.id
       );
-  
+
       // Prepare batch operations
       const updates = students
         .filter(student => !excludedStudents.includes(student.user_id))
@@ -1009,18 +1020,20 @@ const AttendanceHistoryModal = ({
           const existingRecord = existingRecords.find(
             record => record.student_id === student.user_id
           );
-  
+
           if (existingRecord) {
             // Update existing record
             const { error } = await supabase
               .from('attendance_records')
               .update({
                 status: bulkStatus,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                school_id: schoolId // Add school filter
               })
               .eq('id', existingRecord.id)
-              .eq('class_id', assignedClass.id);
-  
+              .eq('class_id', assignedClass.id)
+              .eq('school_id', schoolId);
+
             if (error) throw error;
           } else {
             // Create new record
@@ -1031,13 +1044,14 @@ const AttendanceHistoryModal = ({
                 date: selectedDate,
                 status: bulkStatus,
                 teacher_id: teacherId,
-                class_id: assignedClass.id
+                class_id: assignedClass.id,
+                school_id: schoolId // Add school filter
               });
-  
+
             if (error) throw error;
           }
         });
-  
+
       await Promise.all(updates);
       
       // Refresh attendance data
