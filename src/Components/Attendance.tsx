@@ -1,282 +1,593 @@
-import { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { ChevronDown } from 'lucide-react';
+import { 
+  Card, 
+  Statistic, 
+  Progress, 
+  Spin, 
+  Alert, 
+  Select, 
+  DatePicker, 
+  Button,
+  Divider,
+  Tooltip,
+  Row,
+  Col,
+  Badge
+} from 'antd';
+import { 
+  TeamOutlined, 
+  FilterOutlined,
+  CalendarOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  InfoCircleOutlined
+} from '@ant-design/icons';
+import { useEffect, useState, useMemo } from 'react';
+import { supabase } from '../supabase';
+import dayjs from 'dayjs';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
-// Define interfaces for data structures
-interface DayAttendance {
-  day: string;
+interface AttendanceStats {
+  total: number;
   present: number;
   absent: number;
-  totalStudents: number;
+  late: number;
+  excused: number;
+  presentPercentage: number;
+  absentPercentage: number;
+  latePercentage: number;
+  excusedPercentage: number;
+  dailyTrends: { date: string; present: number; absent: number; late: number; excused: number }[];
 }
 
-interface ClassAttendanceData {
-  [period: string]: DayAttendance[];
+interface ClassStats {
+  classId: string;
+  className: string;
+  grade: string;
+  presentCount: number;
+  totalCount: number;
+  percentage: number;
+  changeFromLastWeek?: number;
 }
 
-interface AllClassesData {
-  [className: string]: ClassAttendanceData;
+interface Teacher {
+  user_id: string;
+  first_name: string;
+  last_name: string;
 }
 
-const AttendanceChart = () => {
-  const [periodType, setPeriodType] = useState<string>('This Week');
-  const [selectedClass, setSelectedClass] = useState<string>('All Classes');
-  const [showPeriodMenu, setShowPeriodMenu] = useState<boolean>(false);
-  const [showClassMenu, setShowClassMenu] = useState<boolean>(false);
+const DashboardAttendanceSummary = ({ schoolId }: { schoolId: string }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<AttendanceStats>({
+    total: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    excused: 0,
+    presentPercentage: 0,
+    absentPercentage: 0,
+    latePercentage: 0,
+    excusedPercentage: 0,
+    dailyTrends: []
+  });
+  const [worstClass, setWorstClass] = useState<ClassStats | null>(null);
+  const [bestClass, setBestClass] = useState<ClassStats | null>(null);
+  const [classes, setClasses] = useState<{id: string; name: string; grade: string}[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().startOf('week'),
+    dayjs().endOf('week')
+  ]);
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'custom'>('week');
 
-  const classes: string[] = ['All Classes', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'];
+  const fetchAttendanceData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  // Sample data with actual numbers
-  const allData: AllClassesData = {
-    'Grade 5': {
-      'This Week': [
-        { day: 'Mon', present: 70, absent: 25, totalStudents: 95 },
-        { day: 'Tue', present: 80, absent: 20, totalStudents: 100 },
-        { day: 'Wed', present: 50, absent: 45, totalStudents: 95 },
-        { day: 'Thu', present: 65, absent: 35, totalStudents: 100 },
-        { day: 'Fri', present: 90, absent: 10, totalStudents: 100 },
-      ],
-      'Last Week': [
-        { day: 'Mon', present: 75, absent: 20, totalStudents: 95 },
-        { day: 'Tue', present: 85, absent: 15, totalStudents: 100 },
-        { day: 'Wed', present: 60, absent: 35, totalStudents: 95 },
-        { day: 'Thu', present: 70, absent: 30, totalStudents: 100 },
-        { day: 'Fri', present: 85, absent: 15, totalStudents: 100 },
-      ],
-      'This Month': [
-        { day: 'Week 1', present: 82, absent: 18, totalStudents: 100 },
-        { day: 'Week 2', present: 78, absent: 22, totalStudents: 100 },
-        { day: 'Week 3', present: 85, absent: 15, totalStudents: 100 },
-        { day: 'Week 4', present: 80, absent: 20, totalStudents: 100 },
-      ],
-      'This Semester': [
-        { day: 'Sep', present: 85, absent: 15, totalStudents: 100 },
-        { day: 'Oct', present: 82, absent: 18, totalStudents: 100 },
-        { day: 'Nov', present: 88, absent: 12, totalStudents: 100 },
-        { day: 'Dec', present: 80, absent: 20, totalStudents: 100 },
-        { day: 'Jan', present: 86, absent: 14, totalStudents: 100 },
-      ],
-    },
-    'Grade 6': {
-      'This Week': [
-        { day: 'Mon', present: 75, absent: 20, totalStudents: 95 },
-        { day: 'Tue', present: 85, absent: 15, totalStudents: 100 },
-        { day: 'Wed', present: 55, absent: 40, totalStudents: 95 },
-        { day: 'Thu', present: 70, absent: 30, totalStudents: 100 },
-        { day: 'Fri', present: 95, absent: 5, totalStudents: 100 },
-      ],
-    },
-  };
+      // Format dates for query
+      const startDate = dateRange[0].format('YYYY-MM-DD');
+      const endDate = dateRange[1].format('YYYY-MM-DD');
 
-  const periods: string[] = ['This Week', 'Last Week', 'This Month', 'This Semester'];
+      // Base query
+      let query = supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('school_id', schoolId)
+        .gte('date', startDate)
+        .lte('date', endDate);
 
-  // Get data based on selected class and period
-  const getCurrentData = () => {
-    if (selectedClass === 'All Classes') {
-      const selectedPeriodData = Object.values(allData).map(classData => classData[periodType] || []);
-      
-      return selectedPeriodData[0].map((day, index) => {
-        const averages = selectedPeriodData.reduce((acc, curr) => {
-          const currentDay = curr[index] || day;
-          return {
-            day: day.day,
-            present: acc.present + (currentDay.present / selectedPeriodData.length),
-            absent: acc.absent + (currentDay.absent / selectedPeriodData.length),
-            totalStudents: acc.totalStudents + (currentDay.totalStudents / selectedPeriodData.length),
-          };
-        }, { present: 0, absent: 0, totalStudents: 0, day: '' });
+      // Apply class filter if selected
+      if (selectedClass) {
+        query = query.eq('class_id', selectedClass);
+      }
 
-        return {
-          day: day.day,
-          present: Math.round(averages.present),
-          absent: Math.round(averages.absent),
-          totalStudents: Math.round(averages.totalStudents),
-          presentPercent: Math.round((averages.present / averages.totalStudents) * 100),
-          absentPercent: Math.round((averages.absent / averages.totalStudents) * 100)
-        };
+      // Apply teacher filter if selected
+      if (selectedTeacher) {
+        query = query.eq('teacher_id', selectedTeacher);
+      }
+
+      // Execute query
+      const { data: attendanceData, error: attendanceError } = await query;
+
+      if (attendanceError) throw attendanceError;
+
+      // Fetch classes if not already loaded
+      if (classes.length === 0) {
+        const { data: classesData, error: classesError } = await supabase
+          .from('classes')
+          .select('id, name, grade')
+          .eq('school_id', schoolId);
+
+        if (classesError) throw classesError;
+        setClasses(classesData || []);
+      }
+
+      // Fetch teachers if not already loaded
+      if (teachers.length === 0) {
+        const { data: teachersData, error: teachersError } = await supabase
+          .from('teachers')
+          .select('user_id, first_name, last_name')
+          .eq('school_id', schoolId);
+
+        if (teachersError) throw teachersError;
+        setTeachers(teachersData || []);
+      }
+
+      // Calculate stats
+      const totalRecords = attendanceData?.length || 0;
+      const presentCount = attendanceData?.filter(r => r.status === 'Present').length || 0;
+      const absentCount = attendanceData?.filter(r => r.status === 'Absent').length || 0;
+      const lateCount = attendanceData?.filter(r => r.status === 'Late').length || 0;
+      const excusedCount = attendanceData?.filter(r => r.status === 'Excused').length || 0;
+
+      // Calculate daily trends
+      const dailyTrendsMap: Record<string, {present: number; absent: number; late: number; excused: number}> = {};
+      attendanceData?.forEach(record => {
+        if (!dailyTrendsMap[record.date]) {
+          dailyTrendsMap[record.date] = { present: 0, absent: 0, late: 0, excused: 0 };
+        }
+        dailyTrendsMap[record.date][record.status.toLowerCase() as keyof typeof dailyTrendsMap[string]]++;
       });
-    }
 
-    const classData = allData[selectedClass][periodType] || [];
-    return classData.map(day => ({
-      ...day,
-      presentPercent: Math.round((day.present / day.totalStudents) * 100),
-      absentPercent: Math.round((day.absent / day.totalStudents) * 100)
+      const dailyTrends = Object.entries(dailyTrendsMap)
+        .map(([date, counts]) => ({ date, ...counts }))
+        .sort((a, b) => dayjs(a.date).isBefore(dayjs(b.date)) ? -1 : 1);
+
+      const newStats: AttendanceStats = {
+        total: totalRecords,
+        present: presentCount,
+        absent: absentCount,
+        late: lateCount,
+        excused: excusedCount,
+        presentPercentage: totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0,
+        absentPercentage: totalRecords > 0 ? Math.round((absentCount / totalRecords) * 100) : 0,
+        latePercentage: totalRecords > 0 ? Math.round((lateCount / totalRecords) * 100) : 0,
+        excusedPercentage: totalRecords > 0 ? Math.round((excusedCount / totalRecords) * 100) : 0,
+        dailyTrends
+      };
+
+      setStats(newStats);
+
+      // Calculate class stats if we have data and no class filter is applied
+      if (classes.length > 0 && attendanceData?.length && !selectedClass) {
+        const classStats = classes.map(cls => {
+          const classRecords = attendanceData.filter(record => record.class_id === cls.id);
+          const presentCount = classRecords.filter(r => r.status === 'Present').length;
+          const totalCount = classRecords.length;
+          
+          return {
+            classId: cls.id,
+            className: cls.name,
+            grade: cls.grade,
+            presentCount,
+            totalCount,
+            percentage: totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0
+          };
+        }).filter(stat => stat.totalCount > 0);
+
+        if (classStats.length > 0) {
+          // Sort by percentage to find best and worst
+          const sorted = [...classStats].sort((a, b) => a.percentage - b.percentage);
+          setWorstClass(sorted[0]);
+          setBestClass(sorted[sorted.length - 1]);
+
+          // If we have data from last week, calculate changes
+          if (timeRange === 'week') {
+            const lastWeekStart = dayjs().subtract(1, 'week').startOf('week').format('YYYY-MM-DD');
+            const lastWeekEnd = dayjs().subtract(1, 'week').endOf('week').format('YYYY-MM-DD');
+            
+            const { data: lastWeekData } = await supabase
+              .from('attendance_records')
+              .select('*')
+              .eq('school_id', schoolId)
+              .gte('date', lastWeekStart)
+              .lte('date', lastWeekEnd);
+
+            if (lastWeekData) {
+              const lastWeekClassStats = classes.map(cls => {
+                const classRecords = lastWeekData.filter(record => record.class_id === cls.id);
+                const presentCount = classRecords.filter(r => r.status === 'Present').length;
+                const totalCount = classRecords.length;
+                const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+                return { classId: cls.id, percentage };
+              });
+
+              // Update best and worst with change data
+              setBestClass(prev => {
+                if (!prev) return null;
+                const lastWeekStat = lastWeekClassStats.find(s => s.classId === prev.classId);
+                const change = lastWeekStat ? prev.percentage - lastWeekStat.percentage : undefined;
+                return { ...prev, changeFromLastWeek: change };
+              });
+
+              setWorstClass(prev => {
+                if (!prev) return null;
+                const lastWeekStat = lastWeekClassStats.find(s => s.classId === prev.classId);
+                const change = lastWeekStat ? prev.percentage - lastWeekStat.percentage : undefined;
+                return { ...prev, changeFromLastWeek: change };
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching attendance data:', err);
+      setError('Failed to load attendance data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [dateRange, selectedClass, selectedTeacher]);
+
+  const handleTimeRangeChange = (range: 'week' | 'month' | 'custom') => {
+    setTimeRange(range);
+    if (range === 'week') {
+      setDateRange([dayjs().startOf('week'), dayjs().endOf('week')]);
+    } else if (range === 'month') {
+      setDateRange([dayjs().startOf('month'), dayjs().endOf('month')]);
+    }
+    // For 'custom', the user will use the date picker
+  };
+
+  const renderChangeIndicator = (change?: number) => {
+    if (change === undefined) return null;
+    
+    const isPositive = change >= 0;
+    const icon = isPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />;
+    const color = isPositive ? '#52c41a' : '#f5222d';
+    
+    return (
+      <span style={{ color, marginLeft: 8 }}>
+        {icon} {Math.abs(change)}%
+      </span>
+    );
+  };
+
+  const dailyChartData = useMemo(() => {
+    return stats.dailyTrends.map(day => ({
+      date: dayjs(day.date).format('MMM DD'),
+      Present: day.present,
+      Absent: day.absent,
+      Late: day.late,
+      Excused: day.excused
     }));
-  };
-
-  const currentData = getCurrentData();
-
-  // Calculate totals and averages
-  interface Totals {
-    present: number;
-    absent: number;
-    totalStudents: number;
-  }
-
-  const totals = currentData.reduce<Totals>((acc, day) => ({
-    present: acc.present + day.present,
-    absent: acc.absent + day.absent,
-    totalStudents: acc.totalStudents + day.totalStudents
-  }), { present: 0, absent: 0, totalStudents: 0 });
-
-  const averages = {
-    present: Math.round(totals.present / currentData.length),
-    absent: Math.round(totals.absent / currentData.length),
-    totalStudents: Math.round(totals.totalStudents / currentData.length),
-    presentPercent: Math.round((totals.present / totals.totalStudents) * 100),
-    absentPercent: Math.round((totals.absent / totals.totalStudents) * 100)
-  };
-
-  interface CustomTooltipProps {
-    active?: boolean;
-    payload?: Array<{ payload: DayAttendance & { presentPercent: number; absentPercent: number } }>;
-  }
-
-  const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 shadow-lg rounded-lg border">
-          <p className="text-gray-600 font-medium mb-2">{data.day}</p>
-          <div className="space-y-1">
-            <p className="text-blue-500">
-              Present: {data.present} students ({data.presentPercent}%)
-            </p>
-            <p className="text-red-400">
-              Absent: {data.absent} students ({data.absentPercent}%)
-            </p>
-            <p className="text-gray-500 text-sm">
-              Total: {data.totalStudents} students
-            </p>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  interface DropdownProps {
-    options: string[];
-    value: string;
-    onChange: (value: string) => void;
-    isOpen: boolean;
-    setIsOpen: (isOpen: boolean) => void;
-  }
-
-  const Dropdown = ({ options, value, onChange, isOpen, setIsOpen }: DropdownProps) => (
-    <div className="relative">
-      <button 
-        className="flex h-10 w-28 items-center text-black bg-gray-200 text-sm gap-1 hover:bg-gray-300 px-3 py-1.5 rounded-lg border"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {value}
-        <ChevronDown className="h-4 w-4" />
-      </button>
-      
-      {isOpen && (
-        <div className="absolute right-0 top-full bg-white rounded-lg shadow-lg z-10">
-          {options.map((option) => (
-            <button
-              key={option}
-              className="w-full text-left px-4 py-2 text-sm text-black bg-white hover:bg-gray-100"
-              onClick={() => {
-                onChange(option);
-                setIsOpen(false);
-              }}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  }, [stats.dailyTrends]);
 
   return (
-    <div className="bg-white rounded-xl p-4 border-2">
-      <div className="flex justify-between items-center mb-4">
-        <div className="space-y-2">
-          <h3 className="text-xl text-black font-medium">Attendance</h3>
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 font-semibold rounded-full bg-blue-400"></div>
-              <span className="text-gray-600">
-                Present: {averages.present} ({averages.presentPercent}%)
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-300"></div>
-              <span className="text-gray-600">
-                Absent: {averages.absent} ({averages.absentPercent}%)
-              </span>
-            </div>
-            <div className="text-gray-500">
-              Total: {averages.totalStudents} students
-            </div>
+    <Card 
+      title={
+        <div className="flex items-center justify-between">
+          <span className="flex items-center">
+            <CalendarOutlined className="mr-2 text-blue-500" />
+            Attendance Analytics
+          </span>
+          <div className="flex items-center space-x-2">
+            <Button 
+              type={timeRange === 'week' ? 'primary' : 'default'} 
+              size="small"
+              onClick={() => handleTimeRangeChange('week')}
+            >
+              This Week
+            </Button>
+            <Button 
+              type={timeRange === 'month' ? 'primary' : 'default'} 
+              size="small"
+              onClick={() => handleTimeRangeChange('month')}
+            >
+              This Month
+            </Button>
+            <Button 
+              type={timeRange === 'custom' ? 'primary' : 'default'} 
+              size="small"
+              onClick={() => handleTimeRangeChange('custom')}
+              icon={<FilterOutlined />}
+            >
+              Custom
+            </Button>
           </div>
         </div>
-        
-        <div className="flex gap-2">
-          <Dropdown 
-            options={classes}
-            value={selectedClass}
-            onChange={setSelectedClass}
-            isOpen={showClassMenu}
-            setIsOpen={setShowClassMenu}
+      }
+      className="h-full"
+      extra={
+        timeRange === 'custom' && (
+          <RangePicker
+            value={dateRange}
+            onChange={(dates) => {
+              if (dates && dates[0] && dates[1]) {
+                setDateRange([dates[0], dates[1]]);
+              }
+            }}
+            disabledDate={(current) => current && current > dayjs().endOf('day')}
+            size="small"
           />
-          <Dropdown 
-            options={periods}
-            value={periodType}
-            onChange={setPeriodType}
-            isOpen={showPeriodMenu}
-            setIsOpen={setShowPeriodMenu}
-          />
+        )
+      }
+    >
+      {loading ? (
+        <div className="flex justify-center items-center h-40">
+          <Spin tip="Loading attendance data..." />
         </div>
-      </div>
+      ) : error ? (
+        <Alert message={error} type="error" showIcon />
+      ) : (
+        <>
+          {/* Filters Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <Select
+              placeholder="Filter by Class"
+              allowClear
+              style={{ width: '100%' }}
+              value={selectedClass}
+              onChange={setSelectedClass}
+              loading={loading}
+              disabled={loading}
+            >
+              {classes.map(cls => (
+                <Option key={cls.id} value={cls.id}>
+                  {cls.name} (Grade {cls.grade})
+                </Option>
+              ))}
+            </Select>
 
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={currentData}
-            margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-            barGap={4}
-          >
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              vertical={false}
-              stroke="#E5E7EB"
-            />
-            <XAxis 
-              dataKey="day" 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 14, fill: '#6B7280' }}
-            />
-            <YAxis 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 14, fill: '#6B7280' }}
-              ticks={[0, 20, 40, 60, 80, 100]}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar 
-              dataKey="presentPercent" 
-              fill="#60A5FA"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={40}
-            />
-            <Bar 
-              dataKey="absentPercent" 
-              fill="#FCA5A5"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={40}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+            <Select
+              placeholder="Filter by Teacher"
+              allowClear
+              style={{ width: '100%' }}
+              value={selectedTeacher}
+              onChange={setSelectedTeacher}
+              loading={loading}
+              disabled={loading}
+            >
+              {teachers.map(teacher => (
+                <Option key={teacher.user_id} value={teacher.user_id}>
+                  {teacher.first_name} {teacher.last_name}
+                </Option>
+              ))}
+            </Select>
+
+            <div className="flex items-center">
+              <Tooltip title="Date range being analyzed">
+                <span className="text-gray-500 mr-2">
+                  <CalendarOutlined /> {dateRange[0].format('MMM DD')} - {dateRange[1].format('MMM DD')}
+                </span>
+              </Tooltip>
+              <Badge 
+                count={`${stats.total} records`} 
+                style={{ backgroundColor: '#1890ff' }} 
+              />
+            </div>
+          </div>
+
+          {/* Summary Statistics */}
+          <Row gutter={16} className="mb-6">
+            <Col xs={24} sm={12} md={6}>
+              <Card size="small">
+                <Statistic
+                  title="Total Records"
+                  value={stats.total}
+                  prefix={<TeamOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card size="small">
+                <Statistic
+                  title="Present"
+                  value={stats.present}
+                  valueStyle={{ color: '#52c41a' }}
+                  suffix={`(${stats.presentPercentage}%)`}
+                />
+                <Progress 
+                  percent={stats.presentPercentage} 
+                  strokeColor="#52c41a" 
+                  showInfo={false} 
+                  size="small" 
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card size="small">
+                <Statistic
+                  title="Absent"
+                  value={stats.absent}
+                  valueStyle={{ color: '#f5222d' }}
+                  suffix={`(${stats.absentPercentage}%)`}
+                />
+                <Progress 
+                  percent={stats.absentPercentage} 
+                  strokeColor="#f5222d" 
+                  showInfo={false} 
+                  size="small" 
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card size="small">
+                <Statistic
+                  title="Late/Excused"
+                  value={stats.late + stats.excused}
+                  valueStyle={{ color: '#faad14' }}
+                  suffix={`(${stats.latePercentage + stats.excusedPercentage}%)`}
+                />
+                <Progress 
+                  percent={stats.latePercentage + stats.excusedPercentage} 
+                  strokeColor="#faad14" 
+                  showInfo={false} 
+                  size="small" 
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Main Content */}
+          <Row gutter={16}>
+            <Col xs={24} lg={16}>
+              {/* Daily Trends Chart */}
+              <Card 
+                title="Daily Attendance Trends" 
+                size="small"
+                className="mb-4"
+                extra={
+                  <Tooltip title="Shows daily attendance patterns over the selected period">
+                    <InfoCircleOutlined className="text-gray-400" />
+                  </Tooltip>
+                }
+              >
+                <div style={{ height: 250 }}>
+                  {stats.dailyTrends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dailyChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <RechartsTooltip />
+                        <Bar dataKey="Present" stackId="a" fill="#52c41a" name="Present" />
+                        <Bar dataKey="Late" stackId="a" fill="#faad14" name="Late" />
+                        <Bar dataKey="Excused" stackId="a" fill="#1890ff" name="Excused" />
+                        <Bar dataKey="Absent" stackId="a" fill="#f5222d" name="Absent" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex justify-center items-center h-full text-gray-400">
+                      No attendance data for selected period
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </Col>
+
+            <Col xs={24} lg={8}>
+              {/* Overall Attendance */}
+              <Card 
+                title="Overall Attendance Rate" 
+                size="small"
+                className="mb-4"
+              >
+                <Progress 
+                  percent={stats.presentPercentage} 
+                  strokeColor={
+                    stats.presentPercentage >= 90 ? '#52c41a' : 
+                    stats.presentPercentage >= 75 ? '#faad14' : '#f5222d'
+                  } 
+                  status="active"
+                  format={percent => (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{percent}%</div>
+                      <div className="text-gray-500">Attendance Rate</div>
+                    </div>
+                  )}
+                  style={{ marginBottom: 16 }}
+                />
+                <div className="text-sm text-gray-500 text-center">
+                  {stats.present} present out of {stats.total} records
+                </div>
+              </Card>
+
+              {/* Class Performance */}
+              {(!selectedClass && (bestClass || worstClass)) && (
+                <Card 
+                  title="Class Performance" 
+                  size="small"
+                >
+                  {bestClass && (
+                    <div className="mb-4">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium">Top Class</span>
+                        <span className="font-bold">
+                          {bestClass.percentage}%
+                          {renderChangeIndicator(bestClass.changeFromLastWeek)}
+                        </span>
+                      </div>
+                      <div className="text-gray-500 text-sm mb-1">
+                        {bestClass.className} (Grade {bestClass.grade})
+                      </div>
+                      <Progress 
+                        percent={bestClass.percentage} 
+                        strokeColor="#52c41a" 
+                        showInfo={false} 
+                        size="small" 
+                      />
+                    </div>
+                  )}
+
+                  {worstClass && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium">Needs Improvement</span>
+                        <span className="font-bold">
+                          {worstClass.percentage}%
+                          {renderChangeIndicator(worstClass.changeFromLastWeek)}
+                        </span>
+                      </div>
+                      <div className="text-gray-500 text-sm mb-1">
+                        {worstClass.className} (Grade {worstClass.grade})
+                      </div>
+                      <Progress 
+                        percent={worstClass.percentage} 
+                        strokeColor="#f5222d" 
+                        showInfo={false} 
+                        size="small" 
+                      />
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* Selected Class Details */}
+              {selectedClass && (
+                <Card 
+                  title="Class Details" 
+                  size="small"
+                >
+                  <div className="mb-2">
+                    <span className="font-medium">Class: </span>
+                    <span>{classes.find(c => c.id === selectedClass)?.name}</span>
+                  </div>
+                  <div className="mb-2">
+                    <span className="font-medium">Grade: </span>
+                    <span>{classes.find(c => c.id === selectedClass)?.grade}</span>
+                  </div>
+                  <Divider className="my-3" />
+                  <div className="text-center">
+                    <div className="text-2xl font-bold mb-1">{stats.presentPercentage}%</div>
+                    <div className="text-gray-500">Attendance Rate</div>
+                  </div>
+                </Card>
+              )}
+            </Col>
+          </Row>
+        </>
+      )}
+    </Card>
   );
 };
 
-export default AttendanceChart;
+export default DashboardAttendanceSummary;

@@ -26,6 +26,7 @@ import TeacherTimetable from './pages/teachers/teachertimetable';
 import StudentGradesView from './pages/students/studentgradesview';
 import StudentFeeView from './pages/students/studentfeeview';
 import StudentTimetable from './pages/students/studenttimetable';
+import AdminAttendance from './pages/admin/adminattendance';
 
 const AppContent = () => {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
@@ -35,7 +36,7 @@ const AppContent = () => {
   const schoolName = localStorage.getItem('school_name') || '';
 
   const accessibleRoutes = {
-    admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager'],
+    admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager', '/adminattendance'],
     teacher: ['/', '/teacherstudentview', '/teachergrades', '/teacherrankings', '/teacherattendance', '/teachertimetable'],
     student: ['/', '/studentgradesview', '/studentfeeview', '/studenttimetable'],
   };
@@ -51,6 +52,7 @@ const AppContent = () => {
         '/classsubjectmanager': 'Teacher Assignments',
         '/subjectclassmanager': 'Subject Class Manager',
         '/feemanager': 'Fee Manager',
+        '/adminattendance': 'Attendance',
         '/teacherstudentview': 'My Students',
         '/teachergrades': 'Student Grades',
         '/teacherrankings': 'Student Rankings',
@@ -97,7 +99,7 @@ const AppContent = () => {
                 element={
                   <ProtectedRoute roles={['admin', 'teacher', 'student', 'parent']}>
                     <>
-                      {userRole === 'admin' && <Dashboard />}
+                      {userRole === 'admin' && <Dashboard schoolId={schoolId}/>}
                       {userRole === 'teacher' && <TeacherDashboard />}
                       {userRole === 'student' && <StudentDashboard />}
                     </>
@@ -172,6 +174,14 @@ const AppContent = () => {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/adminattendance"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <AdminAttendance schoolId={schoolId}/>
+                  </ProtectedRoute>
+                }
+              />          
               <Route
                 path="/teacherstudentview"
                 element={

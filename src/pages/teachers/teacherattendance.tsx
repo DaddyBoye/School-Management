@@ -985,7 +985,7 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
             reason: finalReason,
             teacher_id: teacherId,
             class_id: assignedClass.id,
-            school_id: schoolId // Add school filter
+            school_id: schoolId
           });
   
         if (error) throw error;

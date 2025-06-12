@@ -1,183 +1,701 @@
-import { useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
-import { ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Card, 
+  Statistic, 
+  Progress, 
+  Tag, 
+  Select, 
+  Button, 
+  Typography, 
+  Row, 
+  Col,
+  Spin,
+  Alert,
+  Divider,
+  Space,
+  Tooltip as AntdTooltip
+} from 'antd';
+import { 
+  DollarOutlined, 
+  InfoCircleOutlined,
+  ReloadOutlined} from '@ant-design/icons';
+import moment from 'moment';
+import { supabase } from '../supabase';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-type EarningsData = {
-  period: string;
-  received: number;
-  arrears: number;
-}[];
+const { Title, Text } = Typography;
+const { Option } = Select;
 
-const earningsData: Record<string, EarningsData> = {
-  'This Year': [
-    { period: 'Jan', received: 5000, arrears: 2000 },
-    { period: 'Feb', received: 5500, arrears: 1800 },
-    { period: 'Mar', received: 6000, arrears: 1600 },
-    { period: 'Apr', received: 5800, arrears: 1500 },
-    { period: 'May', received: 6200, arrears: 1300 },
-    { period: 'Jun', received: 6500, arrears: 1100 },
-    { period: 'Jul', received: 6700, arrears: 1000 },
-    { period: 'Aug', received: 6300, arrears: 900 },
-    { period: 'Sep', received: 6000, arrears: 800 },
-    { period: 'Oct', received: 5900, arrears: 700 },
-    { period: 'Nov', received: 5700, arrears: 600 },
-    { period: 'Dec', received: 5500, arrears: 500 }
-  ],
-  'Last Year': [
-    { period: 'Jan', received: 4500, arrears: 2500 },
-    { period: 'Feb', received: 4800, arrears: 2200 },
-    { period: 'Mar', received: 5200, arrears: 1900 },
-    { period: 'Apr', received: 5000, arrears: 1700 },
-    { period: 'May', received: 5300, arrears: 1500 },
-    { period: 'Jun', received: 5600, arrears: 1200 },
-    { period: 'Jul', received: 5800, arrears: 1000 },
-    { period: 'Aug', received: 5500, arrears: 900 },
-    { period: 'Sep', received: 5200, arrears: 800 },
-    { period: 'Oct', received: 5000, arrears: 700 },
-    { period: 'Nov', received: 4800, arrears: 600 },
-    { period: 'Dec', received: 4600, arrears: 500 }
-  ],
-  'Past 2 Years': [
-    { period: 'Year 1', received: 66000, arrears: 12000 },
-    { period: 'Year 2', received: 70000, arrears: 10000 }
-  ],
-  'This Month': [
-    { period: 'Week 1', received: 1500, arrears: 500 },
-    { period: 'Week 2', received: 1700, arrears: 400 },
-    { period: 'Week 3', received: 1600, arrears: 350 },
-    { period: 'Week 4', received: 1800, arrears: 300 }
-  ],
-  'Last Month': [
-    { period: 'Week 1', received: 1400, arrears: 550 },
-    { period: 'Week 2', received: 1550, arrears: 450 },
-    { period: 'Week 3', received: 1450, arrears: 400 },
-    { period: 'Week 4', received: 1650, arrears: 350 }
-  ]
+interface DashboardFeeSummaryProps {
+  schoolId: string;
+  currentSemester: string;
+}
+
+interface Class {
+  id: number;
+  name: string;
+  grade: string;
+}
+
+interface FeeStatistics {
+  totalPotentialFees: number;
+  totalCollected: number;
+  pendingAmount: number;
+  paymentRate: number;
+  classPerformance: {
+    classId: number;
+    className: string;
+    grade: string;
+    paymentRate: number;
+    changeFromLastPeriod?: number;
+  }[];
+  monthlyTrends: {
+    month: string;
+    collected: number;
+    pending: number;
+  }[];
+}
+
+const TIME_RANGE_OPTIONS = [
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'semester', label: 'This Semester' }
+];
+
+const PAYMENT_RATE_THRESHOLDS = {
+  good: 80,
+  fair: 50,
+  poor: 0
 };
 
-const EarningsChart = () => {
-  const [timeframe, setTimeframe] = useState<keyof typeof earningsData>('This Year');
-  const [showTimeframeMenu, setShowTimeframeMenu] = useState(false);
+const DashboardFeeSummary: React.FC<DashboardFeeSummaryProps> = ({ schoolId, currentSemester }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statistics, setStatistics] = useState<FeeStatistics>({
+    totalPotentialFees: 0,
+    totalCollected: 0,
+    pendingAmount: 0,
+    paymentRate: 0,
+    classPerformance: [],
+    monthlyTrends: []
+  });
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'semester'>('semester');
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [isClassPerformanceLoading] = useState(false);
 
-  const timeframes = Object.keys(earningsData) as (keyof typeof earningsData)[];
-  const currentData = earningsData[timeframe];
+  const fetchInitialData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-  // Calculate totals
-  const totals = currentData.reduce(
-    (acc, item) => ({
-      received: acc.received + item.received,
-      arrears: acc.arrears + item.arrears
-    }),
-    { received: 0, arrears: 0 }
-  );
-
-  const Dropdown = ({
-    options,
-    value,
-    onChange,
-    isOpen,
-    setIsOpen
-  }: {
-    options: string[];
-    value: string;
-    onChange: (value: keyof typeof earningsData) => void;
-    isOpen: boolean;
-    setIsOpen: (open: boolean) => void;
-  }) => (
-    <div className="relative">
-      <button
-        className="flex items-center text-sm text-black bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-lg border"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {value}
-        <ChevronDown className="h-4 w-4" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1 rounded-lg shadow-lg z-10 bg-white">
-          {options.map((option) => (
-            <button
-              key={option}
-              className="w-full text-left px-4 py-2 text-sm text-black bg-white hover:bg-gray-200"
-              onClick={() => {
-                onChange(option as keyof typeof earningsData);
-                setIsOpen(false);
-              }}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const CustomTooltip = ({
-    active,
-    payload
-  }: {
-    active?: boolean;
-    payload?: any[];
-  }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 shadow-lg rounded-lg border">
-          <p className="text-gray-600 font-medium mb-2">{data.period}</p>
-          <div className="space-y-1">
-            <p className="text-blue-500">Received: GH₵{data.received.toLocaleString()}</p>
-            <p className="text-red-400">Arrears: GH₵{data.arrears.toLocaleString()}</p>
-          </div>
-        </div>
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), 30000)
       );
+
+      await Promise.race([
+        (async () => {
+          const loadedClasses = await fetchClassList();
+          await fetchFeeStatistics(loadedClasses); // pass directly
+        })(),
+        timeoutPromise
+      ]);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError(
+        err && typeof err === 'object' && 'message' in err
+          ? (err as { message: string }).message
+          : 'Failed to load fee data. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
     }
-    return null;
   };
 
-  return (
-    <div className="bg-white rounded-xl p-4 h-full border-2">
-      <div className="flex justify-between items-center mb-4">
-        <div className="space-y-2">
-          <h3 className="text-lg text-black font-medium">Earnings</h3>
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-400"></div>
-              <span className="text-gray-600">
-                Received: GH₵{totals.received.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-300"></div>
-              <span className="text-gray-600">
-                Arrears: GH₵{totals.arrears.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
+  const fetchClassList = async () => {
+    const { data: classesData, error: classesError } = await supabase
+      .from('classes')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('grade', { ascending: true });
 
-        <Dropdown
-          options={timeframes}
-          value={timeframe}
-          onChange={setTimeframe}
-          isOpen={showTimeframeMenu}
-          setIsOpen={setShowTimeframeMenu}
+    if (classesError) throw classesError;
+
+    setClasses(classesData || []);
+    return classesData || [];
+  };
+
+  const fetchFeeStatistics = async (classesToUse: Class[]) => {
+    try {
+      const { startDate, endDate } = getDateRangeForPeriod(timeRange);
+
+      const [
+        potentialFees,
+        collectedFees,
+        classPerformance,
+        monthlyTrends
+      ] = await Promise.all([
+        calculatePotentialFees(),
+        fetchCollectedFees(startDate, endDate),
+        calculateClassPerformance(classesToUse), // <- pass it here
+        calculateMonthlyTrends()
+      ]);
+
+      const paymentRate = potentialFees > 0 
+        ? Math.round((collectedFees / potentialFees) * 100) 
+        : 0;
+
+      setStatistics({
+        totalPotentialFees: potentialFees,
+        totalCollected: collectedFees,
+        pendingAmount: potentialFees - collectedFees,
+        paymentRate,
+        classPerformance,
+        monthlyTrends
+      });
+    } catch (err) {
+      console.error('Error fetching fee statistics:', err);
+      throw err;
+    }
+  };
+
+  const getDateRangeForPeriod = (period: typeof timeRange) => {
+    const now = moment();
+    
+    switch (period) {
+      case 'week':
+        return {
+          startDate: now.startOf('week').format('YYYY-MM-DD'),
+          endDate: now.endOf('week').format('YYYY-MM-DD')
+        };
+      case 'month':
+        return {
+          startDate: now.startOf('month').format('YYYY-MM-DD'),
+          endDate: now.endOf('month').format('YYYY-MM-DD')
+        };
+      case 'semester':
+      default:
+        const [year, season] = currentSemester.split(' ');
+        return {
+          startDate: season === 'Spring' 
+            ? moment(`${year}-01-01`).format('YYYY-MM-DD')
+            : moment(`${year}-07-01`).format('YYYY-MM-DD'),
+          endDate: season === 'Spring'
+            ? moment(`${year}-06-30`).format('YYYY-MM-DD')
+            : moment(`${year}-12-31`).format('YYYY-MM-DD')
+        };
+    }
+  };
+
+  const fetchCollectedFees = async (startDate: string, endDate: string) => {
+    let query = supabase
+      .from('student_fees')
+      .select('paid, students!inner(class_id)')
+      .eq('school_id', schoolId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+
+    if (selectedClassId) {
+      query = query.eq('students.class_id', selectedClassId);
+    }
+
+    const { data: feesData, error: feesError } = await query;
+    if (feesError) throw feesError;
+
+    return feesData?.reduce((sum, fee) => sum + (fee.paid || 0), 0) || 0;
+  };
+
+  const calculatePotentialFees = async () => {
+    try {
+      // Get all active fee types with their pricing
+      const { data: feeTypes, error: feeTypesError } = await supabase
+        .from('fee_types')
+        .select('*, fee_class_pricing(class_id, amount)')
+        .eq('school_id', schoolId)
+        .eq('is_active', true);
+
+      if (feeTypesError) throw feeTypesError;
+
+      // Get relevant student count
+      const studentCount = await fetchStudentCount();
+
+      // Calculate total potential fees
+      return feeTypes?.reduce((sum, feeType) => {
+        if (feeType.is_class_specific) {
+          return sum + (feeType.fee_class_pricing?.reduce((classSum: number, pricing: { class_id: number; amount: number }) => {
+            if (!selectedClassId || pricing.class_id === selectedClassId) {
+              return classSum + pricing.amount;
+            }
+            return classSum;
+          }, 0) || 0);
+        } else {
+          return sum + (feeType.amount * studentCount);
+        }
+      }, 0) || 0;
+    } catch (err) {
+      console.error('Error calculating potential fees:', err);
+      return 0;
+    }
+  };
+
+  const fetchStudentCount = async () => {
+    let query = supabase
+      .from('students')
+      .select('count', { count: 'exact' })
+      .eq('school_id', schoolId);
+
+    if (selectedClassId) {
+      query = query.eq('class_id', selectedClassId);
+    }
+
+    const { count, error } = await query;
+    if (error) throw error;
+
+    return count || 0;
+  };
+
+  const calculateClassPerformance = async (classesToUse: Class[]) => {
+    try {
+      if (selectedClassId) return [];
+
+      if (!classesToUse || classesToUse.length === 0) {
+        return [];
+      }
+
+      const performanceData = await Promise.all(
+        classesToUse.map(async (cls) => {
+          try {
+            const [collected, potential] = await Promise.all([
+              fetchCollectedFeesForClass(cls.id),
+              calculatePotentialFeesForClass(cls.id)
+            ]);
+
+            const paymentRate = potential > 0 ? Math.round((collected / potential) * 100) : 0;
+
+            return {
+              classId: cls.id,
+              className: cls.name,
+              grade: cls.grade,
+              paymentRate,
+              changeFromLastPeriod: undefined
+            };
+          } catch (error) {
+            console.error(`Error calculating performance for class ${cls.id}:`, error);
+            return {
+              classId: cls.id,
+              className: cls.name,
+              grade: cls.grade,
+              paymentRate: 0,
+              changeFromLastPeriod: undefined
+            };
+          }
+        })
+      );
+
+      return performanceData;
+    } catch (error) {
+      console.error('Error in calculateClassPerformance:', error);
+      return [];
+    }
+  };
+
+  const fetchCollectedFeesForClass = async (classId: number) => {
+    const { data, error } = await supabase
+      .from('student_fees')
+      .select('paid, students!inner(class_id)')
+      .eq('school_id', schoolId)
+      .eq('students.class_id', classId);
+
+    if (error) throw error;
+    return data?.reduce((sum, fee) => sum + (fee.paid || 0), 0) || 0;
+  };
+
+  const calculatePotentialFeesForClass = async (classId: number) => {
+    const studentCount = await fetchStudentCountForClass(classId);
+    
+    const { data: feeTypes, error } = await supabase
+      .from('fee_types')
+      .select('*, fee_class_pricing(class_id, amount)')
+      .eq('school_id', schoolId)
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    return feeTypes?.reduce((sum, feeType) => {
+      if (feeType.is_class_specific) {
+        const classPricing = feeType.fee_class_pricing?.find((p: { class_id: number; amount: number }) => p.class_id === classId);
+        return sum + (classPricing?.amount || 0);
+      } else {
+        return sum + (feeType.amount * studentCount);
+      }
+    }, 0) || 0;
+  };
+
+  const fetchStudentCountForClass = async (classId: number) => {
+    const { count, error } = await supabase
+      .from('students')
+      .select('count', { count: 'exact' })
+      .eq('school_id', schoolId)
+      .eq('class_id', classId);
+
+    if (error) throw error;
+    return count || 0;
+  };
+
+  const calculateMonthlyTrends = async () => {
+    try {
+      const monthsToShow = timeRange === 'week' ? 1 : timeRange === 'month' ? 3 : 6;
+      const now = moment();
+      const monthlyData = [];
+      
+      // Calculate potential fees once outside the loop
+      const basePotentialFees = await calculatePotentialFees();
+
+      for (let i = monthsToShow - 1; i >= 0; i--) {
+        const monthStart = now.clone().subtract(i, 'months').startOf('month');
+        const monthEnd = now.clone().subtract(i, 'months').endOf('month');
+
+        try {
+          const collected = await fetchCollectedFees(
+            monthStart.format('YYYY-MM-DD'),
+            monthEnd.format('YYYY-MM-DD')
+          );
+
+          monthlyData.push({
+            month: monthStart.format('MMM YYYY'),
+            collected,
+            pending: Math.max(0, basePotentialFees - collected) // Ensure no negative values
+          });
+        } catch (error) {
+          console.error(`Error fetching data for month ${monthStart.format('MMM YYYY')}:`, error);
+          // Add default entry for failed month
+          monthlyData.push({
+            month: monthStart.format('MMM YYYY'),
+            collected: 0,
+            pending: 0
+          });
+        }
+      }
+
+      return monthlyData;
+    } catch (error) {
+      console.error('Error in calculateMonthlyTrends:', error);
+      return []; // Return empty array on error
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [schoolId, currentSemester, selectedClassId, timeRange]);
+
+  const getPaymentRateColor = (rate: number) => {
+    if (rate >= PAYMENT_RATE_THRESHOLDS.good) return '#52c41a';
+    if (rate >= PAYMENT_RATE_THRESHOLDS.fair) return '#faad14';
+    return '#f5222d';
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spin size="large" tip="Loading fee summary data..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <Alert 
+          message="Fee Summary Error" 
+          description={error}
+          type="error" 
+          showIcon 
+        />
+        <Button 
+          type="primary" 
+          onClick={fetchInitialData}
+          icon={<ReloadOutlined />}
+          className="mt-4"
+        >
+          Retry
+        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card 
+      title={
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <Space align="center">
+            <DollarOutlined className="text-xl text-green-500" />
+            <Title level={4} className="m-0">Fee Collection Dashboard</Title>
+            <AntdTooltip title="Shows fee collection statistics for the selected time period and class">
+              <InfoCircleOutlined className="text-gray-400" />
+            </AntdTooltip>
+          </Space>
+          
+          <Space size="middle">
+            <Select
+              value={timeRange}
+              onChange={setTimeRange}
+              size="middle"
+              className="min-w-32"
+              options={TIME_RANGE_OPTIONS}
+            />
+            <Select
+              value={selectedClassId}
+              onChange={setSelectedClassId}
+              placeholder="All Classes"
+              allowClear
+              size="middle"
+              className="min-w-48"
+              showSearch
+              optionFilterProp="children"
+              filterOption={(input, option) => {
+                const children = option?.children;
+                const label = typeof children === 'string' ? children : '';
+                return label.toLowerCase().includes(input.toLowerCase());
+              }}
+            >
+              {classes.map(cls => (
+                <Option key={cls.id} value={cls.id}>
+                  {cls.grade} - {cls.name}
+                </Option>
+              ))}
+            </Select>
+          </Space>
+        </div>
+      }
+    >
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <SummaryCard
+          title="Total Potential Fees"
+          value={statistics.totalPotentialFees}
+          prefix="$"
+          color="#1890ff"
+          tooltip="Sum of all fees that should have been collected"
+        />
+        <SummaryCard
+          title="Collected Amount"
+          value={statistics.totalCollected}
+          prefix="$"
+          color="#52c41a"
+          tooltip="Amount actually collected from students"
+        />
+        <SummaryCard
+          title="Pending Amount"
+          value={statistics.pendingAmount}
+          prefix="$"
+          color="#faad14"
+          tooltip="Difference between potential and collected fees"
+        />
+        <SummaryCard
+          title="Payment Rate"
+          value={statistics.paymentRate}
+          suffix="%"
+          color={getPaymentRateColor(statistics.paymentRate)}
+          tooltip="Percentage of potential fees that have been collected"
+          progress
         />
       </div>
 
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={currentData} margin={{ top: 10, right: 0, left: -15, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-            <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#6B7280' }} />
-            <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Area type="monotone" dataKey="received" stroke="#60A5FA" fillOpacity={0.3} />
-            <Area type="monotone" dataKey="arrears" stroke="#FCA5A5" fillOpacity={0.3} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+      <Divider />
+
+      {/* Charts and Performance */}
+      <Row gutter={[16, 16]} className="mt-6">
+        <Col xs={24} md={16}>
+          <Card 
+            title="Monthly Collection Trends" 
+            extra={
+              <Text type="secondary">
+                {selectedClassId 
+                  ? `Showing data for selected class only`
+                  : `Showing data for all classes`}
+              </Text>
+            }
+          >
+            <div style={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statistics.monthlyTrends}>
+                  <XAxis dataKey="month" />
+                  <YAxis 
+                    tickFormatter={(value) => formatCurrency(value).replace('$', '')}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [formatCurrency(Number(value)), 'Amount']}
+                    labelFormatter={(label) => `Month: ${label}`}
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="collected" 
+                    name="Collected" 
+                    fill="#52c41a" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="pending" 
+                    name="Pending" 
+                    fill="#faad14" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </Col>
+        
+        <Col xs={24} md={8}>
+          <ClassPerformanceCard 
+            performanceData={statistics.classPerformance}
+            selectedClassId={selectedClassId}
+            isLoading={isClassPerformanceLoading}
+          />
+        </Col>
+      </Row>
+    </Card>
   );
 };
 
-export default EarningsChart;
+// Helper Components
+interface SummaryCardProps {
+  title: string;
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  color: string;
+  tooltip?: string;
+  progress?: boolean;
+}
+
+const SummaryCard: React.FC<SummaryCardProps> = ({ 
+  title, 
+  value, 
+  prefix, 
+  suffix, 
+  color, 
+  tooltip,
+  progress = false 
+}) => (
+  <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+    <div className="flex justify-between items-start">
+      <Text type="secondary" className="flex items-center">
+        {title}
+        {tooltip && (
+          <AntdTooltip title={tooltip}>
+            <InfoCircleOutlined className="ml-1 text-xs text-gray-400" />
+          </AntdTooltip>
+        )}
+      </Text>
+    </div>
+    <Statistic
+      value={value}
+      precision={0}
+      valueStyle={{ color }}
+      prefix={prefix}
+      suffix={suffix}
+      className="mt-2"
+    />
+    {progress && (
+      <Progress 
+        percent={value} 
+        strokeColor={color}
+        showInfo={false} 
+        size="small" 
+        className="mt-2"
+      />
+    )}
+  </Card>
+);
+
+interface ClassPerformanceCardProps {
+  performanceData: FeeStatistics['classPerformance'];
+  selectedClassId: number | null;
+  isLoading?: boolean;
+}
+
+const ClassPerformanceCard: React.FC<ClassPerformanceCardProps> = ({ 
+  performanceData, 
+  selectedClassId,
+  isLoading = false
+}) => {
+  const getPaymentRateColor = (rate: number) => {
+    if (rate >= 80) return '#52c41a';
+    if (rate >= 50) return '#faad14';
+    return '#f5222d';
+  };
+
+  if (isLoading) {
+    return (
+      <Card title="Class Performance">
+        <div className="flex justify-center items-center h-32">
+          <Spin tip="Loading class performance..." />
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card 
+      title={
+        <div className="flex justify-between items-center">
+          <span>Class Performance</span>
+          <Tag color={selectedClassId ? "blue" : "green"}>
+            {selectedClassId ? 'Single Class' : 'All Classes'}
+          </Tag>
+        </div>
+      }
+    >
+      {performanceData.length > 0 ? (
+        <div className="space-y-4">
+          {performanceData
+            .sort((a, b) => b.paymentRate - a.paymentRate)
+            .slice(0, 5)
+            .map((classStat) => (
+              <div key={classStat.classId}>
+                <div className="flex justify-between items-center mb-1">
+                  <Text ellipsis style={{ maxWidth: '60%' }}>
+                    {classStat.grade} - {classStat.className}
+                  </Text>
+                  <Text strong style={{ color: getPaymentRateColor(classStat.paymentRate) }}>
+                    {classStat.paymentRate}%
+                  </Text>
+                </div>
+                <Progress 
+                  percent={classStat.paymentRate} 
+                  strokeColor={getPaymentRateColor(classStat.paymentRate)}
+                  showInfo={false} 
+                  size="small" 
+                />
+              </div>
+            ))}
+          {performanceData.length > 5 && (
+            <Text type="secondary" className="block text-right">
+              +{performanceData.length - 5} more classes
+            </Text>
+          )}
+        </div>
+      ) : selectedClassId ? (
+        <div className="text-center py-8">
+          <Text type="secondary">Showing detailed data for selected class</Text>
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <Text type="secondary">No class performance data available</Text>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+export default DashboardFeeSummary;

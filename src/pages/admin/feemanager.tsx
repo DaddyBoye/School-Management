@@ -36,7 +36,7 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 interface FeeType {
-    id: string; // Changed to string for UUID
+    id: string;
     name: string;
     amount: number;
     due_date: string;
@@ -44,7 +44,7 @@ interface FeeType {
     is_active: boolean;
     created_at: string;
     class_specific_pricing?: {
-      class_id: string; // Changed to string
+      class_id: string;
       amount: number;
     }[];
     applicable_classes?: string[]; // Changed to string array

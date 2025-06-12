@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from "../../supabase";
 import { AnimatePresence } from 'framer-motion';
 import { ToastNotification } from '@/Components/ToastNotification';
@@ -222,7 +222,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         }
         throw subjectsError;
       }
-      
+
       const formattedSubjects = (teacherSubjectsData || []).map(item => {
           const subjectObj = Array.isArray(item.subjects) 
             ? item.subjects[0]
@@ -268,6 +268,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
     } finally {
       setLoadingStates(prev => ({ ...prev, teacherData: false, initialLoad: false }));
     }
+    
   };
 
   // Fetch all subjects for the class
@@ -278,13 +279,9 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       try {
         setLoadingStates(prev => ({ ...prev, teacherData: true }));
         
-        // First get all class-subject relationships for this class
         const { data: classSubjectsData, error: classSubjectsError } = await supabase
           .from('class_subjects')
           .select(`
-            id,
-            school_id,
-            class_id,
             subject_id,
             subjects (
               id,
@@ -296,16 +293,13 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         
         if (classSubjectsError) throw classSubjectsError;
         
-        // Format the data
         const formattedSubjects = (classSubjectsData || []).map(item => {
           const subject = Array.isArray(item.subjects) ? item.subjects[0] : item.subjects;
           return {
-            id: item.id,
-            school_id: item.school_id,
-            class_id: item.class_id,
-            subject_id: item.subject_id,
+            id: item.subject_id,
             name: subject?.name || 'Unknown',
             code: subject?.code || '',
+            class_id: assignedClass.id
           };
         });
         
@@ -318,7 +312,6 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
     };
     fetchAllSubjects();
   }, [assignedClass]); 
-
 
   // Fetch grade categories
   const fetchGradeCategories = async () => {
@@ -391,7 +384,6 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         }
         throw studentsError;
       }
-  
       setStudents(studentsData || []);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -407,44 +399,34 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
   const fetchGrades = async () => {
     try {
       setLoadingStates(prev => ({ ...prev, grades: true }));
-      setConnectionError(false);
       
       let subjectIds: string[] = [];
       if (viewMode === 'myClass' && assignedClass?.id) {
-        subjectIds = teacherSubjects
+        // Get all subjects for the class, not just teacher's subjects
+        subjectIds = allSubjects
           .filter(s => s.class_id === assignedClass.id)
-          .map(s => s.subject_id);
+          .map(s => s.id);
       } else if (viewMode === 'subjectsTaught' && selectedSubject) {
         subjectIds = [selectedSubject];
       }
-  
+
       if (subjectIds.length === 0) {
         setGrades([]);
         return;
       }
-  
+
       const { data: gradesData, error: gradesError } = await supabase
         .from('grades')
         .select('*')
         .in('subject_id', subjectIds)
         .eq('semester', selectedSemester)
         .eq('teacher_id', teacherId);
-  
-      if (gradesError) {
-        if (gradesError.message.includes('Failed to fetch') || 
-            gradesError.message.includes('NetworkError') ||
-            gradesError.message.includes('fetch failed')) {
-          setConnectionError(true);
-        }
-        throw gradesError;
-      }
-  
+
+      if (gradesError) throw gradesError;
+      
       setGrades(gradesData || []);
     } catch (error) {
       console.error('Error fetching grades:', error);
-      if (!connectionError) {
-        showNotification('Failed to load grades', 'error');
-      }
     } finally {
       setLoadingStates(prev => ({ ...prev, grades: false }));
     }
@@ -470,9 +452,10 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
 
   // Helper functions
   const getClassSubjects = () => {
-    if (!assignedClass) return [];
+    if (!assignedClass || !allSubjects.length || !teacherSubjects.length) {
+      return [];
+    }
     
-    // Combine with teacher's subjects to get additional info if available
     return allSubjects.map(subject => {
       const teacherSubject = teacherSubjects.find(ts => ts.subject_id === subject.id);
       return {
@@ -500,17 +483,22 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
     );
   };
 
+  const getCategoriesForSelectedSubject = useMemo(() => {
+    return () => {
+      if (!selectedSubject) return [];
+      return gradeCategories.filter(cat => cat.subject_id === selectedSubject);
+    };
+  }, [gradeCategories, selectedSubject]);
+
   const calculateCategoryAverage = (studentId: string, categoryId: string) => {
     const categoryGrades = grades.filter(grade => 
       grade.student_id === studentId && 
       grade.category_id === categoryId &&
-      // Add view mode specific filtering
-      (viewMode === 'myClass' || 
-       (viewMode === 'subjectsTaught' && grade.subject_id === selectedSubject))
+      grade.subject_id === selectedSubject // Add this filter for subjects taught view
     );
 
     if (categoryGrades.length === 0) return null;
-  
+
     const total = categoryGrades.reduce((sum, grade) => {
       return sum + (grade.score / grade.max_score * 100);
     }, 0);
@@ -1389,6 +1377,11 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
   const classSubjects = getClassSubjects();
   const rankedStudents = getRankedStudents();
 
+  if (loadingStates.initialLoad || loadingStates.teacherData || 
+      (viewMode === 'myClass' && !allSubjects.length)) {
+    return <LoadingSkeleton />;
+  }
+
   return (
     <div className="min-h-screen text-black">
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
@@ -1803,6 +1796,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Overall
                           </th>
+                          {/* Show subjects in My Class view when expanded */}
                           {viewMode === 'myClass' && expandedSubjects && classSubjects.map(subject => (
                             <th key={subject.subject_id} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                               <div className="flex flex-col items-center">
@@ -1811,14 +1805,18 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                               </div>
                             </th>
                           ))}
+                          {/* Show categories in Subjects Taught view */}
                           {viewMode === 'subjectsTaught' && selectedSubject && (
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Category Breakdown
                             </th>
                           )}
-                          <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
+                          {/* Only show actions in My Class view */}
+                          {viewMode === 'myClass' && (
+                            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1873,6 +1871,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                               )}
                             </td>
                             
+                            {/* Show subject grades in My Class expanded view */}
                             {viewMode === 'myClass' && expandedSubjects && classSubjects.map(subject => {
                               const subjectPerf = student.performance?.find(p => p.subjectId === subject.subject_id);
                               return (
@@ -1898,33 +1897,31 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                               );
                             })}
                             
+                            {/* Show category breakdown in Subjects Taught view */}
                             {viewMode === 'subjectsTaught' && selectedSubject && (
                               <td className="px-6 py-4 whitespace-nowrap">
-                                {gradeCategories.filter(cat => cat.subject_id === selectedSubject).length > 0 ? (
+                                {getCategoriesForSelectedSubject().length > 0 ? (
                                   <div className="space-y-2">
-                                    {gradeCategories
-                                      .filter(cat => cat.subject_id === selectedSubject)
-                                      .map(category => {
-                                        const avg = calculateCategoryAverage(student.user_id, category.id);
-                                        return (
-                                          <div key={category.id} className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-500 w-16 truncate">{category.name}</span>
-                                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                              <div 
-                                                className="h-full rounded-full"
-                                                style={{ 
-                                                  width: avg ? `${Math.min(100, Math.max(0, avg))}%` : '0%',
-                                                  backgroundColor: getScoreColor(avg)
-                                                }}
-                                              />
-                                            </div>
-                                            <span className="text-xs font-medium" style={{ color: getScoreColor(avg) }}>
-                                              {avg ? `${avg.toFixed(1)}%` : 'N/A'}
-                                            </span>
+                                    {getCategoriesForSelectedSubject().map(category => {
+                                      const avg = calculateCategoryAverage(student.user_id, category.id);
+                                      return (
+                                        <div key={category.id} className="flex items-center gap-2">
+                                          <span className="text-xs text-gray-500 w-16 truncate">{category.name}</span>
+                                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div 
+                                              className="h-full rounded-full"
+                                              style={{ 
+                                                width: avg ? `${Math.min(100, Math.max(0, avg))}%` : '0%',
+                                                backgroundColor: getScoreColor(avg)
+                                              }}
+                                            />
                                           </div>
-                                        );
-                                      })
-                                    }
+                                          <span className="text-xs font-medium" style={{ color: getScoreColor(avg) }}>
+                                            {avg ? `${avg.toFixed(1)}%` : 'N/A'}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 ) : (
                                   <div className="text-xs text-gray-500">No categories defined</div>
@@ -1932,18 +1929,21 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                               </td>
                             )}
                             
-                            <td className="px-3 py-4 whitespace-nowrap text-right">
-                              <button
-                                onClick={() => {
-                                  setSelectedStudentForReport(student);
-                                  setShowStudentReportModal(true);
-                                }}
-                                className="text-blue-500 hover:text-blue-700 flex items-center gap-1 text-sm ml-auto"
-                              >
-                                <FileText className="w-4 h-4" />
-                                Report
-                              </button>
-                            </td>
+                            {/* Only show actions in My Class view */}
+                            {viewMode === 'myClass' && (
+                              <td className="px-3 py-4 whitespace-nowrap text-right">
+                                <button
+                                  onClick={() => {
+                                    setSelectedStudentForReport(student);
+                                    setShowStudentReportModal(true);
+                                  }}
+                                  className="text-blue-500 hover:text-blue-700 flex items-center gap-1 text-sm ml-auto"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  Report
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>

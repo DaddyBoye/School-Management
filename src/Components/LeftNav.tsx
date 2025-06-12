@@ -30,6 +30,8 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
     { path: '/studentgradesview', label: 'My Grades', icon: Calendar },
     { path: '/studentfeeview', label: 'My Fees', icon: Calendar },
     { path: '/studenttimetable', label: 'My Timetables', icon: Calendar },
+    { path: '/studenttimetable', label: 'My Timetables', icon: Calendar },
+    { path: '/adminattendance', label: 'Attendance', icon: Calendar },
   ];
 
   // Filter navigation links based on the user's role
