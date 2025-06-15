@@ -1,8 +1,10 @@
 const TeacherDashboard = () => {
+    const profileData = JSON.parse(localStorage.getItem('profileData') || '{}');
+
   return (
     <div>
       <h1>Teacher Dashboard</h1>
-      {/* Add teacher-specific content here */}
+      {profileData.first_name}
     </div>
   );
 };

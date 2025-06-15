@@ -89,7 +89,14 @@ const AppContent = () => {
           </>
         )}
         <div className={`flex-1 w-full h-full ${!hideNavAndHeader ? 'md:ml-56 pt-20' : ''}`}>
-          {!hideNavAndHeader && <Header title={getPageTitle()} />}
+          {!hideNavAndHeader &&
+            <Header 
+              title={getPageTitle()} 
+              userId={user?.id} 
+              userRole={userRole} 
+              userEmail={user?.email}
+            />
+          }
           <main className="md:p-6 p-4">
             <Routes>
               <Route path="/role-selection" element={<RoleSelection />} />
