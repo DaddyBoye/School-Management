@@ -80,9 +80,9 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
   };
 
   return (
-    <div className={`h-full w-full ${currentStyle.background} text-white z-50 py-4 flex flex-col shadow-xl`}>
+    <div className={`h-full w-full ${currentStyle.background} text-white z-50 py-4 flex flex-col shadow-xl overflow-hidden`}>
       {/* Logo and School Name */}
-      <div className="px-4 mb-6">
+      <div className="px-4 mb-6 flex-shrink-0">
         <div className="flex items-center gap-3 mb-3">
           <div className={`w-10 h-10 bg-white rounded-lg flex items-center justify-center ${currentStyle.logoRing} shadow-lg`}>
             <div className={currentStyle.activeItemText}>
@@ -98,8 +98,8 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
         </div>
       </div>
 
-      {/* Navigation Links */}
-      <nav className="space-y-1 px-2 flex-grow overflow-y-auto">
+      {/* Navigation Links with Custom Scrollbar */}
+      <nav className="space-y-1 px-2 flex-grow min-h-0 overflow-y-auto scrollbar scrollbar-track-transparent scrollbar-thumb-white/60 hover:scrollbar-thumb-white/30">
         {filteredLinks.map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
@@ -107,7 +107,7 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
             className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 transform ${
               isActive(path)
                 ? `${currentStyle.activeItemBg} ${currentStyle.activeItemText} shadow-lg scale-105 border-l-4 border-opacity-50`
-                : `text-white ${currentStyle.hoverBg} hover:shadow-md hover:scale-102 hover:translate-x-1`
+                : `text-white ${currentStyle.hoverBg} hover:text-gray-100 hover:shadow-md hover:scale-102 hover:translate-x-1`
             }`}
           >
             <Icon size={20} className="mr-3 flex-shrink-0" />
@@ -120,10 +120,10 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
       </nav>
 
       {/* Role-specific decorative element */}
-      <div className={`mx-4 mb-4 h-1 rounded-full ${currentStyle.accent} opacity-30`} />
+      <div className={`mx-4 mb-4 h-1 rounded-full ${currentStyle.accent} opacity-30 flex-shrink-0`} />
 
       {/* Bottom Image */}
-      <div className="px-4">
+      <div className="px-4 flex-shrink-0">
         <div className="bg-white bg-opacity-10 rounded-xl p-3 backdrop-blur-sm">
           <img 
             src={NavImage} 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { supabase } from '../supabase';
-import ProfileDropdown from './ProfileDropdown'; // We'll extract this to a separate file
+import ProfileDropdown from './ProfileDropdown';
 
 interface HeaderProps {
   title: string;
@@ -14,6 +14,28 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userName, setUserName] = useState('');
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+
+  // Role-based styling configurations (matching LeftNav)
+  const roleStyles = {
+    admin: {
+      profileButton: 'bg-blue-600 hover:bg-blue-700',
+      profileButtonText: 'text-white',
+      chevronColor: 'text-white'
+    },
+    teacher: {
+      profileButton: 'bg-green-600 hover:bg-green-700',
+      profileButtonText: 'text-white',
+      chevronColor: 'text-white'
+    },
+    student: {
+      profileButton: 'bg-purple-600 hover:bg-purple-700',
+      profileButtonText: 'text-white',
+      chevronColor: 'text-white'
+    }
+  };
+
+  // Default to admin styling if role is not recognized
+  const currentStyle = roleStyles[userRole as keyof typeof roleStyles] || roleStyles.admin;
 
   // Fetch user details when userId or userRole changes
   useEffect(() => {
@@ -40,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
         const { data, error } = await supabase
           .from(tableName)
           .select('first_name, last_name')
-          .eq('user_id', userId) // Using user_id column
+          .eq('user_id', userId)
           .single();
 
         if (error) throw error;
@@ -76,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
           <div className="relative">
             <button
               onClick={toggleProfileDropdown}
-              className="flex bg-blue-600 items-center gap-2 hover:bg-gray-100 rounded-xl p-2 transition-colors duration-200 group"
+              className={`flex items-center gap-2 rounded-xl p-2 transition-colors duration-200 group ${currentStyle.profileButton}`}
             >
               <span className="w-8 h-8 rounded-full ring-2 ring-white shadow-sm bg-gray-100 flex items-center justify-center">
                 <svg
@@ -94,7 +116,7 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
                   />
                 </svg>
               </span>
-              <ChevronDown className={`h-4 w-4 text-white transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${currentStyle.chevronColor} ${isProfileOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Profile Dropdown */}

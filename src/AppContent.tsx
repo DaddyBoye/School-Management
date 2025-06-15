@@ -31,7 +31,7 @@ import AdminAttendance from './pages/admin/adminattendance';
 const AppContent = () => {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
   const location = useLocation();
-  const { user, userRole } = useAuth(); // Get user and userRole from auth context
+  const { user, userRole, loading } = useAuth(); // Get user and userRole from auth context
   const schoolId = localStorage.getItem('school_id') || '';
   const schoolName = localStorage.getItem('school_name') || '';
 
@@ -68,6 +68,14 @@ const AppContent = () => {
   
     const hideNavAndHeader = location.pathname === '/role-selection' || location.pathname === '/auth';
   
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-screen">
+          <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col md:flex-row min-h-screen min-w-fit font-sans bg-[#ffffff]">
         {!hideNavAndHeader && (

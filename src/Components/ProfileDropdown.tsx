@@ -19,6 +19,37 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Role-based styling configurations (matching LeftNav)
+  const roleStyles = {
+    admin: {
+      headerBackground: 'bg-gradient-to-r from-blue-50 to-blue-100',
+      avatarBackground: 'bg-gradient-to-br from-blue-500 to-blue-600',
+      roleLabel: 'Administrator',
+      roleBadge: 'bg-blue-100 text-blue-800',
+      logoutButton: 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200',
+      accent: 'border-blue-200'
+    },
+    teacher: {
+      headerBackground: 'bg-gradient-to-r from-green-50 to-green-100',
+      avatarBackground: 'bg-gradient-to-br from-green-500 to-green-600',
+      roleLabel: 'Teacher',
+      roleBadge: 'bg-green-100 text-green-800',
+      logoutButton: 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200',
+      accent: 'border-green-200'
+    },
+    student: {
+      headerBackground: 'bg-gradient-to-r from-purple-50 to-purple-100',
+      avatarBackground: 'bg-gradient-to-br from-purple-500 to-purple-600',
+      roleLabel: 'Student',
+      roleBadge: 'bg-purple-100 text-purple-800',
+      logoutButton: 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200',
+      accent: 'border-purple-200'
+    }
+  };
+
+  // Default to admin styling if role is not recognized
+  const currentStyle = roleStyles[userRole as keyof typeof roleStyles] || roleStyles.admin;
+
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -49,17 +80,19 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   return (
     <div 
       ref={dropdownRef}
-      className="absolute right-0 mt-3 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200"
+      className={`absolute right-0 mt-3 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200 ${currentStyle.accent}`}
     >
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-100">
+      <div className={`${currentStyle.headerBackground} px-6 py-4 border-b border-gray-100`}>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
+          <div className={`w-12 h-12 rounded-full ${currentStyle.avatarBackground} flex items-center justify-center text-white font-semibold text-lg shadow-lg`}>
             {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900">My Profile</h3>
-            <p className="text-xs text-gray-500">{userRole?.toUpperCase()}</p>
+            <span className={`inline-block text-xs px-2 py-1 rounded-full ${currentStyle.roleBadge} font-medium mt-1`}>
+              {currentStyle.roleLabel}
+            </span>
           </div>
         </div>
       </div>
@@ -91,7 +124,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
           <button
             onClick={handleLogout}
             disabled={isLoading}
-            className="w-full bg-red-50 hover:bg-red-100 disabled:bg-red-25 text-red-600 py-2.5 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2 text-sm border border-red-200"
+            className={`w-full py-2.5 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2 text-sm ${currentStyle.logoutButton} disabled:opacity-50`}
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />

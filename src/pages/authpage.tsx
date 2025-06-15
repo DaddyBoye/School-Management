@@ -110,7 +110,7 @@ const AuthPage: React.FC = () => {
       setIsSuccess(true);
       
       setTimeout(() => {
-        navigate('/');
+        window.location.href = '/';
       }, 1500);
 
     } catch (err) {
@@ -151,10 +151,10 @@ const AuthPage: React.FC = () => {
         {/* Back Button */}
         <button
           onClick={handleBack}
-          className="mb-6 flex items-center space-x-2 text-gray-500 hover:text-blue-600 transition-colors duration-200 bg-blue-300 hover:bg-blue-100 rounded-xl px-4 py-2"
+          className="mb-6 flex items-center space-x-2 text-gray-800 hover:text-blue-600 transition-colors duration-200 bg-blue-500 hover:bg-blue-100 rounded-xl px-4 py-2"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Back to role selection</span>
+          <ArrowLeft className="w-4 h-4 text-white" />
+          <span className="text-sm text-white">Back to role selection</span>
         </button>
 
         {/* Main Card */}
@@ -222,7 +222,7 @@ const AuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center hover:text-gray-700 transition-colors duration-200"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center hover:text-gray-700 bg-transparent transition-colors duration-200"
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5 text-gray-400" />

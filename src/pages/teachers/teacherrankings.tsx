@@ -319,36 +319,35 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       setLoadingStates(prev => ({ ...prev, categories: true }));
       setConnectionError(false);
       
-      let subjectIds: string[] = [];
-  
+      let query = supabase
+        .from('grade_categories')
+        .select('*');
+
       if (viewMode === 'myClass' && assignedClass?.id) {
-        // For myClass view, get all subjects assigned to this class
-        subjectIds = teacherSubjects
+        // For myClass view, get all categories for all subjects in the class
+        const subjectIds = allSubjects
           .filter(s => s.class_id === assignedClass.id)
-          .map(s => s.subject_id);
-      } else if (viewMode === 'subjectsTaught') {
-        // For subjectsTaught view, only get categories for the selected subject if one is selected
-        if (selectedSubject) {
-          subjectIds = [selectedSubject];
+          .map(s => s.id);
+        
+        if (subjectIds.length > 0) {
+          query = query.in('subject_id', subjectIds);
         } else {
-          // If no subject selected, don't fetch any categories
           setGradeCategories([]);
           return;
         }
-      }
-  
-      if (subjectIds.length === 0) {
+      } else if (viewMode === 'subjectsTaught' && selectedSubject) {
+        // For subjectsTaught view, only get categories for the selected subject
+        query = query.eq('subject_id', selectedSubject);
+      } else {
+        // If no subject selected in subjectsTaught view, don't fetch any categories
         setGradeCategories([]);
         return;
       }
-  
-      const { data, error } = await supabase
-        .from('grade_categories')
-        .select('*')
-        .in('subject_id', subjectIds);
-  
+
+      const { data, error } = await query;
+
       if (error) throw error;
-  
+
       setGradeCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -356,7 +355,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
     } finally {
       setLoadingStates(prev => ({ ...prev, categories: false }));
     }
-  };  
+  };
 
   // Fetch students
   const fetchStudents = async () => {
@@ -440,7 +439,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
 
   useEffect(() => {
     fetchGradeCategories();
-  }, [viewMode, assignedClass, selectedSubject, teacherSubjects]);
+  }, [viewMode, assignedClass, selectedSubject, teacherSubjects, allSubjects]);
 
   useEffect(() => {
     fetchStudents();
@@ -1953,71 +1952,71 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
 
                 {/* Grade Categories Section (for Subjects Taught view) */}
                 {viewMode === 'subjectsTaught' && selectedSubject && (
-                <div className="mt-6 bg-white rounded-lg shadow-sm border overflow-hidden">
-                  <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-                    <h3 className="text-lg font-medium flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-blue-500" />
-                      Grade Categories Breakdown
-                    </h3>
-                    <span className="text-sm text-gray-500">
-                      {gradeCategories.filter(cat => cat.subject_id === selectedSubject).length} categories
-                    </span>
-                  </div>
-                  
-                  <div className="divide-y divide-gray-200">
-                    {gradeCategories
-                      .filter(category => category.subject_id === selectedSubject)
-                      .map(category => {
-                        const categoryGrades = grades.filter(g => g.category_id === category.id);
-                        const avgScore = categoryGrades.length > 0 
-                          ? (categoryGrades.reduce((sum, g) => sum + (g.score/g.max_score), 0) / categoryGrades.length) * 100
-                          : null;
-                          
-                        return (
-                          <div key={category.id} className="p-4 hover:bg-gray-50">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h4 className="font-medium">{category.name}</h4>
-                                <p className="text-sm text-gray-500">Weight: {category.weight}%</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500">
-                                  {categoryGrades.length} grades
-                                </span>
-                                <div 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: getScoreColor(avgScore) }}
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="mt-3">
-                              <div className="text-sm font-medium mb-1">
-                                Class Average: {avgScore ? `${avgScore.toFixed(1)}%` : 'N/A'}
-                              </div>
-                              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full rounded-full"
-                                  style={{ 
-                                    width: avgScore ? `${Math.min(100, Math.max(0, avgScore))}%` : '0%',
-                                    backgroundColor: getScoreColor(avgScore)
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    }
+                  <div className="mt-6 bg-white rounded-lg shadow-sm border overflow-hidden">
+                    <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                      <h3 className="text-lg font-medium flex items-center gap-2">
+                        <ClipboardList className="w-5 h-5 text-blue-500" />
+                        Grade Categories Breakdown
+                      </h3>
+                      <span className="text-sm text-gray-500">
+                        {getCategoriesForSelectedSubject().length} categories
+                      </span>
+                    </div>
                     
-                    {gradeCategories.filter(cat => cat.subject_id === selectedSubject).length === 0 && (
-                      <div className="p-6 text-center text-gray-500">
-                        No grade categories defined for this subject
-                      </div>
-                    )}
+                    <div className="divide-y divide-gray-200">
+                      {getCategoriesForSelectedSubject().length > 0 ? (
+                        getCategoriesForSelectedSubject().map(category => {
+                          const categoryGrades = grades.filter(g => 
+                            g.category_id === category.id && 
+                            g.subject_id === selectedSubject
+                          );
+                          const avgScore = categoryGrades.length > 0 
+                            ? (categoryGrades.reduce((sum, g) => sum + (g.score/g.max_score), 0) / categoryGrades.length) * 100
+                            : null;
+                            
+                          return (
+                            <div key={category.id} className="p-4 hover:bg-gray-50">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <h4 className="font-medium">{category.name}</h4>
+                                  <p className="text-sm text-gray-500">Weight: {category.weight}%</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-500">
+                                    {categoryGrades.length} grades
+                                  </span>
+                                  <div 
+                                    className="w-3 h-3 rounded-full" 
+                                    style={{ backgroundColor: getScoreColor(avgScore) }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="mt-3">
+                                <div className="text-sm font-medium mb-1">
+                                  Class Average: {avgScore ? `${avgScore.toFixed(1)}%` : 'N/A'}
+                                </div>
+                                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full rounded-full"
+                                    style={{ 
+                                      width: avgScore ? `${Math.min(100, Math.max(0, avgScore))}%` : '0%',
+                                      backgroundColor: getScoreColor(avgScore)
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-6 text-center text-gray-500">
+                          No grade categories defined for this subject
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               </>
             )}
           </>
