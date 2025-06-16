@@ -51,6 +51,21 @@ const AppContent = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobile]);
 
+  useEffect(() => {
+    if (isMobile || isNavOpen) {
+      // Prevent body scroll when nav is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Restore body scroll
+      document.body.style.overflow = 'unset';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobile, isNavOpen]);
+
   // Close nav when route changes (only on mobile)
   useEffect(() => {
     if (isMobile) {
@@ -142,9 +157,17 @@ const AppContent = () => {
           )}
           {/* LeftNav with animation */}
           <div
-            className={`fixed top-0 left-0 h-screen w-64 md:w-56 z-40 transition-all duration-300 ease-in-out ${
+            className={`fixed md:relative top-0 left-0 h-screen md:h-auto w-64 md:w-56 z-40 transition-all duration-300 ease-in-out ${
               isMobile ? (isNavOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'
             }`}
+            style={{
+              // For mobile: make it truly fixed to prevent scrolling issues
+              position: isMobile ? 'fixed' : 'relative',
+              // Ensure it covers the full height on mobile
+              height: isMobile ? '100vh' : 'auto',
+              // Prevent body scroll when nav is open on mobile
+              overflowY: isMobile && isNavOpen ? 'auto' : 'visible'
+            }}
           >
             <LeftNav 
               userRole={userRole ?? undefined} 
