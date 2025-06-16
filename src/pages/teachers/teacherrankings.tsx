@@ -330,6 +330,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         // For subjectsTaught view, only get categories for the selected subject if one is selected
         if (selectedSubject) {
           subjectIds = [selectedSubject];
+          console.log('Fetching categories for:', selectedSubject);
         } else {
           // If no subject selected, don't fetch any categories
           setGradeCategories([]);
@@ -346,9 +347,8 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         .from('grade_categories')
         .select('*')
         .in('subject_id', subjectIds);
-  
+        console.log('Grade categories fetched:', data, error);
       if (error) throw error;
-  
       setGradeCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -478,30 +478,31 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
 
   const getCategoryGrades = (studentId: string, categoryId: string) => {
     return grades.filter(grade => 
-      grade.student_id === studentId && 
-      grade.category_id === categoryId
+      grade.student_id === studentId &&
+      String(grade.category_id) === String(categoryId) &&
+      String(grade.subject_id) === String(selectedSubject)
     );
   };
 
   const getCategoriesForSelectedSubject = useMemo(() => {
     return () => {
       if (!selectedSubject) return [];
-      return gradeCategories.filter(cat => cat.subject_id === selectedSubject);
+      return gradeCategories.filter(cat => String(cat.subject_id) === String(selectedSubject));
     };
   }, [gradeCategories, selectedSubject]);
 
   const calculateCategoryAverage = (studentId: string, categoryId: string) => {
     const categoryGrades = grades.filter(grade => 
       grade.student_id === studentId && 
-      grade.category_id === categoryId &&
-      grade.subject_id === selectedSubject // Add this filter for subjects taught view
+      String(grade.category_id) === String(categoryId) &&
+      String(grade.subject_id) === String(selectedSubject)
     );
 
     if (categoryGrades.length === 0) return null;
 
-    const total = categoryGrades.reduce((sum, grade) => {
-      return sum + (grade.score / grade.max_score * 100);
-    }, 0);
+    const total = categoryGrades.reduce((sum, grade) => 
+      sum + (grade.score / grade.max_score * 100), 0
+    );
 
     return total / categoryGrades.length;
   };
@@ -1028,7 +1029,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       
       const detailedData = [];
       for (const subject of getClassSubjects()) {
-        const categories = gradeCategories.filter(cat => cat.subject_id === subject.subject_id);
+        const categories = gradeCategories.filter(cat => String(cat.subject_id) === String(subject.subject_id));
         
         for (const category of categories) {
           const grades = getCategoryGrades(student.user_id, category.id);
@@ -1690,7 +1691,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                             <h3 className="text-sm font-medium text-purple-600">Grading Structure</h3>
                             <div className="mt-2 space-y-1">
                               {gradeCategories
-                                .filter(cat => cat.subject_id === selectedSubject)
+                                .filter(cat => String(cat.subject_id) === String(selectedSubject))
                                 .map(category => (
                                   <div key={category.id} className="flex justify-between text-sm">
                                     <span>{category.name}</span>
@@ -1698,7 +1699,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                                   </div>
                                 ))
                               }
-                              {gradeCategories.filter(cat => cat.subject_id === selectedSubject).length === 0 && (
+                              {gradeCategories.filter(cat => String(cat.subject_id) === String(selectedSubject)).length === 0 && (
                                 <p className="text-sm text-purple-500">No categories defined</p>
                               )}
                             </div>
@@ -1960,15 +1961,18 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                       Grade Categories Breakdown
                     </h3>
                     <span className="text-sm text-gray-500">
-                      {gradeCategories.filter(cat => cat.subject_id === selectedSubject).length} categories
+                      {gradeCategories.filter(cat => String(cat.subject_id) === String(selectedSubject)).length} categories
                     </span>
                   </div>
                   
                   <div className="divide-y divide-gray-200">
                     {gradeCategories
-                      .filter(category => category.subject_id === selectedSubject)
+                      .filter(category => String(category.subject_id) === String(selectedSubject))
                       .map(category => {
-                        const categoryGrades = grades.filter(g => g.category_id === category.id);
+                        const categoryGrades = grades.filter(g => 
+                          String(g.category_id) === String(category.id) &&
+                          String(g.subject_id) === String(selectedSubject)
+                        );
                         const avgScore = categoryGrades.length > 0 
                           ? (categoryGrades.reduce((sum, g) => sum + (g.score/g.max_score), 0) / categoryGrades.length) * 100
                           : null;
@@ -2010,7 +2014,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                       })
                     }
                     
-                    {gradeCategories.filter(cat => cat.subject_id === selectedSubject).length === 0 && (
+                    {gradeCategories.filter(cat => String(cat.subject_id) === String(selectedSubject)).length === 0 && (
                       <div className="p-6 text-center text-gray-500">
                         No grade categories defined for this subject
                       </div>
