@@ -160,7 +160,7 @@ const AppContent = () => {
           )}
           {/* LeftNav with animation */}
           <div
-            className={`fixed md:relative top-0 left-0 h-screen md:h-auto w-64 md:w-56 z-40 transition-all duration-300 ease-in-out ${
+            className={`fixed md:relative top-0 left-0 h-full md:h-auto w-64 md:w-56 z-40 transition-all duration-300 ease-in-out ${
               isMobile ? (isNavOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'
             }`}
             style={{
