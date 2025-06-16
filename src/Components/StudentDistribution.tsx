@@ -92,9 +92,9 @@ const StudentDistribution = ({ schoolId }: { schoolId: string }) => {
               total: 0
             };
             
-            if (student.gender === 'male') {
+            if (student.gender === 'Male') {
               gradeInfo.boys++;
-            } else if (student.gender === 'female') {
+            } else if (student.gender === 'Female') {
               gradeInfo.girls++;
             }
             
@@ -267,8 +267,8 @@ const StudentDistribution = ({ schoolId }: { schoolId: string }) => {
                   .filter(cls => cls.grade === selectedGrade)
                   .map(cls => {
                     const classStudents = students.filter(s => s.class_id === cls.id);
-                    const classBoys = classStudents.filter(s => s.gender === 'male').length;
-                    const classGirls = classStudents.filter(s => s.gender === 'female').length;
+                    const classBoys = classStudents.filter(s => s.gender === 'Male').length;
+                    const classGirls = classStudents.filter(s => s.gender === 'Female').length;
                     
                     return (
                       <div key={cls.id} className="text-sm p-2 bg-gray-50 rounded">
