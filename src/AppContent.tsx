@@ -52,18 +52,21 @@ const AppContent = () => {
   }, [isMobile]);
 
   useEffect(() => {
-    if (isMobile || isNavOpen) {
-      // Prevent body scroll when nav is open
+    if (isMobile && isNavOpen) {
+      // Prevent body scroll when nav is open on mobile
       document.body.style.overflow = 'hidden';
+      // Also prevent touchmove events
+      const preventDefault = (e: TouchEvent) => e.preventDefault();
+      document.addEventListener('touchmove', preventDefault, { passive: false });
+      
+      return () => {
+        document.body.style.overflow = 'unset';
+        document.removeEventListener('touchmove', preventDefault);
+      };
     } else {
-      // Restore body scroll
+      // Restore body scroll when nav is closed
       document.body.style.overflow = 'unset';
     }
-
-    // Cleanup on unmount
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
   }, [isMobile, isNavOpen]);
 
   // Close nav when route changes (only on mobile)
@@ -161,12 +164,10 @@ const AppContent = () => {
               isMobile ? (isNavOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'
             }`}
             style={{
-              // For mobile: make it truly fixed to prevent scrolling issues
               position: isMobile ? 'fixed' : 'relative',
-              // Ensure it covers the full height on mobile
               height: isMobile ? '100vh' : 'auto',
-              // Prevent body scroll when nav is open on mobile
-              overflowY: isMobile && isNavOpen ? 'auto' : 'visible'
+              // Prevent scrolling within the nav itself
+              overflowY: isMobile ? 'hidden' : 'auto'
             }}
           >
             <LeftNav 
