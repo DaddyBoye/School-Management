@@ -58,9 +58,9 @@ interface Class {
 }
 
 const genderOptions = [
-  { value: 'Male', label: 'Male' },
-  { value: 'Female', label: 'Female' },
-  { value: 'Other', label: 'Other' },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' }
 ];
 

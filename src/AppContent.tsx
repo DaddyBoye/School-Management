@@ -152,7 +152,7 @@ const AppContent = () => {
           {/* Overlay - only show on mobile when nav is open */}
           {isMobile && (
             <div
-              className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ${
+              className={`fixed inset-0 bg-black bg-opacity-50 z-30 transition-opacity duration-300 ${
                 isNavOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
               onClick={() => setIsNavOpen(false)}
