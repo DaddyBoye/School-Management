@@ -176,7 +176,7 @@ const AppContent = () => {
                 path="/studentfees"
                 element={
                   <ProtectedRoute roles={['admin']}>
-                    <StudentFees schoolId={schoolId} currentSemester="2025 Spring" />
+                    <StudentFees schoolId={schoolId} adminId={user?.id || ''} currentSemester="2025 Spring" />
                   </ProtectedRoute>
                 }
               />

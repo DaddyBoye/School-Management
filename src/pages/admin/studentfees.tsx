@@ -38,6 +38,7 @@ const { Title, Text } = Typography;
 
 interface StudentFeeManagementPageProps {
   schoolId: string;
+  adminId?: string;
   currentSemester: string;
 }
 
@@ -62,9 +63,6 @@ interface Student {
     status: string;
     semester: string;
     paymentDate: string;
-    collector_type?: string;
-    collector_id?: number;
-    collector?: string;
   }>;
 }
 
@@ -82,44 +80,6 @@ interface FeeType {
   applicable_classes?: number[];
 }
 
-interface Collector {
-  id: number;
-  name: string;
-  role: string;
-}
-
-interface FeeData {
-  id: number;
-  fee_types?: {
-    name: string;
-    amount: number;
-    due_date: string;
-  };
-  paid: number;
-  due_date: string;
-  status: string;
-  semester: string;
-  created_at: string;
-  collector_type?: string;
-  collector_id?: number;
-  allPayments?: any[];
-}
-
-interface ProcessedFee {
-  id: number;
-  type: string;
-  amount: number;
-  paid: number;
-  dueDate: string;
-  status: string;
-  semester: string;
-  paymentDate: string;
-  collector_type?: string;
-  collector_id?: number;
-  collector?: string;
-  allPayments?: any[];
-}
-
 interface StudentHistory {
   semester: string;
   payments: Array<{
@@ -131,26 +91,23 @@ interface StudentHistory {
     status: string;
     semester: string;
     paymentDate: string;
-    collector_type?: string;
-    collector_id?: number;
-    collector?: string;
+    admin_id?: string;
+    admin_name?: string;
   }>;
 }
 
-const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ schoolId, currentSemester }) => {
+const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ schoolId, adminId, currentSemester }) => {
   // States
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
-  const [collectors, setCollectors] = useState<Collector[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [selectedSemester, setSelectedSemester] = useState(currentSemester || moment().format('YYYY [Spring]'));
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [selectedFeeType, setSelectedFeeType] = useState(null);
-  const [selectedCollector, setSelectedCollector] = useState<Collector | null>(null);
   const [studentDetailsVisible, setStudentDetailsVisible] = useState(false);
   const [studentHistory, setStudentHistory] = useState<StudentHistory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,10 +128,7 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
       // 2. Fetch fee types
       await fetchFeeTypes();
   
-      // 3. Fetch collectors first
-      await fetchCollectors();
-  
-      // 4. Fetch students AFTER collectors are loaded
+      // 3. Fetch students AFTER fee types are loaded
       await fetchStudentsForSchool(schoolId);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -205,19 +159,6 @@ useEffect(() => {
     setFilteredStudents([]);
   }
 }, [selectedClass, students]);
-
-  // Debugging logs
-  useEffect(() => {
-    console.log('Selected Class:', selectedClass);
-  }, [selectedClass]);
-
-  useEffect(() => {
-    console.log('Students:', students);
-  }, [students]);
-
-  useEffect(() => {
-    console.log('Filtered Students:', filteredStudents);
-  }, [filteredStudents]);
 
   useEffect(() => {
     // Re-fetch fees when the semester changes
@@ -265,51 +206,42 @@ useEffect(() => {
     const fetchStudentHistory = async () => {
       if (currentStudent) {
         try {
-          // Fetch student fees
           const { data: feesData, error: feesError } = await supabase
             .from('student_fees')
-            .select('*, fee_types(name, due_date), collector_type, collector_id') // Include collector_type and collector_id
+            .select('*, fee_types(name, due_date), administrators!admin_id(first_name, last_name)')
             .eq('student_id', currentStudent.id);
-    
+
           if (feesError) throw feesError;
-    
-          // Format the data to include collector names
-          const formattedData = feesData.map(fee => ({
+
+          const formattedData = (feesData || []).map(fee => ({
             ...fee,
-            type: fee.fee_types.name,
-            dueDate: fee.fee_types.due_date,
-            collector_type: fee.collector_type, // Add collector_type
-            collector_id: fee.collector_id, // Add collector_id
-            collector: fee.collector_type && fee.collector_id
-              ? collectors.find(c => c.role.toLowerCase() === fee.collector_type.toLowerCase() && c.id.toString() === fee.collector_id.toString())?.name || 'Unknown'
-              : 'Unknown', // Add collector name
+            type: fee.fee_types?.name || 'Unknown',
+            dueDate: fee.fee_types?.due_date || fee.due_date,
+            admin_name: fee.administrators 
+              ? `${fee.administrators.first_name} ${fee.administrators.last_name}`
+              : 'System',
             paymentDate: fee.created_at
           }));
-    
-          // Group history by semester
+
           const historyBySemester = formattedData.reduce((acc, fee) => {
             const semester = fee.semester;
-            if (!acc[semester]) {
-              acc[semester] = [];
-            }
+            if (!acc[semester]) acc[semester] = [];
             acc[semester].push(fee);
             return acc;
           }, {});
-    
-          // Convert to array format
-          const formattedHistory = Object.keys(historyBySemester).map(semester => ({
-            semester,
-            payments: historyBySemester[semester]
-          }));
-    
-          setStudentHistory(formattedHistory);
+
+          setStudentHistory(
+            Object.keys(historyBySemester).map(semester => ({
+              semester,
+              payments: historyBySemester[semester]
+            }))
+          );
         } catch (error) {
           console.error('Error fetching student history:', error);
           message.error('Failed to fetch payment history');
         }
       }
     };
-
 
     fetchStudentHistory();
   }, [currentStudent]);
@@ -391,232 +323,144 @@ useEffect(() => {
     }
   };
   
-  // Fetch collectors (teachers and admins) from Supabase
-  const fetchCollectors = async () => {
-    try {
-      const { data: teachers, error: teachersError } = await supabase
-        .from('teachers')
-        .select('id, first_name, last_name')
-        .eq('school_id', schoolId);
-
-      if (teachersError) throw teachersError;
-
-      const { data: admins, error: adminsError } = await supabase
-        .from('administrators')
-        .select('id, first_name, last_name')
-        .eq('school_id', schoolId);
-
-      if (adminsError) throw adminsError;
-
-      const collectors = [
-        ...(teachers || []).map(teacher => ({ id: teacher.id, name: `${teacher.first_name} ${teacher.last_name}`, role: 'teacher' })),
-        ...(admins || []).map(admin => ({ id: admin.id, name: `${admin.first_name} ${admin.last_name}`, role: 'admin' }))
-      ];
-
-      setCollectors(collectors);
-    } catch (error) {
-      console.error('Error fetching collectors:', error);
-      message.error('Failed to fetch collectors');
-    }
-  };
-
   const fetchStudentFees = async (studentId: number, semester: string) => {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('student_fees')
-        .select('*, fee_types(name, amount, due_date), collector_type, collector_id')
+        .select(`
+          *,
+          fee_types(name, amount, due_date),
+          administrators!admin_id(first_name, last_name)
+        `)
         .eq('student_id', studentId)
         .eq('semester', semester);
-  
-      // Try with school_id filter first
-      const { data, error } = await query.eq('school_id', schoolId);
-  
-      if (error && error.code === '42703') { // Column not found error
-        console.warn('school_id column not found, falling back to unfiltered query');
-        const { data: fallbackData, error: fallbackError } = await query;
-        if (fallbackError) throw fallbackError;
-        return processFeesData(fallbackData || []);
-      }
-  
+
       if (error) throw error;
-      return processFeesData(data || []);
+      
+      // Process the data to include admin name
+      return (data || []).map(fee => ({
+        id: fee.id,
+        type: fee.fee_types?.name || 'Unknown',
+        amount: fee.fee_types?.amount || 0,
+        paid: fee.paid || 0,
+        dueDate: fee.fee_types?.due_date || fee.due_date,
+        status: fee.status || 'unpaid',
+        semester: fee.semester,
+        paymentDate: fee.created_at,
+        admin_id: fee.admin_id,
+        admin_name: fee.administrators 
+          ? `${fee.administrators.first_name} ${fee.administrators.last_name}`
+          : 'System'
+      }));
     } catch (error) {
       console.error('Error fetching student fees:', error);
       message.error('Failed to fetch student fees');
       return [];
     }
   };
-  
-// Helper function to process the fees data with aggregation
-const processFeesData = (feesData: FeeData[]): ProcessedFee[] => {
-  // First, group fees by type
-  const feesByType = feesData.reduce((acc: Record<string, ProcessedFee>, fee: FeeData) => {
-    const feeType = fee.fee_types?.name || 'Unknown';
-    if (!acc[feeType]) {
-      acc[feeType] = {
-        id: fee.id,
-        type: feeType,
-        amount: fee.fee_types?.amount || 0,
-        paid: 0,
-        dueDate: fee.fee_types?.due_date || fee.due_date,
-        status: 'unpaid',
-        semester: fee.semester,
-        paymentDate: fee.created_at,
-        collector_type: fee.collector_type,
-        collector_id: fee.collector_id,
-        collector: 'Unknown',
-        allPayments: []
-      };
-    }
-    
-    // Sum up the paid amounts
-    acc[feeType].paid += fee.paid || 0;
-    acc[feeType].allPayments?.push(fee);
-    
-    // Determine the most recent payment date
-    if (!acc[feeType].paymentDate || moment(fee.created_at).isAfter(acc[feeType].paymentDate)) {
-      acc[feeType].paymentDate = fee.created_at;
-    }
-    
-    // Update collector info from the most recent payment
-    if (fee.collector_type && fee.collector_id) {
-      acc[feeType].collector_type = fee.collector_type;
-      acc[feeType].collector_id = fee.collector_id;
-    }
-    
-    return acc;
-  }, {} as Record<string, ProcessedFee>);
-
-  // Then process each aggregated fee to determine status and collector name
-  return Object.values(feesByType).map(fee => {
-    // Determine status based on aggregated paid amount
-    fee.status = fee.paid >= fee.amount ? 'paid' : 
-                 fee.paid > 0 ? 'partial' : 'unpaid';
-    
-    // Find collector name if available
-    if (fee.collector_type && fee.collector_id && collectors.length > 0) {
-      const collector = collectors.find(c => 
-        c.role.toLowerCase() === fee.collector_type?.toLowerCase() && 
-        c.id.toString() === fee.collector_id?.toString()
-      );
-      if (collector) fee.collector = collector.name;
+ 
+  const recordPayment = async (
+    studentId: number, 
+    feeTypeId: number, 
+    fullAmount: number, 
+    paidAmount: number, 
+    semester: string, 
+    dueDate: string
+  ) => {
+    if (!adminId) {
+      message.error('Admin ID not available');
+      return null;
     }
 
-    return fee;
-  });
-};
-  
-const recordPayment = async (
-  studentId: number, 
-  feeTypeId: number, 
-  fullAmount: number, 
-  paidAmount: number, 
-  collectorType: string, 
-  collectorId: number, 
-  semester: string, 
-  dueDate: string
-) => {
-  try {
-    // First check if there are existing payments for this fee type
-    const { data: existingPayments, error: fetchError } = await supabase
-      .from('student_fees')
-      .select('*')
-      .eq('student_id', studentId)
-      .eq('fee_type_id', feeTypeId)
-      .eq('semester', semester);
+    try {
+      // First check if there are existing payments for this fee type
+      const { data: existingPayments, error: fetchError } = await supabase
+        .from('student_fees')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('fee_type_id', feeTypeId)
+        .eq('semester', semester);
 
-    if (fetchError) throw fetchError;
+      if (fetchError) throw fetchError;
 
-    const totalPaidSoFar = existingPayments?.reduce((sum, payment) => sum + (payment.paid || 0), 0) || 0;
-    const newTotalPaid = totalPaidSoFar + paidAmount;
+      const totalPaidSoFar = existingPayments?.reduce((sum, payment) => sum + (payment.paid || 0), 0) || 0;
+      const newTotalPaid = totalPaidSoFar + paidAmount;
 
-    // Record the new payment
-    const { data, error } = await supabase
-      .from('student_fees')
-      .insert([
-        {
-          student_id: studentId,
-          fee_type_id: feeTypeId,
-          amount: fullAmount,
-          paid: paidAmount,
-          due_date: dueDate,
-          status: newTotalPaid >= fullAmount ? 'paid' : 'partial',
-          semester: semester,
-          collector_type: collectorType,
-          collector_id: collectorId,
-          school_id: schoolId
-        }
-      ])
-      .select();
+      // Record the new payment
+      const { data, error } = await supabase
+        .from('student_fees')
+        .insert([
+          {
+            student_id: studentId,
+            fee_type_id: feeTypeId,
+            amount: fullAmount,
+            paid: paidAmount,
+            due_date: dueDate,
+            status: newTotalPaid >= fullAmount ? 'paid' : 'partial',
+            semester: semester,
+            admin_id: adminId, // Automatically use the logged-in admin's ID
+            school_id: schoolId
+          }
+        ])
+        .select();
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error recording payment:', error);
-    message.error('Failed to record payment');
-    return null;
-  }
-};
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      message.error('Failed to record payment');
+      return null;
+    }
+  };
   
   const handlePaymentSubmit = async () => {
-    if (!selectedFeeType || !selectedCollector || paymentAmount <= 0) {
+    if (!selectedFeeType || paymentAmount <= 0) {
       message.error('Please fill all required fields');
       return;
     }
-  
+
     // Find the selected fee type
     const feeType = feeTypes.find(type => type.id === selectedFeeType);
     if (!feeType) {
       message.error('Fee type not found');
       return;
     }
-  
+
     // Get the correct amount for this student's class
     let fullAmount = feeType.amount;
     if (feeType.is_class_specific && currentStudent) {
-      // Find class-specific pricing if available
       const classPricing = feeType.fee_class_pricing?.find(
         pricing => pricing.class_id === currentStudent.class_id
       );
       
-      // Check if this fee applies to the student's class
       if (!feeType.applicable_classes?.includes(currentStudent.class_id)) {
         message.error('This fee is not applicable to the selected student');
         return;
       }
-  
-      // Use class-specific amount if available, otherwise use default amount
+
       fullAmount = classPricing?.amount || feeType.amount;
     }
-  
-    // Validate payment amount doesn't exceed the full amount
+
     if (paymentAmount > fullAmount) {
       message.error(`Payment amount cannot exceed GH₵${fullAmount}`);
       return;
     }
-  
-    const paidAmount = paymentAmount;
-    const dueDate = feeType.due_date;
-    const collectorType = selectedCollector.role;
-    const collectorId = selectedCollector.id;
-  
+
     try {
       const paymentData = await recordPayment(
         currentStudent?.id || 0,
         selectedFeeType,
         fullAmount,
-        paidAmount,
-        collectorType,
-        collectorId,
+        paymentAmount,
         selectedSemester,
-        dueDate
+        feeType.due_date
       );
-  
+
       if (paymentData) {
         message.success('Payment recorded successfully');
         setIsModalVisible(false);
-  
-        // Refresh student fees with the selected semester
+
+        // Refresh student data
         if (currentStudent) {
           const updatedFees = await fetchStudentFees(currentStudent.id, selectedSemester);
           setCurrentStudent(prev => prev ? { ...prev, fees: updatedFees } : null);
@@ -628,8 +472,7 @@ const recordPayment = async (
             )
           );
         }
-  
-        // Recalculate statistics
+
         calculateStatistics();
       }
     } catch (error) {
@@ -715,7 +558,6 @@ const recordPayment = async (
     }
   };
 
-  // PDF generation
 // Enhanced PDF generation function
 interface ReportOptions {
   title: string;
@@ -1275,23 +1117,6 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     }
   ];
 
-  useEffect(() => {
-    // Refresh student data when collectors are loaded
-    if (collectors.length > 0 && students.length > 0) {
-      const updateStudentsWithCollectors = async () => {
-        const updatedStudents = await Promise.all(
-          students.map(async (student) => {
-            const fees = await fetchStudentFees(student.id, selectedSemester);
-            return { ...student, fees };
-          })
-        );
-        setStudents(updatedStudents);
-      };
-      
-      updateStudentsWithCollectors();
-    }
-  }, [collectors]);
-
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '82vh' }}>
@@ -1547,28 +1372,6 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
         size="large"
       />
     </Form.Item>
-
-    <Form.Item 
-      label={<Text strong>Collected By</Text>} 
-      required
-    >
-      <Select
-        placeholder="Select collector"
-        style={{ width: '100%' }}
-        value={selectedCollector?.id}
-        onChange={(value) => {
-          const collector = collectors.find(c => c.id === value);
-          setSelectedCollector(collector || null);
-        }}
-        size="large"
-      >
-        {collectors.map(collector => (
-          <Option key={collector.id} value={collector.id}>
-            {collector.name} ({collector.role})
-          </Option>
-        ))}
-      </Select>
-    </Form.Item>
   </Form>
 </Modal>
 
@@ -1667,25 +1470,6 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
               key: 'dueDate',
               render: (date) => moment(date).format('MMM DD, YYYY')
             },
-            {
-              title: 'Collector',
-              dataIndex: 'collector',
-              key: 'collector',
-              render: (collector, record) => {
-                if (collectors.length === 0) return <Text>Loading...</Text>;
-                
-                if (collector === 'Unknown' && record.collector_type && record.collector_id) {
-                  const foundCollector = collectors.find(c => 
-                    c.role.toLowerCase() === (record.collector_type?.toLowerCase() ?? '') && 
-                    c.id.toString() === (record.collector_id?.toString() ?? '')
-                  );
-                  
-                  return <Text strong>{foundCollector ? foundCollector.name : 'Unknown'}</Text>;
-                }
-                
-                return <Text strong>{collector}</Text>;
-              }
-            }
           ]} 
           rowKey="id"
           pagination={false}
@@ -1762,10 +1546,11 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                     responsive: ['md']
                   },
                   {
-                    title: 'Collector',
-                    dataIndex: 'collector',
-                    key: 'collector',
-                    render: (collector) => <Text strong>{collector}</Text>,
+                    title: 'Processed By',
+                    key: 'admin',
+                    render: (_, record) => (
+                      <Text strong>{record.admin_name || 'System'}</Text>
+                    ),
                     responsive: ['lg']
                   }
                 ]} 
