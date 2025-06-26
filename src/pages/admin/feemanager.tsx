@@ -603,7 +603,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
           record.is_class_specific ? (
             <Text>Varies by class</Text>
           ) : (
-            <Text>${record.amount.toFixed(2)}</Text>
+            <Text>GH₵{record.amount.toFixed(2)}</Text>
           )
         )
       },
@@ -684,7 +684,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
       title: 'Total Collected',
       dataIndex: 'total_collected',
       key: 'total_collected',
-      render: (amount: number) => `$${amount.toFixed(2)}`,
+      render: (amount: number) => `GH₵${amount.toFixed(2)}`,
       sorter: (a: FeeCollectionStat, b: FeeCollectionStat) => a.total_collected - b.total_collected
     },
     {
@@ -695,7 +695,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
           {Object.entries(record.fee_types).map(([feeType, amount]) => (
             <div key={feeType} style={{ marginBottom: 4 }}>
               <Text type="secondary">{feeType}: </Text>
-              <Text strong>${amount.toFixed(2)}</Text>
+              <Text strong>GH₵{amount.toFixed(2)}</Text>
             </div>
           ))}
         </div>
@@ -831,7 +831,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
                     title="Total Collected"
                     value={collectionStats.reduce((sum, stat) => sum + stat.total_collected, 0)}
                     precision={2}
-                    prefix="$"
+                    prefix="GH₵"
                     valueStyle={{ color: '#3f8600' }}
                   />
                 </Card>
@@ -903,7 +903,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
                 label="Amount"
                 rules={[{ required: true, message: 'Please enter amount' }]}
               >
-                <Input type="number" prefix="$" />
+                <Input type="number" prefix="GH₵" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -975,7 +975,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
                         >
                         <Input
                             type="number"
-                            prefix="$"
+                            prefix="GH₵"
                             value={classPrices[classId] ?? feeForm.getFieldValue('amount')}
                             onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
@@ -1008,7 +1008,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
                     }
                 ]}
                 >
-                <Input type="number" prefix="$" min={0} step="0.01" />
+                <Input type="number" prefix="GH₵" min={0} step="0.01" />
                 </Form.Item>
             )
             }

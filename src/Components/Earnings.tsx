@@ -482,21 +482,21 @@ const DashboardFeeSummary: React.FC<DashboardFeeSummaryProps> = ({ schoolId, cur
         <SummaryCard
           title="Total Potential Fees"
           value={statistics.totalPotentialFees}
-          prefix="$"
+          prefix="GH₵"
           color="#1890ff"
           tooltip="Sum of all fees that should have been collected"
         />
         <SummaryCard
           title="Collected Amount"
           value={statistics.totalCollected}
-          prefix="$"
+          prefix="GH₵"
           color="#52c41a"
           tooltip="Amount actually collected from students"
         />
         <SummaryCard
           title="Pending Amount"
           value={statistics.pendingAmount}
-          prefix="$"
+          prefix="GH₵"
           color="#faad14"
           tooltip="Difference between potential and collected fees"
         />
@@ -530,7 +530,7 @@ const DashboardFeeSummary: React.FC<DashboardFeeSummaryProps> = ({ schoolId, cur
                 <BarChart data={statistics.monthlyTrends}>
                   <XAxis dataKey="month" />
                   <YAxis 
-                    tickFormatter={(value) => formatCurrency(value).replace('$', '')}
+                    tickFormatter={(value) => formatCurrency(value).replace('GH₵', '')}
                   />
                   <Tooltip 
                     formatter={(value) => [formatCurrency(Number(value)), 'Amount']}

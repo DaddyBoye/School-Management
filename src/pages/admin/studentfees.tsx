@@ -591,7 +591,7 @@ const recordPayment = async (
   
     // Validate payment amount doesn't exceed the full amount
     if (paymentAmount > fullAmount) {
-      message.error(`Payment amount cannot exceed $${fullAmount}`);
+      message.error(`Payment amount cannot exceed GH₵${fullAmount}`);
       return;
     }
   
@@ -793,12 +793,12 @@ const downloadReport = (options: ReportOptions) => {
     startY += 10;
     
     Object.entries(summary).forEach(([key, value], index) => {
-      const formattedKey = key.replace(/([A-Z])/g, ' $1')
+      const formattedKey = key.replace(/([A-Z])/g, ' GH₵1')
         .replace(/^./, str => str.toUpperCase())
         .replace(/_/g, ' ');
       
       const valueText = typeof value === 'number' && key.toLowerCase().includes('amount') 
-        ? `$${value.toFixed(2)}` 
+        ? `GH₵${value.toFixed(2)}` 
         : value;
       
       doc.text(`${formattedKey}: ${valueText}`, 14, startY + (index * 7));
@@ -967,9 +967,9 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     'Class': `${classInfo.name} - ${classInfo.grade}`,
     'Total Students': students.length,
     'Total Fee Types': feeTypes.length,
-    'Total Potential Fees': `$${totalPotentialFees.toFixed(2)}`,
-    'Total Collected': `$${totalCollected.toFixed(2)}`,
-    'Total Pending': `$${pendingAmount.toFixed(2)}`,
+    'Total Potential Fees': `GH₵${totalPotentialFees.toFixed(2)}`,
+    'Total Collected': `GH₵${totalCollected.toFixed(2)}`,
+    'Total Pending': `GH₵${pendingAmount.toFixed(2)}`,
     'Collection Rate': `${paymentRate}%`
   };
 
@@ -994,9 +994,9 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     body: studentsData.map(student => [
       student.rollNo,
       student.name,
-      `$${student.totalDue.toFixed(2)}`,
-      `$${student.totalPaid.toFixed(2)}`,
-      `$${student.balance.toFixed(2)}`,
+      `GH₵${student.totalDue.toFixed(2)}`,
+      `GH₵${student.totalPaid.toFixed(2)}`,
+      `GH₵${student.balance.toFixed(2)}`,
       student.paymentStatus.charAt(0).toUpperCase() + student.paymentStatus.slice(1)
     ]),
     startY: yPosition,
@@ -1027,13 +1027,13 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     ],
     body: feeTypeAnalysis.map(type => [
       type.name,
-      `$${type.amount.toFixed(2)}`,
+      `GH₵${type.amount.toFixed(2)}`,
       moment(type.dueDate).format('MMM DD'),
       `${type.paidCount} (${Math.round((type.paidCount/students.length)*100)}%)`,
       `${type.partialCount} (${Math.round((type.partialCount/students.length)*100)}%)`,
       `${type.unpaidCount} (${Math.round((type.unpaidCount/students.length)*100)}%)`,
-      `$${type.totalCollected.toFixed(2)}`,
-      `$${type.pending.toFixed(2)}`,
+      `GH₵${type.totalCollected.toFixed(2)}`,
+      `GH₵${type.pending.toFixed(2)}`,
       `${type.paymentRate}%`
     ]),
     startY: 30,
@@ -1087,7 +1087,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
   const formatSemesterForDisplay = (semester: string) => {
     if (semester === 'All') return 'All Semesters';
     const [year, season] = semester.split(' ');
-    return `${season} ${year}`; // Convert "2025 Spring" to "Spring 2025"
+    return `${season} ${year}`;
   };
 
   // Get filtered history based on selected semester
@@ -1177,7 +1177,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                              '#ff4d4f'
                     }}
                   >
-                    ${(totalPaid || 0).toFixed(2)}/${amountDue.toFixed(2)}
+                    GH₵{(totalPaid || 0).toFixed(2)}/GH₵{amountDue.toFixed(2)}
                   </Text>
                 </div>
               );
@@ -1210,7 +1210,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                              '#ff4d4f'
                     }}
                   >
-                    ${(balance || 0).toFixed(2)}
+                    GH₵{(balance || 0).toFixed(2)}
                   </Text>
                 </div>
               );
@@ -1353,7 +1353,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                       value={statistics.totalFees}
                       precision={2}
                       valueStyle={{ color: '#1890ff' }}
-                      prefix="$"
+                      prefix="GH₵"
                     />
                   </Card>
                 </Col>
@@ -1364,7 +1364,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                       value={statistics.totalCollected}
                       precision={2}
                       valueStyle={{ color: '#52c41a' }}
-                      prefix="$"
+                      prefix="GH₵"
                     />
                   </Card>
                 </Col>
@@ -1375,7 +1375,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                       value={statistics.pendingAmount}
                       precision={2}
                       valueStyle={{ color: '#fa8c16' }}
-                      prefix="$"
+                      prefix="GH₵"
                     />
                   </Card>
                 </Col>
@@ -1517,7 +1517,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
             <Option key={type.id} value={type.id}>
               <div className="flex justify-between items-center">
                 <span>
-                  {type.name} - ${displayAmount} 
+                  {type.name} - GH₵{displayAmount} 
                   {type.is_class_specific && (
                     <Tag color="blue" className="ml-2">Class-Specific</Tag>
                   )}
@@ -1538,7 +1538,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     >
       <Input
         type="number"
-        prefix="$"
+        prefix="GH₵"
         value={paymentAmount}
         onChange={(e) => {
           const value = parseFloat(e.target.value);
@@ -1602,8 +1602,8 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                 headers: ['Fee Type', 'Amount', 'Paid', 'Due Date', 'Status'],
                 data: currentStudent?.fees.map(fee => [
                   fee.type,
-                  `$${fee.amount}`,
-                  `$${fee.paid}`,
+                  `GH₵${fee.amount}`,
+                  `GH₵${fee.paid}`,
                   moment(fee.dueDate).format('MMM DD, YYYY'),
                   fee.status
                 ]),
@@ -1643,7 +1643,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
               title: 'Amount', 
               dataIndex: 'amount', 
               key: 'amount', 
-              render: (amount) => <Text strong>${amount}</Text> 
+              render: (amount) => <Text strong>GH₵{amount}</Text> 
             },
             { 
               title: 'Paid', 
@@ -1651,7 +1651,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
               key: 'paid', 
               render: (paid, record) => (
                 <Text strong style={{ color: paid >= record.amount ? '#52c41a' : '#faad14' }}>
-                  ${paid}
+                  GH₵{paid}
                 </Text>
               )
             },
@@ -1739,13 +1739,13 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                     title: 'Amount',
                     dataIndex: 'amount',
                     key: 'amount',
-                    render: (amount) => <Text strong>${amount}</Text>
+                    render: (amount) => <Text strong>GH₵{amount}</Text>
                   },
                   {
                     title: 'Paid',
                     dataIndex: 'paid',
                     key: 'paid',
-                    render: (paid) => <Text strong style={{ color: '#52c41a' }}>${paid}</Text>
+                    render: (paid) => <Text strong style={{ color: '#52c41a' }}>GH₵{paid}</Text>
                   },
                   {
                     title: 'Due Date',
