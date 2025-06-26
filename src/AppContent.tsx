@@ -51,6 +51,24 @@ const AppContent = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobile]);
 
+  useEffect(() => {
+    if (isMobile && isNavOpen) {
+      // Prevent body scroll when nav is open on mobile
+      document.body.style.overflow = 'hidden';
+      // Also prevent touchmove events
+      const preventDefault = (e: TouchEvent) => e.preventDefault();
+      document.addEventListener('touchmove', preventDefault, { passive: false });
+      
+      return () => {
+        document.body.style.overflow = 'unset';
+        document.removeEventListener('touchmove', preventDefault);
+      };
+    } else {
+      // Restore body scroll when nav is closed
+      document.body.style.overflow = 'unset';
+    }
+  }, [isMobile, isNavOpen]);
+
   // Close nav when route changes (only on mobile)
   useEffect(() => {
     if (isMobile) {
@@ -134,7 +152,7 @@ const AppContent = () => {
           {/* Overlay - only show on mobile when nav is open */}
           {isMobile && (
             <div
-              className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ${
+              className={`fixed inset-0 bg-black bg-opacity-50 z-30 transition-opacity duration-300 ${
                 isNavOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
               onClick={() => setIsNavOpen(false)}
@@ -142,9 +160,15 @@ const AppContent = () => {
           )}
           {/* LeftNav with animation */}
           <div
-            className={`fixed top-0 left-0 h-screen w-64 md:w-56 z-40 transition-all duration-300 ease-in-out ${
+            className={`fixed md:relative top-0 left-0 h-full md:h-auto w-64 md:w-56 z-40 transition-all duration-300 ease-in-out ${
               isMobile ? (isNavOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'
             }`}
+            style={{
+              position: isMobile ? 'fixed' : 'relative',
+              height: isMobile ? '100vh' : 'auto',
+              // Prevent scrolling within the nav itself
+              overflowY: isMobile ? 'hidden' : 'auto'
+            }}
           >
             <LeftNav 
               userRole={userRole ?? undefined} 
