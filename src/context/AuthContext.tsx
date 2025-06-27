@@ -6,6 +6,8 @@ interface SchoolInfo {
   id: string | null;
   name: string | null;
   logo_url?: string | null;
+  slogan?: string | null;
+  established?: string | null;
 }
 
 interface AuthContextType {
@@ -22,7 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
-  school: { id: null, name: null },
+  school: { id: null, name: null, logo_url: null, slogan: null, established: null },
   loading: true,
   error: null,
   signIn: async () => {},
@@ -33,7 +35,7 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [school, setSchool] = useState<SchoolInfo>({ id: null, name: null });
+  const [school, setSchool] = useState<SchoolInfo>({ id: null, name: null, logo_url: null, slogan: null, established: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -63,7 +65,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('schools')
-        .select('id, name, logo_url')
+        .select('id, name, logo_url, slogan, established')
         .eq('id', schoolId)
         .single();
 
@@ -87,7 +89,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSchool({
             id: schoolId,
             name: schoolInfo?.name || null,
-            logo_url: schoolInfo?.logo_url || null
+            logo_url: schoolInfo?.logo_url || null,
+            slogan: schoolInfo?.slogan || null,
+            established: schoolInfo?.established || null
           });
           localStorage.setItem('school_id', schoolId);
           if (schoolInfo?.name) {

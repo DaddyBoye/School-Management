@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Users, Shield, ChevronRight, School } from 'lucide-react';
+import { GraduationCap, Users, Shield, ArrowRight, School } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const SchoolRoleSelection: React.FC = () => {
@@ -15,24 +15,24 @@ const SchoolRoleSelection: React.FC = () => {
       title: 'Student',
       description: 'Access courses, assignments, and grades',
       icon: GraduationCap,
-      color: 'bg-blue-100',
-      iconColor: 'text-blue-600'
+      color: 'bg-blue-500',
+      colorSelected: 'bg-blue-100',
     },
     {
       id: 'teacher',
       title: 'Teacher',
       description: 'Manage classes, students, and curriculum',
       icon: Users,
-      color: 'bg-green-100',
-      iconColor: 'text-green-600'
+      color: 'bg-green-500',
+      colorSelected: 'bg-green-100',
     },
     {
       id: 'admin',
       title: 'Administrator',
       description: 'Full system access and management',
       icon: Shield,
-      color: 'bg-purple-100',
-      iconColor: 'text-purple-600'
+      color: 'bg-purple-500',
+      colorSelected: 'bg-purple-100',
     }
   ];
 
@@ -44,116 +44,133 @@ const SchoolRoleSelection: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
-        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden">
-        {/* School Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-center relative overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg overflow-hidden">
+        {/* Compact Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-48 h-48 bg-white rounded-full transform translate-x-1/4 translate-y-1/4" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white rounded-full transform translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full transform -translate-x-1/2 translate-y-1/2" />
           </div>
           
           <div className="relative z-10">
-            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="flex items-center justify-center mb-3">
               {school.logo_url ? (
                 <img 
                   src={school.logo_url} 
                   alt={`${school.name} Logo`}
-                  className="w-16 h-16 object-contain"
+                  className="w-12 h-12 object-contain"
                 />
               ) : (
-                <School className="w-10 h-10 text-white" />
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <School className="w-6 h-6 text-white" />
+                </div>
               )}
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Welcome to</h1>
-            <p className="text-xl font-medium text-blue-100">{school.name || 'Our Learning Community'}</p>
+            <h1 className="text-xl font-bold text-white mb-1">Welcome to</h1>
+            <p className="text-blue-100 font-semibold mb-2">{school.name || 'Our Learning Community'}</p>
+            {school.slogan && (
+              <p className="text-blue-200 text-sm italic mb-1">"{school.slogan}"</p>
+            )}
+            {school.established && (
+              <p className="text-blue-300 text-xs">Est. {school.established}</p>
+            )}
           </div>
         </div>
 
         {/* Role Selection */}
-        <div className="p-8">
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6 text-center">
-              Please select your role:
-            </h2>
-            
-            <div className="space-y-4">
-              {roles.map((role) => {
-                const Icon = role.icon;
-                const isSelected = selectedRole === role.id;
-                
-                return (
-                  <button
-                    key={role.id}
-                    onClick={() => setSelectedRole(role.id as any)}
-                    className={`w-full flex items-center justify-between p-5 rounded-2xl transition-all duration-300 group ${
-                      isSelected 
-                        ? 'ring-2 ring-blue-500 bg-blue-50' 
-                        : 'bg-gray-50 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 ${role.color} rounded-xl ${
-                        isSelected ? 'bg-opacity-100' : 'bg-opacity-70'
-                      }`}>
-                        <Icon className={`w-6 h-6 ${role.iconColor}`} />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-semibold text-gray-900">{role.title}</h3>
-                        <p className="text-sm text-gray-600">{role.description}</p>
-                      </div>
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">
+            Select your role
+          </h2>
+          
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {roles.map((role) => {
+              const Icon = role.icon;
+              const isSelected = selectedRole === role.id;
+              
+              return (
+                <button
+                  key={role.id}
+                  onClick={() => setSelectedRole(role.id as any)}
+                  className={`relative p-4 rounded-xl transition-all duration-300 text-center group transform ${
+                    isSelected 
+                      ? `${role.colorSelected} ring-2 ring-offset-2 ring-blue-500 scale-105 shadow-lg` 
+                      : 'bg-gray-50 hover:bg-gray-100 hover:scale-102 shadow-sm hover:shadow-md'
+                  }`}
+                >
+                  <div className={`w-12 h-12 mx-auto mb-2 rounded-lg bg-gradient-to-br ${role.color} flex items-center justify-center transition-all duration-300 ${
+                    isSelected ? 'shadow-lg scale-110' : 'shadow-sm group-hover:scale-105'
+                  }`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className={`font-semibold text-sm mb-1 transition-colors duration-300 ${
+                    isSelected ? 'text-blue-700' : 'text-gray-900'
+                  }`}>
+                    {role.title}
+                  </h3>
+                  <p className={`text-xs leading-tight transition-colors duration-300 ${
+                    isSelected ? 'text-blue-600' : 'text-gray-600'
+                  }`}>
+                    {role.description}
+                  </p>
+                  
+                  {isSelected && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
                     </div>
-                    <ChevronRight className={`w-5 h-5 ${
-                      isSelected ? 'text-blue-600' : 'text-gray-400'
-                    } group-hover:text-blue-600 transition-colors`} />
-                  </button>
-                );
-              })}
-            </div>
+                  )}
+                  
+                  {isSelected && (
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 pointer-events-none" />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Continue Button */}
-          {selectedRole && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <button
-                onClick={handleContinue}
-                disabled={isSubmitting}
-                className={`w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl ${
-                  isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Continuing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Continue to Login</span>
-                    <ChevronRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+          {/* Action Button */}
+          <button
+            onClick={handleContinue}
+            disabled={!selectedRole || isSubmitting}
+            className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 ${
+              selectedRole && !isSubmitting
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl hover:scale-105'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Continuing...</span>
+              </>
+            ) : (
+              <>
+                <span>Continue to Login</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
 
-          {/* Footer */}
-          <div className="mt-6 text-center text-sm text-gray-500">
+          {/* Footer Link */}
+          <p className="mt-4 text-center text-xs text-gray-500">
             Not from {school.name}?{' '}
             <a 
               href="https://klaso.site" 
               className="text-blue-600 hover:underline font-medium"
             >
-              Go to our main site
+              Visit our main site
             </a>
-          </div>
+          </p>
         </div>
       </div>
     </div>
