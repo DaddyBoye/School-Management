@@ -1,0 +1,15 @@
+{
+  "static_sites": [
+    {
+      "name": "School Management System",
+      "build_command": "npm run build",
+      "static_path": "dist",
+      "routes": [
+        {
+          "path": "/*",
+          "rewrite": "/index.html"
+        }
+      ]
+    }
+  ]
+}
