@@ -75,14 +75,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // In your AuthProvider's initialization useEffect:
+  // In your initialization useEffect:
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         setLoading(true);
         const schoolId = getSchoolIdFromHost();
         
-        // Set school ID from subdomain
         if (schoolId) {
           const schoolInfo = await fetchSchoolInfo(schoolId);
           setSchool({
@@ -96,28 +95,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
 
-        // Check for existing session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
 
         if (session) {
           setUser(session.user);
           const role = session.user.user_metadata?.role || 
                       localStorage.getItem('userRole');
           if (role) setUserRole(role);
-        } else {
-          // Redirect to welcome if no session
-          if (window.location.pathname !== '/welcome') {
-            navigate('/welcome');
-          }
-          
-          // Clear any residual auth data
-          localStorage.removeItem('user');
-          localStorage.removeItem('userRole');
         }
       } catch (err) {
         console.error('Initialization error:', err);
-        navigate('/welcome'); // Redirect to welcome on error
       } finally {
         setLoading(false);
       }
@@ -125,16 +113,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
-    // Auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        // ... existing sign in logic
+        setUser(session.user);
+        const role = session.user.user_metadata?.role || 
+                    localStorage.getItem('userRole');
+        if (role) setUserRole(role);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserRole(null);
         localStorage.removeItem('user');
         localStorage.removeItem('userRole');
-        navigate('/welcome'); // Explicit redirect on sign out
       }
     });
 
@@ -208,20 +197,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await supabase.auth.signOut();
       setUser(null);
       setUserRole(null);
       localStorage.removeItem('user');
       localStorage.removeItem('userRole');
-      navigate('/welcome'); // Ensure redirect happens after sign out
     } catch (err) {
       console.error('Sign out error:', err);
-      setError('Failed to sign out');
-      navigate('/welcome'); // Redirect even if error occurs
     } finally {
       setLoading(false);
     }
+    // ProtectedRoute will handle the redirect automatically
   };
 
   return (

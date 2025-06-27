@@ -2,29 +2,30 @@ import { useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, roles }: { children: JSX.Element; roles: string[] }) => {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, school, loading } = useAuth();
   const location = useLocation();
 
-  console.log('ProtectedRoute - User:', user);
-  console.log('ProtectedRoute - Role:', userRole);
-  console.log('ProtectedRoute - Loading:', loading);
-
   if (loading) {
-    console.log('Authentication state loading. Waiting...');
-    return <div>Loading...</div>;
+    return <div className="flex justify-center items-center h-screen">
+      <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+    </div>;
   }
 
   if (!user) {
-    console.log('User not authenticated. Redirecting to /role-selection.');
-    return <Navigate to="/role-selection" state={{ from: location }} replace />;
+    // Redirect to welcome with intended destination
+    return <Navigate to="/welcome" state={{ from: location }} replace />;
   }
 
   if (!userRole || !roles.includes(userRole)) {
-    console.log('User role not allowed. Redirecting to /.');
+    // Redirect to default route for their actual role
     return <Navigate to="/" replace />;
   }
 
-  console.log('User authenticated and role allowed. Rendering children.');
+  // Verify school context exists for school-specific routes
+  if (location.pathname !== '/' && !school.id) {
+    return <Navigate to="/welcome" replace />;
+  }
+
   return children;
 };
 

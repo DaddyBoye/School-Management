@@ -167,18 +167,11 @@ const AppContent = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/teachers"
-                element={
+                <Route path="/teachers" element={
                   <ProtectedRoute roles={['admin']}>
-                    {schoolId && schoolName ? (
-                      <Teachers schoolId={schoolId} schoolName={schoolName} />
-                    ) : (
-                      <div>Error: School ID or School Name is missing</div>
-                    )}
+                    <Teachers schoolId={schoolId} schoolName={schoolName} />
                   </ProtectedRoute>
-                }
-              />
+                } />
                <Route
                 path="/studentfees"
                 element={
