@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { User, GraduationCap, Users, Shield, Mail, Lock, Eye, EyeOff, ChevronRight, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -17,7 +17,7 @@ const AuthPage: React.FC = () => {
   const { role, schoolId } = location.state || {};
 
   // Fetch school name when component mounts
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchSchoolName = async () => {
       if (schoolId) {
         try {
@@ -58,7 +58,7 @@ const AuthPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-
+    
     try {
       // 1. Authenticate with email/password
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({

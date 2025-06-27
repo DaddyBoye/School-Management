@@ -2,7 +2,7 @@ import { useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, roles }: { children: JSX.Element; roles: string[] }) => {
-  const { user, userRole, school, loading } = useAuth();
+  const { user, userRole, school, loading, error } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -11,17 +11,19 @@ const ProtectedRoute = ({ children, roles }: { children: JSX.Element; roles: str
     </div>;
   }
 
+  if (error) {
+    // Stay on current page and show error
+    return children;
+  }
+
   if (!user) {
-    // Redirect to welcome with intended destination
     return <Navigate to="/welcome" state={{ from: location }} replace />;
   }
 
   if (!userRole || !roles.includes(userRole)) {
-    // Redirect to default route for their actual role
     return <Navigate to="/" replace />;
   }
 
-  // Verify school context exists for school-specific routes
   if (location.pathname !== '/' && !school.id) {
     return <Navigate to="/welcome" replace />;
   }
