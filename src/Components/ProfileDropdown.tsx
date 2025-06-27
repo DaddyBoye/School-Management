@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface ProfileDropdownProps {
   onClose: () => void;
@@ -16,6 +17,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   userRole, 
   isLoadingUser 
 }) => {
+  const { signOut } = useAuth(); // Add this line to get signOut from context
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -65,15 +67,12 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      localStorage.removeItem('user');
-      localStorage.removeItem('userRole');
-      window.location.href = '/welcome';
+      await signOut(); // Use AuthContext's signOut instead
+      onClose();
     } catch (err) {
-      console.error('Error during logout:', err);
+      console.error('Logout error:', err);
     } finally {
       setIsLoading(false);
-      onClose();
     }
   };
 

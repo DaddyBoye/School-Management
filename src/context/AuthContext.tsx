@@ -130,6 +130,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const handleStorageSync = () => {
+      if (!localStorage.getItem('user')) {
+        setUser(null);
+        setUserRole(null);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageSync);
+    return () => window.removeEventListener('storage', handleStorageSync);
+  }, []);
+
   // Sign in handler with school verification
   const signIn = async (email: string, password: string, role: string) => {
     try {
@@ -196,18 +208,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Sign out handler
   const signOut = async () => {
     try {
-      setLoading(true);
-      await supabase.auth.signOut();
+      // 1. Immediate UI update
       setUser(null);
       setUserRole(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('userRole');
+      
+      // 2. Targeted removal of auth-related items only
+      const authKeys = [
+        'user',
+        'userRole',
+        'school_id',
+        'school_name',
+        'admin_id',
+        'teacher_id',
+        'student_id'
+      ];
+      
+      authKeys.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+
+      // 3. Server-side sign out
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // 4. Add cross-tab sync
+      window.dispatchEvent(new Event('storage'));
+      
+      // 5. Redirect without full reload (SPA-friendly)
+      window.location.href = '/welcome';
+      
     } catch (err) {
-      console.error('Sign out error:', err);
-    } finally {
-      setLoading(false);
+      console.error('Sign out failed:', err);
+      // Fallback with full reload if SPA redirect fails
+      window.location.href = '/welcome';
     }
-    // ProtectedRoute will handle the redirect automatically
   };
 
   return (
