@@ -1,7 +1,0 @@
-static_sites:
-  - name: School-Management-System
-    build_command: npm run build
-    static_path: dist  # Vite's default output folder
-    routes:
-      - path: /*      # Catch all routes
-        rewrite: /index.html  # Serve index.html for all paths
