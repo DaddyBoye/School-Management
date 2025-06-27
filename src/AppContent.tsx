@@ -127,7 +127,7 @@ const AppContent = () => {
         {!hideNavAndHeader && (
           <>
             <button
-              className={`md:hidden fixed top-2 left-4 p-2 bg-blue-500 z-40
+              className={`md:hidden fixed top-4 left-4 p-2 bg-blue-500 z-40
                 ${isNavOpen ? 'hidden' : 'block'} text-white rounded-lg`}
               onClick={() => setIsNavOpen(!isNavOpen)}
             >
