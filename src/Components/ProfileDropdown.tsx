@@ -68,7 +68,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
       await new Promise(resolve => setTimeout(resolve, 1000));
       localStorage.removeItem('user');
       localStorage.removeItem('userRole');
-      window.location.href = '/role-selection';
+      window.location.href = '/welcome';
     } catch (err) {
       console.error('Error during logout:', err);
     } finally {

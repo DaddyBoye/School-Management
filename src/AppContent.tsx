@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import React, {useEffect} from 'react';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import LeftNav from './Components/LeftNav';
 import { Menu } from 'lucide-react';
 import Header from './Components/Header';
@@ -7,7 +7,7 @@ import Dashboard from './pages/admin/dashboard';
 import Teachers from './pages/admin/teachers';
 import Students from './pages/admin/students';
 import StudentGrades from './pages/admin/studentgrades';
-import RoleSelection from './pages/roleselection';
+import SchoolRoleSelection from './pages/SchoolRoleSelection'; 
 import AuthPage from './pages/authpage';
 import ProtectedRoute from '../src/routes/ProtectedRoute';
 import { useAuth } from '../src/context/AuthContext';
@@ -31,12 +31,19 @@ import AdminAttendance from './pages/admin/adminattendance';
 const AppContent = () => {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, userRole, loading } = useAuth(); // Get user and userRole from auth context
   const schoolId = localStorage.getItem('school_id') || '';
   const schoolName = localStorage.getItem('school_name') || '';
 
+  useEffect(() => {
+    if (!loading && !user && !['/welcome', '/auth'].includes(location.pathname)) {
+      navigate('/welcome');
+    }
+  }, [user, loading, location.pathname, navigate]);
+
   // Prevent body scroll when nav is open on mobile
-  React.useEffect(() => {
+  useEffect(() => {
     if (isNavOpen) {
       // Prevent scrolling
       document.body.style.overflow = 'hidden';
@@ -58,7 +65,7 @@ const AppContent = () => {
   }, [isNavOpen]);
 
   // Close nav when screen size changes from mobile to desktop
-  React.useEffect(() => {
+  useEffect(() => {
     const handleResize = () => {
       // Close nav when switching from mobile to desktop (768px is md breakpoint)
       if (window.innerWidth >= 768 && isNavOpen) {
@@ -80,32 +87,32 @@ const AppContent = () => {
     student: ['/', '/studentgradesview', '/studentfeeview', '/studenttimetable'],
   };
   
-    const getPageTitle = () => {
-      const path = location.pathname;
-      const titles: { [key: string]: string } = {
-        '/': 'Dashboard',
-        '/teachers': 'Teachers',
-        '/studentfees': 'Student Fees',
-        '/studentgrades': 'Student Grades',
-        '/students': 'Students',
-        '/classsubjectmanager': 'Teacher Assignments',
-        '/subjectclassmanager': 'Subject Class Manager',
-        '/feemanager': 'Fee Manager',
-        '/adminattendance': 'Attendance',
-        '/teacherstudentview': 'My Students',
-        '/teachergrades': 'Student Grades',
-        '/teacherrankings': 'Student Rankings',
-        '/teacherattendance': 'Attendance',
-        '/timetablemanager': 'Timetables',
-        '/teachertimetable': 'My Timetable',
-        '/studentgradesview': 'My Grades',
-        '/studentfeeview': 'My Fees',
-        '/studenttimetable': 'My Timetable',
-      };
-      return titles[path] || 'Dashboard';
+  const getPageTitle = () => {
+    const path = location.pathname;
+    const titles: { [key: string]: string } = {
+      '/': 'Dashboard',
+      '/teachers': 'Teachers',
+      '/studentfees': 'Student Fees',
+      '/studentgrades': 'Student Grades',
+      '/students': 'Students',
+      '/classsubjectmanager': 'Teacher Assignments',
+      '/subjectclassmanager': 'Subject Class Manager',
+      '/feemanager': 'Fee Manager',
+      '/adminattendance': 'Attendance',
+      '/teacherstudentview': 'My Students',
+      '/teachergrades': 'Student Grades',
+      '/teacherrankings': 'Student Rankings',
+      '/teacherattendance': 'Attendance',
+      '/timetablemanager': 'Timetables',
+      '/teachertimetable': 'My Timetable',
+      '/studentgradesview': 'My Grades',
+      '/studentfeeview': 'My Fees',
+      '/studenttimetable': 'My Timetable',
     };
-  
-    const hideNavAndHeader = location.pathname === '/role-selection' || location.pathname === '/auth';
+    return titles[path] || 'Dashboard';
+  };
+
+  const hideNavAndHeader = location.pathname === '/welcome' || location.pathname === '/auth';
   
     if (loading) {
       return (
@@ -146,7 +153,7 @@ const AppContent = () => {
           }
           <main className="md:p-6 p-4">
             <Routes>
-              <Route path="/role-selection" element={<RoleSelection />} />
+              <Route path="/welcome" element={<SchoolRoleSelection />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route
                 path="/"
@@ -342,3 +349,4 @@ const AppContent = () => {
   };
   
   export default AppContent;
+
