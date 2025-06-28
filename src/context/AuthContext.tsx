@@ -10,6 +10,8 @@ interface SchoolInfo {
   established?: string | null;
   theme_color?: string | null;
   secondary_color?: string | null;
+  address?: string | null;
+  contact?: string | null;
 }
 
 interface AuthContextType {
@@ -26,7 +28,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
-  school: { id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null },
+  school: { id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null, address: null, contact: null },
   loading: true,
   error: null,
   signIn: async () => {},
@@ -37,7 +39,7 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [school, setSchool] = useState<SchoolInfo>({ id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null });
+  const [school, setSchool] = useState<SchoolInfo>({ id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null, address: null, contact: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -67,7 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('schools')
-        .select('id, name, logo_url, slogan, established, theme_color, secondary_color')
+        .select('id, name, logo_url, slogan, established, theme_color, secondary_color, address, contact')
         .eq('id', schoolId)
         .single();
 
@@ -91,9 +93,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSchool({
             id: schoolId,
             name: schoolInfo?.name || null,
+            address: schoolInfo?.address || null,
+            theme_color: schoolInfo?.theme_color || null,
             logo_url: schoolInfo?.logo_url || null,
             slogan: schoolInfo?.slogan || null,
-            established: schoolInfo?.established || null
+            established: schoolInfo?.established || null,
+            secondary_color: schoolInfo?.secondary_color || null,
+            contact: schoolInfo?.contact || null
           });
           localStorage.setItem('school_id', schoolId);
           if (schoolInfo?.name) {

@@ -10,6 +10,7 @@ import { Document, Page, PDFViewer, Text as PdfText, View, StyleSheet, PDFDownlo
 import * as pdfjs from 'pdfjs-dist';
 import moment from 'moment';
 import { supabase } from '../../supabase';
+import { useAuth } from '@/context/AuthContext';
 
 // Initialize pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -85,6 +86,15 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   
+  schoolSlogan: {
+    fontSize: 9,
+    fontStyle: 'italic',
+    color: '#1890ff',
+    textAlign: 'center',
+    marginBottom: 2,
+    letterSpacing: 1,
+  },
+
   schoolAddress: {
     fontSize: 8,
     textAlign: 'center',
@@ -491,12 +501,13 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const [studentSubjectGrades, setStudentSubjectGrades] = useState<Record<string, Record<string, { score: number | null; letterGrade: string; subject: string; subjectCode: string }>>>({});
   const [comprehensiveStats, setComprehensiveStats] = useState<ComprehensiveStats | null>(null);
   const [classRankings, setClassRankings] = useState<{ student: Student; overallScore: number | null; overallLetterGrade: string; subjectCount: number; rank: number }[]>([]);
-  
   // Report states
   const [subjectReportVisible, setSubjectReportVisible] = useState(false);
   const [classReportVisible, setClassReportVisible] = useState(false);
   const [individualReportVisible, setIndividualReportVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  const { school } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -846,6 +857,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     }
   };
 
+  const logoUrl = school?.logo_url || null;
+  const schoolName = school?.name || 'School Name';
+  const schoolAddress = school?.address || 'School Address';
+  const schoolSlogan = school?.slogan || 'School Slogan';
+  const schoolContact = school?.contact || 'School Contact';
+
   const gradingScale = [
     { grade: 'A+', range: '90-100', points: '4.0', remark: 'EXCELLENT' },
     { grade: 'A', range: '85-89', points: '3.7', remark: 'VERY GOOD' },
@@ -896,7 +913,6 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const viewComprehensiveReport = () => {
     setClassReportVisible(true);
   };
-
 
   const subjectColumns = [
     {
@@ -1062,18 +1078,36 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             </View>
             
             <View style={styles.schoolInfo}>
-              <View style={styles.logoSection}>
-                {/* School Logo would go here */}
-                <View style={{ width: 40, height: 40, border: '1px solid black', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={styles.logoSection}>
+                {/* School Logo */}
+                {logoUrl ? (
+                  // @ts-ignore: Image is available in @react-pdf/renderer
+                  <Image
+                  src={logoUrl}
+                  style={{ width: 40, height: 40, objectFit: 'contain', border: '1px solid black' }}
+                  />
+                ) : (
+                  <View style={{ width: 40, height: 40, border: '1px solid black', alignItems: 'center', justifyContent: 'center' }}>
                   <PdfText style={{ fontSize: 6 }}>LOGO</PdfText>
+                  </View>
+                )}
                 </View>
-              </View>
               
-              <View style={styles.schoolDetails}>
-                <PdfText style={styles.schoolName}>ST. JOBA LEARNING CENTRE</PdfText>
-                <PdfText style={styles.schoolAddress}>ADDRESS: P.O BOX 50 25, TEMA</PdfText>
-                <PdfText style={styles.schoolAddress}>TELEPHONE: 055 3639 755</PdfText>
-              </View>
+                <View style={styles.schoolDetails}>
+                <PdfText style={styles.schoolName}>{schoolName}</PdfText>
+                <PdfText style={{
+                  fontSize: 9,
+                  fontStyle: 'italic',
+                  color: '#1890ff',
+                  textAlign: 'center',
+                  marginBottom: 2,
+                  letterSpacing: 1,
+                }}>
+                  {schoolSlogan}
+                </PdfText>
+                <PdfText style={styles.schoolAddress}>ADDRESS: {schoolAddress}</PdfText>
+                <PdfText style={styles.schoolAddress}>TELEPHONE: {schoolContact}</PdfText>
+                </View>
               
               <View style={styles.photoSection}>
                 <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
