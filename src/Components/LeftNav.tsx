@@ -148,8 +148,9 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
               </span>
               {/* Tooltip for full name if truncated */}
               {schoolName && schoolName.length > 25 && (
-                <div className="absolute left-0 top-full mt-1 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap max-w-xs">
+                <div className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap border border-gray-600">
                   {schoolName}
+                  <div className="absolute -top-1 left-3 w-2 h-2 bg-gray-800 border-l border-t border-gray-600 transform rotate-45"></div>
                 </div>
               )}
             </div>
