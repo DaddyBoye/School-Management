@@ -112,9 +112,9 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
   }
 
   return (
-    <div className={`h-full w-full ${currentStyle.background} text-white z-50 flex flex-col shadow-xl overflow-hidden`}>
+    <div className={`h-full w-full ${currentStyle.background} text-white z-50 flex flex-col shadow-xl overflow-visible`}>
       {/* Enhanced Header Section with Better Layout */}
-      <div className="px-4 pt-4 pb-6 flex-shrink-0 border-b border-white border-opacity-10">
+      <div className="px-4 pt-4 pb-2 flex-shrink-0 border-b border-white border-opacity-10">
         <div className="flex items-start gap-3 mb-4">
           {/* Logo Container with Dynamic Image Support */}
           <div className={`w-12 h-12 bg-white rounded-xl flex items-center justify-center ${currentStyle.logoRing} shadow-lg flex-shrink-0 overflow-hidden`}>
@@ -142,17 +142,19 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
             <div className="group relative">
               <span 
                 className="font-bold text-base leading-tight block truncate cursor-default"
-                title={schoolName || undefined}
               >
                 {displaySchoolName}
               </span>
-              {/* Tooltip for full name if truncated */}
-              {schoolName && schoolName.length > 25 && (
-                <div className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap border border-gray-600">
+                {/* Enhanced Tooltip */}
+                {schoolName && schoolName.length > 25 && (
+                <div
+                  className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap border border-gray-600 transform translate-y-1"
+                  style={{ transition: 'opacity 0.3s ease 0.2s' }}
+                >
                   {schoolName}
-                  <div className="absolute -top-1 left-3 w-2 h-2 bg-gray-800 border-l border-t border-gray-600 transform rotate-45"></div>
+                  <div className="absolute bottom-full left-3 w-2 h-2 bg-gray-800 border-l border-t border-gray-600 transform rotate-45 translate-y-1/2"></div>
                 </div>
-              )}
+                )}
             </div>
             
             {/* Role Badge */}
