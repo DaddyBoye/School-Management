@@ -30,71 +30,332 @@ declare module 'jspdf' {
 // PDF Styles
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
-    fontFamily: 'Helvetica'
+    fontFamily: 'Helvetica',
+    fontSize: 8,
+    paddingTop: 20,
+    paddingLeft: 20,
+    paddingRight: 20,
+    paddingBottom: 20,
+    backgroundColor: '#ffffff',
   },
+  
+  // Header Section
+  headerSection: {
+    border: '2px solid black',
+    marginBottom: 5,
+  },
+  
+  topHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    textAlign: 'center',
+  },
+  
+  schoolInfo: {
+    flexDirection: 'row',
+    padding: 5,
+    borderBottom: '1px solid black',
+  },
+  
+  logoSection: {
+    width: '15%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  schoolDetails: {
+    width: '70%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  photoSection: {
+    width: '15%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid black',
+    height: 60,
+  },
+  
+  schoolName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  
+  schoolAddress: {
+    fontSize: 8,
+    textAlign: 'center',
+    marginBottom: 1,
+  },
+  
+  department: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    textAlign: 'center',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  
+  // Student Info Section
+  studentInfo: {
+    flexDirection: 'row',
+    padding: 3,
+    fontSize: 8,
+  },
+  
+  studentLeft: {
+    width: '50%',
+  },
+  
+  studentRight: {
+    width: '50%',
+  },
+  
+  infoRow: {
+    flexDirection: 'row',
+    marginBottom: 2,
+  },
+  
+  infoLabel: {
+    width: '40%',
+    fontWeight: 'bold',
+  },
+  
+  infoValue: {
+    width: '60%',
+  },
+  
+  // Performance Section Header
+  performanceHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 3,
+    textAlign: 'center',
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginTop: 5,
+  },
+  
+  // Days and Attendance Section
+  attendanceSection: {
+    border: '1px solid black',
+    marginTop: 2,
+  },
+  
+  attendanceHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  attendanceRow: {
+    flexDirection: 'row',
+    borderBottom: '1px solid black',
+  },
+  
+  attendanceCell: {
+    flex: 1,
+    padding: 2,
+    textAlign: 'center',
+    fontSize: 7,
+    borderRight: '1px solid black',
+  },
+  
+  // Subject Performance Table
+  subjectTable: {
+    border: '1px solid black',
+    marginTop: 5,
+  },
+  
+  subjectHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    borderBottom: '1px solid black',
+  },
+  
+  tableHeaderCell: {
+    padding: 2,
+    fontSize: 7,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    borderRight: '1px solid black',
+  },
+  
+  subjectCol: {
+    width: '25%',
+  },
+  
+  scoreCol: {
+    width: '10%',
+  },
+  
+  gradeCol: {
+    width: '8%',
+  },
+  
+  subjectTableRow: {
+    flexDirection: 'row',
+    borderBottom: '1px solid black',
+    minHeight: 12,
+  },
+  
+  tableCell: {
+    padding: 2,
+    fontSize: 7,
+    textAlign: 'center',
+    borderRight: '1px solid black',
+    justifyContent: 'center',
+  },
+  
+  subjectName: {
+    textAlign: 'left',
+    paddingLeft: 3,
+  },
+  
+  // Grading System Section
+  gradingSection: {
+    border: '1px solid black',
+    marginTop: 5,
+    flexDirection: 'row',
+  },
+  
+  gradingLeft: {
+    width: '50%',
+    borderRight: '1px solid black',
+  },
+  
+  gradingRight: {
+    width: '50%',
+  },
+  
+  gradingHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  gradingRow: {
+    flexDirection: 'row',
+    borderBottom: '1px solid black',
+    minHeight: 10,
+  },
+  
+  gradingCell: {
+    flex: 1,
+    padding: 2,
+    fontSize: 7,
+    textAlign: 'center',
+    borderRight: '1px solid black',
+    justifyContent: 'center',
+  },
+  
+  // Comments Section
+  commentsSection: {
+    border: '1px solid black',
+    marginTop: 5,
+  },
+  
+  commentsHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  commentsRow: {
+    flexDirection: 'row',
+    minHeight: 25,
+  },
+  
+  commentsCell: {
+    flex: 1,
+    padding: 3,
+    fontSize: 7,
+    borderRight: '1px solid black',
+  },
+  
+  // Signatures Section
+  signaturesSection: {
+    border: '1px solid black',
+    marginTop: 5,
+  },
+  
+  signaturesHeader: {
+    backgroundColor: '#000000',
+    color: 'white',
+    padding: 2,
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  signaturesRow: {
+    flexDirection: 'row',
+    minHeight: 40,
+  },
+  
+  signatureCell: {
+    flex: 1,
+    padding: 10,
+    textAlign: 'center',
+    borderRight: '1px solid black',
+    justifyContent: 'flex-end',
+  },
+  
+  signatureLabel: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    marginTop: 20,
+  },
+  
+  // Footer
+  footer: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 6,
+    color: '#666666',
+  },
+
+    // PDF styles:
   header: {
-    marginBottom: 20,
+    marginBottom: 10,
     textAlign: 'center'
   },
   title: {
-    fontSize: 18,
-    marginBottom: 10,
-    color: '#283593'
-  },
-  subtitle: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: 'bold',
     marginBottom: 5
   },
-  section: {
-    marginBottom: 10,
-    fontSize: 14
+  subtitle: {
+    fontSize: 12,
+    marginBottom: 3
   },
   sectionTitle: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#283593'
-  },
-  table: {
-    display: 'flex',
-    width: 'auto',
-    borderStyle: 'solid',
-    borderWidth: 1,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    marginBottom: 15
-  },
-  tableRow: {
-    flexDirection: 'row'
-  },
-  tableColHeader: {
-    width: '20%',
-    borderStyle: 'solid',
-    borderWidth: 1,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
-    backgroundColor: '#283593',
-    padding: 5
-  },
-  tableCol: {
-    width: '20%',
-    borderStyle: 'solid',
-    borderWidth: 1,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
-    padding: 5
-  },
-  headerText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold'
-  },
-  cellText: {
-    fontSize: 10
-  },
-  performanceText: {
-    fontSize: 10,
-    textAlign: 'center'
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5
   },
   statRow: {
     flexDirection: 'row',
@@ -103,25 +364,53 @@ const styles = StyleSheet.create({
   },
   statItem: {
     width: '30%',
-    padding: 10,
     border: '1px solid #f0f0f0',
-    borderRadius: 4
+    padding: 5
   },
   statTitle: {
     fontSize: 10,
-    marginBottom: 5
+    fontWeight: 'bold',
+    marginBottom: 3
   },
   statValue: {
-    fontSize: 14,
+    fontSize: 10
+  },
+  table: {
+    border: '1px solid #f0f0f0',
+    marginTop: 10
+  },
+  pdfTableRow: {
+    flexDirection: 'row',
+    borderBottom: '1px solid #f0f0f0'
+  },
+  tableColHeader: {
+    padding: 5,
+    backgroundColor: '#f0f0f0',
+    fontWeight: 'bold',
+    fontSize: 10,
+    borderRight: '1px solid #f0f0f0'
+  },
+  tableCol: {
+    padding: 5,
+    fontSize: 10,
+    borderRight: '1px solid #f0f0f0'
+  },
+  headerText: {
+    fontSize: 10,
     fontWeight: 'bold'
   },
-  recommendationItem: {
+  cellText: {
+    fontSize: 10
+  },
+  performanceText: {
     fontSize: 10,
-    marginBottom: 5
+    fontWeight: 'bold'
   },
   landscapePage: {
-    padding: 30,
-    fontFamily: 'Helvetica'
+    fontFamily: 'Helvetica',
+    fontSize: 8,
+    padding: 20,
+    backgroundColor: '#ffffff'
   }
 });
 
@@ -378,7 +667,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           ...student,
           grades: studentGrades,
           totalScore,
-          letterGrade: getLetterGrade(totalScore)
+          letterGrade: getLetterGrade(totalScore ?? 0) ?? 'N/A'
         };
       });
   
@@ -452,7 +741,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   
           studentSubjectScores[student.id][subject.id] = {
             score,
-            letterGrade: score ? getLetterGrade(score) : 'N/A',
+            letterGrade: score ? getLetterGrade(score) ?? 'N/A' : 'N/A',
             subject: subject.name,
             subjectCode: subject.code
           };
@@ -471,7 +760,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
         studentOverallScores[student.id] = {
           student,
           overallScore,
-          overallLetterGrade: overallScore ? getLetterGrade(overallScore) : 'N/A',
+          overallLetterGrade: overallScore ? (getLetterGrade(overallScore) ?? 'N/A') : 'N/A',
           subjectCount: subjectScores.length,
           rank: 0
         };
@@ -541,23 +830,42 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
   };
 
-  const getLetterGrade = (percentage: number | null): string => {
-    if (percentage === null || percentage === undefined) return 'N/A';
-    const scale = gradeScale?.scale || { A: 90, B: 80, C: 70, D: 60, F: 0 };
-    if (percentage >= scale.A) return 'A';
-    if (percentage >= scale.B) return 'B';
-    if (percentage >= scale.C) return 'C';
-    if (percentage >= scale.D) return 'D';
+  const getLetterGrade = (score: number | null) => {
+  if (score === null) return 'N/A';
+  if (!gradeScale) {
+    if (score >= 90) return 'A+';
+    if (score >= 85) return 'A';
+    if (score >= 80) return 'A-';
+    if (score >= 75) return 'B+';
+    if (score >= 70) return 'B';
+    if (score >= 65) return 'B-';
+    if (score >= 60) return 'C+';
+    if (score >= 55) return 'C';
+    if (score >= 50) return 'C-';
     return 'F';
+    }
   };
 
-  const getPerformanceText = (score: number | null): string => {
-    if (score === null) return 'N/A';
-    if (score >= 90) return 'Excellent';
-    if (score >= 80) return 'Good';
-    if (score >= 70) return 'Satisfactory';
-    if (score >= 60) return 'Needs Improvement';
-    return 'Concerning';
+  const gradingScale = [
+    { grade: 'A+', range: '90-100', points: '4.0', remark: 'EXCELLENT' },
+    { grade: 'A', range: '85-89', points: '3.7', remark: 'VERY GOOD' },
+    { grade: 'A-', range: '80-84', points: '3.3', remark: 'GOOD' },
+    { grade: 'B+', range: '75-79', points: '3.0', remark: 'SATISFACTORY' },
+    { grade: 'B', range: '70-74', points: '2.7', remark: 'PASS' },
+    { grade: 'B-', range: '65-69', points: '2.3', remark: 'PASS' },
+    { grade: 'C+', range: '60-64', points: '2.0', remark: 'PASS' },
+    { grade: 'C', range: '55-59', points: '1.7', remark: 'PASS' },
+    { grade: 'C-', range: '50-54', points: '1.3', remark: 'PASS' },
+    { grade: 'F', range: '0-49', points: '0.0', remark: 'FAIL' },
+  ];
+
+  const getPerformanceText = (score: number) => {
+    if (score >= 90) return 'EXCELLENT';
+    if (score >= 80) return 'VERY GOOD';
+    if (score >= 70) return 'GOOD';
+    if (score >= 60) return 'SATISFACTORY';
+    if (score >= 50) return 'PASS';
+    return 'FAIL';
   };
 
   const getScoreColor = (score: number | null): string => {
@@ -578,115 +886,6 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
       case 'F': return 'red';
       default: return 'gray';
     }
-  };
-
-  const calculateStrengths = (subjectGrades: Record<string, { score: number | null; letterGrade: string; subject: string; subjectCode: string }>) => {
-    const strengths = [];
-    const sortedSubjects = Object.values(subjectGrades)
-      .filter(subject => subject.score !== null)
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    
-    const highPerformingSubjects = sortedSubjects.filter(subject => (subject.score ?? 0) >= 80);
-    const topSubjects = highPerformingSubjects.length > 0 ? 
-      highPerformingSubjects.slice(0, Math.min(3, highPerformingSubjects.length)) : 
-      sortedSubjects.slice(0, 1);
-    
-    topSubjects.forEach(subject => {
-      strengths.push(`${subject.subject}: ${(subject.score ?? 0).toFixed(1)}% (${subject.letterGrade})`);
-    });
-    
-    if (strengths.length === 0) {
-      strengths.push('No subject data available for analysis');
-    }
-    
-    return strengths;
-  };
-
-  const calculateImprovements = (subjectGrades: Record<string, { score: number | null; letterGrade: string; subject: string; subjectCode: string }>) => {
-    const improvements: string[] = [];
-    const sortedSubjects = Object.values(subjectGrades)
-      .filter((subject) => subject.score !== null)
-      .sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
-    
-    const lowPerformingSubjects = sortedSubjects.filter(subject => (subject.score ?? 0) < 80);
-    const bottomSubjects = lowPerformingSubjects.length > 0 ? 
-      lowPerformingSubjects.slice(0, Math.min(3, lowPerformingSubjects.length)) : 
-      sortedSubjects.length > 0 ? [sortedSubjects[0]] : [];
-    
-    bottomSubjects.forEach((subject) => {
-      if ((subject.score ?? 0) < 90) {
-        improvements.push(`${subject.subject}: ${subject.score?.toFixed(1)}% (${subject.letterGrade})`);
-      }
-    });
-    
-    if (improvements.length === 0) {
-      if (sortedSubjects.length > 0) {
-        improvements.push('All subjects show strong performance. Consider pursuing advanced coursework.');
-      } else {
-        improvements.push('No subject data available for analysis');
-      }
-    }
-    
-    return improvements;
-  };
-
-  const generateRecommendations = (
-    studentOverall: { overallScore: number | null; overallLetterGrade: string; rank: number },
-    subjectGrades: Record<string, { score: number | null; letterGrade: string; subject: string; subjectCode: string }>
-  ) => {
-    const recommendations = [];
-    
-    if (studentOverall.overallScore !== null) {
-      if (studentOverall.overallScore >= 90) {
-        recommendations.push('Continue excellent academic performance. Consider pursuing advanced coursework, academic competitions, or mentoring peers.');
-      } else if (studentOverall.overallScore >= 80) {
-        recommendations.push('Strong overall performance. Focus on bringing A-level excellence to all subjects through consistent study habits.');
-      } else if (studentOverall.overallScore >= 70) {
-        recommendations.push('Satisfactory performance. Consider additional study time and seeking help for subjects with lower grades.');
-      } else {
-        recommendations.push('Academic performance needs improvement. Recommend regular tutoring sessions, structured study plan, and frequent check-ins with teachers.');
-      }
-    }
-    
-    const belowAverageSubjects = Object.values(subjectGrades)
-      .filter(subject => subject.score !== null && subject.score < 70)
-      .map(subject => subject.subject);
-    
-    if (belowAverageSubjects.length > 0) {
-      recommendations.push(`Focus additional attention on: ${belowAverageSubjects.join(', ')}`);
-    }
-    
-    const strongestSubject = Object.values(subjectGrades)
-      .filter(subject => subject.score !== null)
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
-    
-    if (strongestSubject && strongestSubject.score && strongestSubject.score >= 85) {
-      recommendations.push(`Consider exploring advanced opportunities in ${strongestSubject.subject} such as competitions, projects, or clubs.`);
-    }
-    
-    const scores = Object.values(subjectGrades)
-      .filter(subject => subject.score !== null)
-      .map(subject => subject.score ?? 0);
-    
-    if (scores.length >= 2) {
-      const maxScore = Math.max(...scores);
-      const minScore = Math.min(...scores);
-      
-      if (maxScore - minScore > 15) {
-        recommendations.push('Work on balancing performance across all subjects. Consider adjusting study time to give more attention to weaker subjects.');
-      }
-    }
-    
-    recommendations.push('Maintain regular attendance and active participation in all classes.');
-    recommendations.push('Establish a balanced study schedule that allocates time proportionally to subject difficulty.');
-    
-    if (studentOverall.overallScore !== null && studentOverall.overallScore < 85) {
-      recommendations.push('Develop effective time management skills by creating a weekly study plan and setting specific academic goals.');
-    }
-    
-    recommendations.push('Practice regular self-assessment by reviewing past assignments and tests to identify patterns in mistakes.');
-    
-    return recommendations.slice(0, 5);
   };
 
   const viewStudentDetails = (student: Student) => {
@@ -847,130 +1046,293 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     studentOverall, 
     subjectGrades 
   }: {
-    student: Student;
-    selectedClass: Class | null;
+    student: any;
+    selectedClass: any;
     selectedSemester: string;
     studentOverall: any;
     subjectGrades: any;
   }) => {
-    const strengths = calculateStrengths(subjectGrades);
-    const improvements = calculateImprovements(subjectGrades);
-    const recommendations = generateRecommendations(studentOverall, subjectGrades);
-    
     return (
       <Document>
         <Page size="A4" style={styles.page}>
-          {/* Header */}
-          <View style={styles.header}>
-            <PdfText style={styles.title}>Student Performance Report</PdfText>
-            <PdfText style={styles.subtitle}>
-              {student.first_name} {student.last_name} - {student.roll_no}
-            </PdfText>
-            <PdfText style={styles.subtitle}>
-              Class: {selectedClass?.name || 'N/A'} - {selectedSemester}
-            </PdfText>
-            <PdfText style={styles.subtitle}>
-              Generated on: {moment().format('MMMM Do YYYY')}
-            </PdfText>
-          </View>
-
-          {/* Academic Summary */}
-          <PdfText style={styles.sectionTitle}>Academic Summary</PdfText>
-          <View style={styles.statRow}>
-            <View style={styles.statItem}>
-              <PdfText style={styles.statTitle}>Overall Average</PdfText>
-              <PdfText style={styles.statValue}>
-                {studentOverall.overallScore ? studentOverall.overallScore.toFixed(2) + '%' : 'N/A'}
-              </PdfText>
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <View style={styles.topHeader}>
+              <PdfText>#UNKNOWN#</PdfText>
             </View>
-            <View style={styles.statItem}>
-              <PdfText style={styles.statTitle}>Letter Grade</PdfText>
-              <PdfText style={styles.statValue}>
-                {studentOverall.overallLetterGrade}
-              </PdfText>
-            </View>
-            <View style={styles.statItem}>
-              <PdfText style={styles.statTitle}>Class Rank</PdfText>
-              <PdfText style={styles.statValue}>
-                {studentOverall.rank || 'N/A'}
-              </PdfText>
-            </View>
-          </View>
-
-          {/* Subject Performance */}
-          <PdfText style={styles.sectionTitle}>Subject Performance</PdfText>
-          <View style={styles.table}>
-            {/* Table Header */}
-            <View style={styles.tableRow}>
-              <View style={styles.tableColHeader}>
-                <PdfText style={styles.headerText}>Code</PdfText>
+            
+            <View style={styles.schoolInfo}>
+              <View style={styles.logoSection}>
+                {/* School Logo would go here */}
+                <View style={{ width: 40, height: 40, border: '1px solid black', alignItems: 'center', justifyContent: 'center' }}>
+                  <PdfText style={{ fontSize: 6 }}>LOGO</PdfText>
+                </View>
               </View>
-              <View style={styles.tableColHeader}>
-                <PdfText style={styles.headerText}>Subject</PdfText>
+              
+              <View style={styles.schoolDetails}>
+                <PdfText style={styles.schoolName}>ST. JOBA LEARNING CENTRE</PdfText>
+                <PdfText style={styles.schoolAddress}>ADDRESS: P.O BOX 50 25, TEMA</PdfText>
+                <PdfText style={styles.schoolAddress}>TELEPHONE: 055 3639 755</PdfText>
               </View>
-              <View style={styles.tableColHeader}>
-                <PdfText style={styles.headerText}>Score</PdfText>
-              </View>
-              <View style={styles.tableColHeader}>
-                <PdfText style={styles.headerText}>Grade</PdfText>
-              </View>
-              <View style={styles.tableColHeader}>
-                <PdfText style={styles.headerText}>Performance</PdfText>
+              
+              <View style={styles.photoSection}>
+                <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
               </View>
             </View>
             
-            {/* Table Rows */}
-            {Object.values(subjectGrades).map((subject: any) => (
-              <View style={styles.tableRow} key={subject.subjectCode}>
-                <View style={styles.tableCol}>
-                  <PdfText style={styles.cellText}>{subject.subjectCode}</PdfText>
+            <View style={styles.department}>
+              <PdfText>PRIMARY DEPARTMENT</PdfText>
+            </View>
+          </View>
+
+          {/* Student Progress Report Header */}
+          <View style={styles.performanceHeader}>
+            <PdfText>STUDENT PROGRESS REPORT</PdfText>
+          </View>
+
+          {/* Student Information */}
+          <View style={styles.studentInfo}>
+            <View style={styles.studentLeft}>
+              <View style={styles.infoRow}>
+                <PdfText style={styles.infoLabel}>STUDENT ID #:</PdfText>
+                <PdfText style={styles.infoValue}>{student.roll_no || 'N/A'}</PdfText>
+              </View>
+              <View style={styles.infoRow}>
+                <PdfText style={styles.infoLabel}>NAME:</PdfText>
+                <PdfText style={styles.infoValue}>{student.first_name} {student.last_name}</PdfText>
+              </View>
+              <View style={styles.infoRow}>
+                <PdfText style={styles.infoLabel}>GRADE:</PdfText>
+                <PdfText style={styles.infoValue}>{selectedClass?.name || 'N/A'}</PdfText>
+              </View>
+            </View>
+            <View style={styles.studentRight}>
+              <View style={styles.infoRow}>
+                <PdfText style={styles.infoLabel}>TERM:</PdfText>
+                <PdfText style={styles.infoValue}>{selectedSemester}</PdfText>
+              </View>
+              <View style={styles.infoRow}>
+                <PdfText style={styles.infoLabel}>GENDER:</PdfText>
+                <PdfText style={styles.infoValue}>{student.gender || 'N/A'}</PdfText>
+              </View>
+              <View style={styles.infoRow}>
+                <PdfText style={styles.infoLabel}>HOUSE/COLOUR:</PdfText>
+                <PdfText style={styles.infoValue}>N/A</PdfText>
+              </View>
+            </View>
+          </View>
+
+          {/* Attendance Section */}
+          <View style={styles.attendanceSection}>
+            <View style={styles.attendanceHeader}>
+              <PdfText>NO. DAYS OPEN | ATTENDANCE | NAME AVERAGE | VACATION DATE | NEXT TERM BEGINS</PdfText>
+            </View>
+            <View style={styles.attendanceRow}>
+              <View style={styles.attendanceCell}>
+                <PdfText>95</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText>92</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText>{studentOverall.overallScore ? studentOverall.overallScore.toFixed(1) : 'N/A'}</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText>19/12/2025</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText>06/01/2026</PdfText>
+              </View>
+            </View>
+          </View>
+
+          {/* Subject Performance Table */}
+          <View style={styles.subjectTable}>
+            <View style={styles.subjectHeader}>
+              <PdfText>PERFORMANCE BREAKDOWN</PdfText>
+            </View>
+            
+            <View style={styles.tableHeaderRow}>
+              <View style={[styles.tableHeaderCell, styles.subjectCol]}>
+                <PdfText>SUBJECT</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, styles.scoreCol]}>
+                <PdfText>CLASS SCORE</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, styles.scoreCol]}>
+                <PdfText>EXAM SCORE</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, styles.scoreCol]}>
+                <PdfText>TOTAL SCORE</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, styles.gradeCol]}>
+                <PdfText>GRADE</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, { width: '15%' }]}>
+                <PdfText>PERFORMANCE</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, styles.gradeCol]}>
+                <PdfText>POSITION</PdfText>
+              </View>
+              <View style={[styles.tableHeaderCell, { width: '12%' }]}>
+                <PdfText>TEACHER INITIALS</PdfText>
+              </View>
+            </View>
+
+            {Object.values(subjectGrades).map((subject: any, index: number) => (
+              <View style={styles.subjectTableRow} key={subject.subjectCode || index}>
+                <View style={[styles.tableCell, styles.subjectCol, styles.subjectName]}>
+                  <PdfText>{subject.subject || 'N/A'}</PdfText>
                 </View>
-                <View style={styles.tableCol}>
-                  <PdfText style={styles.cellText}>{subject.subject}</PdfText>
+                <View style={[styles.tableCell, styles.scoreCol]}>
+                  <PdfText>{subject.classScore || '0.0'}</PdfText>
                 </View>
-                <View style={styles.tableCol}>
-                  <PdfText style={styles.cellText}>
-                    {subject.score ? subject.score.toFixed(2) + '%' : 'N/A'}
-                  </PdfText>
+                <View style={[styles.tableCell, styles.scoreCol]}>
+                  <PdfText>{subject.examScore || '0.0'}</PdfText>
                 </View>
-                <View style={styles.tableCol}>
-                  <PdfText style={styles.cellText}>{subject.letterGrade}</PdfText>
+                <View style={[styles.tableCell, styles.scoreCol]}>
+                  <PdfText>{subject.score ? subject.score.toFixed(1) : '0.0'}</PdfText>
                 </View>
-                <View style={styles.tableCol}>
-                  <PdfText style={styles.performanceText}>
-                    {getPerformanceText(subject.score)}
-                  </PdfText>
+                <View style={[styles.tableCell, styles.gradeCol]}>
+                  <PdfText>{subject.letterGrade || getLetterGrade(subject.score || 0)}</PdfText>
+                </View>
+                <View style={[styles.tableCell, { width: '15%' }]}>
+                  <PdfText>{getPerformanceText(subject.score || 0)}</PdfText>
+                </View>
+                <View style={[styles.tableCell, styles.gradeCol]}>
+                  <PdfText>{subject.position || 'N/A'}</PdfText>
+                </View>
+                <View style={[styles.tableCell, { width: '12%' }]}>
+                  <PdfText>{subject.teacherInitials || ''}</PdfText>
                 </View>
               </View>
             ))}
           </View>
 
-          {/* Performance Analysis */}
-          <PdfText style={styles.sectionTitle}>Performance Analysis</PdfText>
-          
-          {/* Strengths */}
-          <PdfText style={styles.section}>Areas of Strength:</PdfText>
-          {strengths.map((strength, index) => (
-            <PdfText style={styles.recommendationItem} key={`strength-${index}`}>
-              • {strength}
-            </PdfText>
-          ))}
-          
-          {/* Improvements */}
-          <PdfText style={[styles.section, { marginTop: 10 }]}>Areas for Improvement:</PdfText>
-          {improvements.map((improvement, index) => (
-            <PdfText style={styles.recommendationItem} key={`improvement-${index}`}>
-              • {improvement}
-            </PdfText>
-          ))}
+          {/* Grading System */}
+          <View style={styles.gradingSection}>
+            <View style={styles.gradingLeft}>
+              <View style={styles.gradingHeader}>
+                <PdfText>GRADING SYSTEM</PdfText>
+              </View>
+              <View style={styles.gradingRow}>
+                <View style={styles.gradingCell}>
+                  <PdfText>GRADE</PdfText>
+                </View>
+                <View style={styles.gradingCell}>
+                  <PdfText>MARKS</PdfText>
+                </View>
+                <View style={styles.gradingCell}>
+                  <PdfText>POINTS</PdfText>
+                </View>
+                <View style={styles.gradingCell}>
+                  <PdfText>REMARK</PdfText>
+                </View>
+              </View>
+              {gradingScale.slice(0, 5).map((grade, index) => (
+                <View style={styles.gradingRow} key={index}>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.grade}</PdfText>
+                  </View>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.range}</PdfText>
+                  </View>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.points}</PdfText>
+                  </View>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.remark}</PdfText>
+                  </View>
+                </View>
+              ))}
+            </View>
+            
+            <View style={styles.gradingRight}>
+              <View style={styles.gradingHeader}>
+                <PdfText>PROFICIENCY LEVELS</PdfText>
+              </View>
+              <View style={styles.gradingRow}>
+                <View style={styles.gradingCell}>
+                  <PdfText>GRADE</PdfText>
+                </View>
+                <View style={styles.gradingCell}>
+                  <PdfText>MARKS</PdfText>
+                </View>
+                <View style={styles.gradingCell}>
+                  <PdfText>POINTS</PdfText>
+                </View>
+                <View style={styles.gradingCell}>
+                  <PdfText>REMARK</PdfText>
+                </View>
+              </View>
+              {gradingScale.slice(5).map((grade, index) => (
+                <View style={styles.gradingRow} key={index}>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.grade}</PdfText>
+                  </View>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.range}</PdfText>
+                  </View>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.points}</PdfText>
+                  </View>
+                  <View style={styles.gradingCell}>
+                    <PdfText>{grade.remark}</PdfText>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
 
-          {/* Recommendations */}
-          <PdfText style={[styles.sectionTitle, { marginTop: 10 }]}>Recommendations</PdfText>
-          {recommendations.map((recommendation, index) => (
-            <PdfText style={styles.recommendationItem} key={`recommendation-${index}`}>
-              • {recommendation}
-            </PdfText>
-          ))}
+          {/* Comments Section */}
+          <View style={styles.commentsSection}>
+            <View style={styles.commentsHeader}>
+              <PdfText>TEACHER COMMENTS</PdfText>
+            </View>
+            <View style={styles.commentsRow}>
+              <View style={styles.commentsCell}>
+                <PdfText style={{ fontWeight: 'bold' }}>CONDUCT</PdfText>
+                <PdfText style={{ marginTop: 5 }}>Good behavior and participation in class activities.</PdfText>
+              </View>
+              <View style={styles.commentsCell}>
+                <PdfText style={{ fontWeight: 'bold' }}>STUDENT INTEREST</PdfText>
+                <PdfText style={{ marginTop: 5 }}>Shows keen interest in learning and asks relevant questions.</PdfText>
+              </View>
+              <View style={styles.commentsCell}>
+                <PdfText style={{ fontWeight: 'bold' }}>GENERAL CLASS TEACHER REMARKS</PdfText>
+                <PdfText style={{ marginTop: 5 }}>
+                  {studentOverall.overallScore >= 80 
+                    ? "Excellent performance. Keep up the good work!" 
+                    : studentOverall.overallScore >= 60 
+                    ? "Good effort. Room for improvement in some areas."
+                    : "Needs more attention and practice in most subjects."}
+                </PdfText>
+              </View>
+            </View>
+          </View>
+
+          {/* Signatures Section */}
+          <View style={styles.signaturesSection}>
+            <View style={styles.signaturesHeader}>
+              <PdfText>SIGNATURES</PdfText>
+            </View>
+            <View style={styles.signaturesRow}>
+              <View style={styles.signatureCell}>
+                <PdfText style={styles.signatureLabel}>ACADEMIC HEAD</PdfText>
+                <PdfText style={{ fontSize: 6, marginTop: 2 }}>BAAFOUR ADUAMOA</PdfText>
+              </View>
+              <View style={styles.signatureCell}>
+                <PdfText style={styles.signatureLabel}>CLASS FACILITATOR</PdfText>
+                <PdfText style={{ fontSize: 6, marginTop: 2 }}>N/A</PdfText>
+              </View>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <PdfText>#UNKNOWN#</PdfText>
+            <PdfText style={{ marginTop: 2 }}>Generated on: {moment().format('MMMM Do YYYY')}</PdfText>
+          </View>
         </Page>
       </Document>
     );
@@ -1034,7 +1396,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           <PdfText style={styles.sectionTitle}>Student Grades</PdfText>
           <View style={styles.table}>
             {/* Table Header */}
-            <View style={styles.tableRow}>
+            <View style={styles.pdfTableRow}>
               <View style={styles.tableColHeader}>
                 <PdfText style={styles.headerText}>Roll No</PdfText>
               </View>
@@ -1054,7 +1416,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             
             {/* Table Rows */}
             {students.map((student) => (
-              <View style={styles.tableRow} key={student.id}>
+              <View style={styles.pdfTableRow} key={student.id}>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.cellText}>{student.roll_no}</PdfText>
                 </View>
@@ -1070,12 +1432,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 </View>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.cellText}>
-                    {getLetterGrade(student.totalScore) || 'N/A'}
+                    {getLetterGrade(student.totalScore ?? 0) || 'N/A'}
                   </PdfText>
                 </View>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.performanceText}>
-                    {getPerformanceText(student.totalScore)}
+                    {getPerformanceText(student.totalScore ?? 0)}
                   </PdfText>
                 </View>
               </View>
@@ -1168,7 +1530,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           <PdfText style={styles.sectionTitle}>Grade Distribution</PdfText>
           <View style={styles.table}>
             {/* Table Header */}
-            <View style={styles.tableRow}>
+            <View style={styles.pdfTableRow}>
               <View style={styles.tableColHeader}>
                 <PdfText style={styles.headerText}>Grade</PdfText>
               </View>
@@ -1182,7 +1544,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             
             {/* Table Rows */}
             {Object.entries(gradeDistribution).map(([grade, count]) => (
-              <View style={styles.tableRow} key={grade}>
+              <View style={styles.pdfTableRow} key={grade}>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.cellText}>{grade}</PdfText>
                 </View>
@@ -1202,7 +1564,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           <PdfText style={styles.sectionTitle}>Student Rankings</PdfText>
           <View style={styles.table}>
             {/* Table Header */}
-            <View style={styles.tableRow}>
+            <View style={styles.pdfTableRow}>
               <View style={styles.tableColHeader}>
                 <PdfText style={styles.headerText}>Rank</PdfText>
               </View>
@@ -1222,7 +1584,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             
             {/* Table Rows */}
             {classRankings.map((student, index) => (
-              <View style={styles.tableRow} key={student.student.id}>
+              <View style={styles.pdfTableRow} key={student.student.id}>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.cellText}>{index + 1}</PdfText>
                 </View>
