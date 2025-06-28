@@ -18,6 +18,15 @@ const { Option } = Select;
 const { Text } = Typography;
 const { TabPane } = Tabs;
 
+// Extend jsPDF to include lastAutoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
+
 // PDF Styles
 const styles = StyleSheet.create({
   page: {
