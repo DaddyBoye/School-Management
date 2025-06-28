@@ -2504,9 +2504,216 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
             </div>
           </div>
         ) : (
-          <Form form={form} layout="vertical" onFinish={handleSubmit}>
-            {/* ... rest of the form remains unchanged ... */}
-          </Form>
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            <Row gutter={16}>
+            <Col span={12}>
+                <Form.Item
+                name="class_id"
+                label="Class"
+                rules={[{ required: true, message: 'Please select a class' }]}
+                >
+                <Select 
+                    placeholder="Select class"
+                    showSearch
+                    optionFilterProp="children"
+                >
+                    {classes.map(cls => (
+                    <Option key={cls.id} value={cls.id}>
+                        {cls.name} (Grade {cls.grade})
+                    </Option>
+                    ))}
+                </Select>
+                </Form.Item>
+            </Col>
+            <Col span={12}>
+                <Form.Item
+                name="subject_id"
+                label="Subject"
+                rules={[{ required: true, message: 'Please select a subject' }]}
+                >
+                <Select 
+                    placeholder="Select subject"
+                    showSearch
+                    optionFilterProp="children"
+                >
+                    {subjects.map(sub => (
+                    <Option key={sub.id} value={sub.id}>
+                        {sub.name} ({sub.code})
+                    </Option>
+                    ))}
+                </Select>
+                </Form.Item>
+            </Col>
+            </Row>
+
+            <Row gutter={16}>
+            <Col span={12}>
+                <Form.Item
+                name="teacher_id"
+                label="Teacher"
+                rules={[{ required: true, message: 'Please select a teacher' }]}
+                >
+                <Select 
+                    placeholder="Select teacher"
+                    showSearch
+                    optionFilterProp="children"
+                >
+                    {teachers.map(teacher => (
+                    <Option key={teacher.user_id} value={teacher.user_id}>
+                        {teacher.first_name} {teacher.last_name}
+                    </Option>
+                    ))}
+                </Select>
+                </Form.Item>
+            </Col>
+            <Col span={12}>
+                <Form.Item
+                name="timeslot_id"
+                label="Timeslot"
+                rules={[{ 
+                    required: true, 
+                    message: 'Please select a timeslot',
+                    validator: (_, value) => {
+                    const selectedTimeslot = timeslots.find(t => t.id === value);
+                    if (selectedTimeslot?.is_break) {
+                        return Promise.reject('Cannot assign classes to break timeslots');
+                    }
+                    return Promise.resolve();
+                    }
+                }]}
+                >
+                <Select 
+                    placeholder="Select timeslot"
+                    showSearch
+                    optionFilterProp="children"
+                    notFoundContent={
+                    <div style={{ padding: 8 }}>
+                        <Text type="secondary">No available timeslots found</Text>
+                    </div>
+                    }
+                >
+                    {timeslots
+                    .filter(timeslot => !timeslot.is_break) // Filter out break timeslots
+                    .map(timeslot => (
+                        <Option key={timeslot.id} value={timeslot.id}>
+                        {timeslot.name} ({dayjs(timeslot.start_time, 'HH:mm:ss').format('h:mm A')} - {dayjs(timeslot.end_time, 'HH:mm:ss').format('h:mm A')}
+                        </Option>
+                    ))}
+                </Select>
+                </Form.Item>
+            </Col>
+            </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="day_of_week"
+                label="Day of Week"
+                rules={[{ required: true, message: 'Please select a day' }]}
+              >
+                <Select placeholder="Select day">
+                  {dayNames.map((day, index) => (
+                    <Option key={index} value={index}>
+                      {day}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="room_id"
+                label="Room (Optional)"
+              >
+                <Select 
+                  placeholder="Select room"
+                  allowClear
+                  showSearch
+                  optionFilterProp="children"
+                >
+                  {rooms.map(room => (
+                    <Option key={room.id} value={room.id}>
+                      {room.name}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="recurring"
+            label="Recurring"
+            valuePropName="checked"
+            initialValue={true}
+          >
+            <Switch 
+              checkedChildren="Recurring" 
+              unCheckedChildren="One-time" 
+            />
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.recurring !== currentValues.recurring}
+          >
+            {({ getFieldValue }) => !getFieldValue('recurring') ? (
+              <Form.Item
+                name="date_range"
+                label="Date Range"
+                rules={[{ required: true, message: 'Please select a date range' }]}
+              >
+                <DatePicker.RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+            ) : null}
+          </Form.Item>
+
+          <Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              {editingEntry ? 'Update Entry' : 'Create Entry'}
+            </Button>
+            <Button 
+              onClick={() => {
+                if (editingEntry) {
+                  // Reset to the original editing entry values
+                  form.setFieldsValue({
+                    class_id: editingEntry.class_id,
+                    subject_id: editingEntry.subject_id,
+                    teacher_id: editingEntry.teacher_id,
+                    timeslot_id: editingEntry.timeslot_id,
+                    room_id: editingEntry.room_id,
+                    day_of_week: editingEntry.day_of_week,
+                    recurring: editingEntry.recurring,
+                    date_range: editingEntry.start_date && editingEntry.end_date ? [
+                      dayjs(editingEntry.start_date),
+                      dayjs(editingEntry.end_date)
+                    ] : undefined
+                  });
+                } else {
+                  // For new entries, reset to empty or pre-filled day/timeslot
+                  form.resetFields();
+                  const currentValues = form.getFieldsValue();
+                  if (currentValues.day_of_week !== undefined && currentValues.timeslot_id !== undefined) {
+                    form.setFieldsValue({
+                      day_of_week: currentValues.day_of_week,
+                      timeslot_id: currentValues.timeslot_id,
+                      recurring: true
+                    });
+                  }
+                }
+              }}
+            >
+              Reset
+            </Button>
+            {editingEntry && (
+              <Button onClick={() => setIsEditMode(false)}>
+                Cancel
+              </Button>
+            )}
+          </Space>
+        </Form.Item>
+      </Form>
         )}
       </Modal>
 
