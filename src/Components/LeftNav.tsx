@@ -81,7 +81,7 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
   };
 
   // Extract school data from useAuth
-  const schoolName = "St. Joba Learning Center";
+  const schoolName = school?.name || null;
   const logoUrl = school?.logo_url || null;
 
   // Truncate school name if too long for better display
