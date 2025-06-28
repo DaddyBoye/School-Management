@@ -1,15 +1,16 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, GraduationCap, Users, BookOpen, DollarSign, Clock, Award, UserCheck } from 'lucide-react';
 import NavImage from '../images/school 1.png';
+import { useAuth } from '../context/AuthContext';
 
 interface LeftNavProps {
   userRole: string | undefined;
   accessibleRoutes: Record<string, string[]>;
-  schoolName: string | null;
 }
 
-const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
+const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
   const location = useLocation();
+  const { school, loading } = useAuth();
 
   // Role-based styling configurations
   const roleStyles = {
@@ -79,19 +80,82 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
     return location.pathname === path;
   };
 
+  // Extract school data from useAuth
+  const schoolName = school?.name || null;
+  const logoUrl = school?.logo_url || null;
+
+  // Truncate school name if too long for better display
+  const displaySchoolName = schoolName && schoolName.length > 25 
+    ? `${schoolName.substring(0, 22)}...` 
+    : schoolName;
+
+  // Show loading state if data is still being fetched
+  if (loading) {
+    return (
+      <div className={`h-full w-full ${roleStyles.admin.background} text-white z-50 flex flex-col shadow-xl overflow-hidden`}>
+        <div className="px-4 pt-4 pb-6 flex-shrink-0 border-b border-white border-opacity-10">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-xl animate-pulse flex-shrink-0"></div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="h-4 bg-white bg-opacity-20 rounded animate-pulse mb-2"></div>
+              <div className="h-3 bg-white bg-opacity-20 rounded animate-pulse w-20"></div>
+            </div>
+          </div>
+        </div>
+        <div className="px-2 py-4 space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-12 bg-white bg-opacity-10 rounded-xl animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`h-full w-full ${currentStyle.background} text-white z-50 py-4 flex flex-col shadow-xl overflow-hidden`}>
-      {/* Logo and School Name */}
-      <div className="px-4 mb-6 flex-shrink-0">
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`w-10 h-10 bg-white rounded-lg flex items-center justify-center ${currentStyle.logoRing} shadow-lg`}>
-            <div className={currentStyle.activeItemText}>
+    <div className={`h-full w-full ${currentStyle.background} text-white z-50 flex flex-col shadow-xl overflow-hidden`}>
+      {/* Enhanced Header Section with Better Layout */}
+      <div className="px-4 pt-4 pb-6 flex-shrink-0 border-b border-white border-opacity-10">
+        <div className="flex items-start gap-3 mb-4">
+          {/* Logo Container with Dynamic Image Support */}
+          <div className={`w-12 h-12 bg-white rounded-xl flex items-center justify-center ${currentStyle.logoRing} shadow-lg flex-shrink-0 overflow-hidden`}>
+            {logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt="School Logo" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to default icon if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div className={`${logoUrl ? 'hidden' : ''} ${currentStyle.activeItemText}`}>
               <GraduationCap size={24} />
             </div>
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-lg leading-tight">{schoolName}</span>
-            <span className={`text-xs px-2 py-1 rounded-full ${currentStyle.roleBadge} font-medium`}>
+          
+          {/* School Name and Role Container */}
+          <div className="flex flex-col min-w-0 flex-1">
+            {/* School Name with Tooltip for Long Names */}
+            <div className="group relative">
+              <span 
+                className="font-bold text-base leading-tight block truncate cursor-default"
+                title={schoolName || undefined}
+              >
+                {displaySchoolName}
+              </span>
+              {/* Tooltip for full name if truncated */}
+              {schoolName && schoolName.length > 25 && (
+                <div className="absolute left-0 top-full mt-1 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap max-w-xs">
+                  {schoolName}
+                </div>
+              )}
+            </div>
+            
+            {/* Role Badge */}
+            <span className={`text-xs px-2 py-1 rounded-full ${currentStyle.roleBadge} font-medium inline-block w-fit mt-1`}>
               {currentStyle.roleLabel}
             </span>
           </div>
@@ -99,7 +163,7 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
       </div>
 
       {/* Navigation Links with Custom Scrollbar */}
-      <nav className="space-y-1 px-2 flex-grow min-h-0 overflow-y-auto scrollbar scrollbar-track-transparent scrollbar-thumb-white/60 hover:scrollbar-thumb-white/30">
+      <nav className="space-y-1 px-2 flex-grow min-h-0 overflow-y-auto py-4 scrollbar scrollbar-track-transparent scrollbar-thumb-white/60 hover:scrollbar-thumb-white/30">
         {filteredLinks.map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
@@ -123,7 +187,7 @@ const LeftNav = ({ userRole, accessibleRoutes, schoolName }: LeftNavProps) => {
       <div className={`mx-4 mb-4 h-1 rounded-full ${currentStyle.accent} opacity-30 flex-shrink-0`} />
 
       {/* Bottom Image */}
-      <div className="px-4 flex-shrink-0">
+      <div className="px-4 pb-4 flex-shrink-0">
         <div className="bg-white bg-opacity-10 rounded-xl p-3 backdrop-blur-sm">
           <img 
             src={NavImage} 

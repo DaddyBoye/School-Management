@@ -138,7 +138,7 @@ const AppContent = () => {
                 fixed top-0 left-0 h-screen w-64 md:w-56 bg-blue-500 z-40 transition-transform duration-200 ease-in-out
                 ${isNavOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
             >
-              <LeftNav userRole={userRole ?? undefined} accessibleRoutes={accessibleRoutes} schoolName={schoolName} />
+              <LeftNav userRole={userRole ?? undefined} accessibleRoutes={accessibleRoutes} />
             </div>
           </>
         )}
