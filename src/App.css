@@ -97,3 +97,11 @@
   background: transparent;
   color: #40a9ff;
 }
+
+.active-calendar-row {
+  background-color: #f6ffed !important;
+}
+
+.break-term-row {
+  background-color: #fff7e6 !important;
+}

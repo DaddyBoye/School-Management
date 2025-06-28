@@ -79,6 +79,25 @@ interface TimetableEntry {
   rooms?: Room;
 }
 
+interface SchoolCalendar {
+  id: number;
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
+
+interface CalendarTerm {
+  id: number;
+  calendar_id: number;
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  is_break: boolean;
+}
+
 // DayScheduleModal.tsx
 const DayScheduleModal: React.FC<{
   visible: boolean;
@@ -448,13 +467,21 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     entriesByTimeslot: Record<number, TimetableEntry[]>;
     sortedTimeslotIds: number[];
   } | null>(null);
-
   const [timeslotModalVisible, setTimeslotModalVisible] = useState(false);
   const [timeslotModalData] = useState<{
     timeslot: Timeslot;
     dayIndex: number;
     entries: TimetableEntry[];
   } | null>(null);
+  const [schoolCalendars, setSchoolCalendars] = useState<SchoolCalendar[]>([]);
+  const [calendarTerms, setCalendarTerms] = useState<CalendarTerm[]>([]);
+  const [isCalendarModalVisible, setIsCalendarModalVisible] = useState(false);
+  const [isTermModalVisible, setIsTermModalVisible] = useState(false);
+  const [editingCalendar, setEditingCalendar] = useState<SchoolCalendar | null>(null);
+  const [editingTerm, setEditingTerm] = useState<CalendarTerm | null>(null);
+  const [selectedCalendar, setSelectedCalendar] = useState<number | null>(null);
+  const [calendarForm] = Form.useForm();
+  const [termForm] = Form.useForm();
 
   // Day names for display
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -464,13 +491,14 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        await Promise.all([
-          fetchClasses(),
-          fetchSubjects(),
-          fetchTeachers(),
-          fetchRooms(),
-          fetchTimeslots(),
-          fetchTimetableEntries()
+    await Promise.all([
+      fetchClasses(),
+      fetchSubjects(),
+      fetchTeachers(),
+      fetchRooms(),
+      fetchTimeslots(),
+      fetchTimetableEntries(),
+      fetchSchoolCalendars()
         ]);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -527,6 +555,34 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
 
     if (error) throw error;
     setRooms(data || []);
+  };
+
+  const fetchSchoolCalendars = async () => {
+    const { data, error } = await supabase
+      .from('school_calendar')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('start_date', { ascending: true });
+
+    if (error) throw error;
+    setSchoolCalendars(data || []);
+    
+    // Set the first active calendar as selected by default
+    const activeCalendar = data?.find(c => c.is_active);
+    if (activeCalendar) {
+      setSelectedCalendar(activeCalendar.id);
+    }
+  };
+
+  const fetchCalendarTerms = async (calendarId: number) => {
+    const { data, error } = await supabase
+      .from('calendar_terms')
+      .select('*')
+      .eq('calendar_id', calendarId)
+      .order('start_date', { ascending: true });
+
+    if (error) throw error;
+    setCalendarTerms(data || []);
   };
 
   const fetchTimeslots = async () => {
@@ -702,6 +758,176 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       setLoading(false);
     }
   };
+
+  const handleCalendarSubmit = async (values: any) => {
+    try {
+      setLoading(true);
+      
+      const calendarData = {
+        name: values.name,
+        description: values.description,
+        start_date: values.date_range[0].format('YYYY-MM-DD'),
+        end_date: values.date_range[1].format('YYYY-MM-DD'),
+        is_active: values.is_active,
+        school_id: schoolId
+      };
+
+      if (editingCalendar) {
+        // Update existing calendar
+        const { error } = await supabase
+          .from('school_calendar')
+          .update(calendarData)
+          .eq('id', editingCalendar.id);
+
+        if (error) throw error;
+        message.success('Calendar updated successfully');
+      } else {
+        // Create new calendar
+        const { data, error } = await supabase
+          .from('school_calendar')
+          .insert([calendarData])
+          .select();
+
+        if (error) throw error;
+        message.success('Calendar created successfully');
+        
+        // Set as selected if it's active
+        if (calendarData.is_active && data?.[0]) {
+          setSelectedCalendar(data[0].id);
+        }
+      }
+      
+      fetchSchoolCalendars();
+      setIsCalendarModalVisible(false);
+      calendarForm.resetFields();
+      setEditingCalendar(null);
+    } catch (error) {
+      console.error('Error saving calendar:', error);
+      message.error('Failed to save calendar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTermSubmit = async (values: any) => {
+    try {
+      setLoading(true);
+      
+      if (!selectedCalendar) {
+        message.error('Please select a calendar first');
+        return;
+      }
+
+      const termData = {
+        name: values.name,
+        description: values.description,
+        start_date: values.date_range[0].format('YYYY-MM-DD'),
+        end_date: values.date_range[1].format('YYYY-MM-DD'),
+        is_break: values.is_break,
+        calendar_id: selectedCalendar
+      };
+
+      if (editingTerm) {
+        // Update existing term
+        const { error } = await supabase
+          .from('calendar_terms')
+          .update(termData)
+          .eq('id', editingTerm.id);
+
+        if (error) throw error;
+        message.success('Term updated successfully');
+      } else {
+        // Create new term
+        const { error } = await supabase
+          .from('calendar_terms')
+          .insert([termData]);
+
+        if (error) throw error;
+        message.success('Term created successfully');
+      }
+      
+      if (selectedCalendar) {
+        fetchCalendarTerms(selectedCalendar);
+      }
+      setIsTermModalVisible(false);
+      termForm.resetFields();
+      setEditingTerm(null);
+    } catch (error) {
+      console.error('Error saving term:', error);
+      message.error('Failed to save term');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteCalendar = async (id: number) => {
+    try {
+      setLoading(true);
+      
+      // Check if calendar has terms
+      const { count } = await supabase
+        .from('calendar_terms')
+        .select('*', { count: 'exact' })
+        .eq('calendar_id', id);
+
+      if (count && count > 0) {
+        message.error('Cannot delete calendar with terms. Delete terms first.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('school_calendar')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      message.success('Calendar deleted successfully');
+      fetchSchoolCalendars();
+      
+      // Reset selection if deleted calendar was selected
+      if (selectedCalendar === id) {
+        setSelectedCalendar(null);
+        setCalendarTerms([]);
+      }
+    } catch (error) {
+      console.error('Error deleting calendar:', error);
+      message.error('Failed to delete calendar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTerm = async (id: number) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('calendar_terms')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      message.success('Term deleted successfully');
+      if (selectedCalendar) {
+        fetchCalendarTerms(selectedCalendar);
+      }
+    } catch (error) {
+      console.error('Error deleting term:', error);
+      message.error('Failed to delete term');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCalendar) {
+      fetchCalendarTerms(selectedCalendar);
+    } else {
+      setCalendarTerms([]);
+    }
+  }, [selectedCalendar]);
 
   const groupEntriesByTimeslot = (entries: TimetableEntry[]) => {
     const entriesByTimeslot = entries.reduce((acc, entry) => {
@@ -879,6 +1105,50 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       roomForm.resetFields();
     }
     setIsRoomModalVisible(true);
+  };
+
+  const showCalendarModal = (calendar?: SchoolCalendar) => {
+    if (calendar) {
+      setEditingCalendar(calendar);
+      calendarForm.setFieldsValue({
+        name: calendar.name,
+        description: calendar.description,
+        date_range: [
+          dayjs(calendar.start_date),
+          dayjs(calendar.end_date)
+        ],
+        is_active: calendar.is_active
+      });
+    } else {
+      setEditingCalendar(null);
+      calendarForm.resetFields();
+      calendarForm.setFieldsValue({
+        is_active: false
+      });
+    }
+    setIsCalendarModalVisible(true);
+  };
+
+  const showTermModal = (term?: CalendarTerm) => {
+    if (term) {
+      setEditingTerm(term);
+      termForm.setFieldsValue({
+        name: term.name,
+        description: term.description,
+        date_range: [
+          dayjs(term.start_date),
+          dayjs(term.end_date)
+        ],
+        is_break: term.is_break
+      });
+    } else {
+      setEditingTerm(null);
+      termForm.resetFields();
+      termForm.setFieldsValue({
+        is_break: false
+      });
+    }
+    setIsTermModalVisible(true);
   };
 
   // Filter timetable entries based on selected filters
@@ -1636,6 +1906,194 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
               </Col>
             </Row>
           </TabPane>
+
+          <TabPane 
+            tab={<span><CalendarOutlined /> Academic Calendar</span>} 
+            key="calendar"
+          >
+            <Row gutter={[16, 16]}>
+              <Col span={24}>
+                <Card 
+                  title="Academic Calendars" 
+                  bordered={false}
+                  extra={
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />}
+                      onClick={() => showCalendarModal()}
+                    >
+                      Add Calendar
+                    </Button>
+                  }
+                >
+                  <Table
+                    columns={[
+                      {
+                        title: 'Name',
+                        dataIndex: 'name',
+                        key: 'name',
+                        render: (text: string, record: SchoolCalendar) => (
+                          <Space>
+                            <Text>{text}</Text>
+                            {record.is_active && <Tag color="green">Active</Tag>}
+                          </Space>
+                        )
+                      },
+                      {
+                        title: 'Date Range',
+                        key: 'date_range',
+                        render: (record: SchoolCalendar) => (
+                          <Text>
+                            {dayjs(record.start_date).format('MMM D, YYYY')} - {dayjs(record.end_date).format('MMM D, YYYY')}
+                          </Text>
+                        )
+                      },
+                      {
+                        title: 'Actions',
+                        key: 'actions',
+                        render: (_: any, record: SchoolCalendar) => (
+                          <Space>
+                            <Button 
+                              icon={<EditOutlined />} 
+                              onClick={() => showCalendarModal(record)}
+                              size="small"
+                            />
+                            <Button 
+                              type="primary" 
+                              icon={<UnorderedListOutlined />}
+                              onClick={() => setSelectedCalendar(record.id)}
+                              size="small"
+                              disabled={selectedCalendar === record.id}
+                            />
+                            <Popconfirm
+                              title="Are you sure you want to delete this calendar?"
+                              onConfirm={() => deleteCalendar(record.id)}
+                              okText="Yes"
+                              cancelText="No"
+                            >
+                              <Button 
+                                danger 
+                                icon={<DeleteOutlined />}
+                                size="small"
+                              />
+                            </Popconfirm>
+                          </Space>
+                        )
+                      }
+                    ]}
+                    dataSource={schoolCalendars}
+                    rowKey="id"
+                    pagination={{ pageSize: 5 }}
+                    loading={loading}
+                    rowClassName={(record) => record.is_active ? 'active-calendar-row' : ''}
+                  />
+                </Card>
+              </Col>
+              
+              {selectedCalendar && (
+                <Col span={24}>
+                  <Card 
+                    title={`Terms for ${schoolCalendars.find(c => c.id === selectedCalendar)?.name || 'Selected Calendar'}`}
+                    bordered={false}
+                    extra={
+                      <Space>
+                        <Button 
+                          type="primary" 
+                          icon={<PlusOutlined />}
+                          onClick={() => showTermModal()}
+                          disabled={!selectedCalendar}
+                        >
+                          Add Term
+                        </Button>
+                        <Button 
+                          icon={<SyncOutlined />}
+                          onClick={() => selectedCalendar && fetchCalendarTerms(selectedCalendar)}
+                          disabled={!selectedCalendar}
+                        />
+                      </Space>
+                    }
+                  >
+                    <Table
+                      columns={[
+                        {
+                          title: 'Name',
+                          dataIndex: 'name',
+                          key: 'name',
+                          render: (text: string, record: CalendarTerm) => (
+                            <Space>
+                              <Text>{text}</Text>
+                              {record.is_break && <Tag color="orange">Break</Tag>}
+                            </Space>
+                          )
+                        },
+                        {
+                          title: 'Date Range',
+                          key: 'date_range',
+                          render: (record: CalendarTerm) => (
+                            <Text>
+                              {dayjs(record.start_date).format('MMM D, YYYY')} - {dayjs(record.end_date).format('MMM D, YYYY')}
+                            </Text>
+                          )
+                        },
+                        {
+                          title: 'Duration',
+                          key: 'duration',
+                          render: (record: CalendarTerm) => {
+                            const start = dayjs(record.start_date);
+                            const end = dayjs(record.end_date);
+                            const days = end.diff(start, 'day') + 1;
+                            return <Text>{days} day{days !== 1 ? 's' : ''}</Text>;
+                          }
+                        },
+                        {
+                          title: 'Actions',
+                          key: 'actions',
+                          render: (_: any, record: CalendarTerm) => (
+                            <Space>
+                              <Button 
+                                icon={<EditOutlined />} 
+                                onClick={() => showTermModal(record)}
+                                size="small"
+                              />
+                              <Popconfirm
+                                title="Are you sure you want to delete this term?"
+                                onConfirm={() => deleteTerm(record.id)}
+                                okText="Yes"
+                                cancelText="No"
+                              >
+                                <Button 
+                                  danger 
+                                  icon={<DeleteOutlined />}
+                                  size="small"
+                                />
+                              </Popconfirm>
+                            </Space>
+                          )
+                        }
+                      ]}
+                      dataSource={calendarTerms}
+                      rowKey="id"
+                      pagination={{ pageSize: 10 }}
+                      loading={loading}
+                      rowClassName={(record) => record.is_break ? 'break-term-row' : ''}
+                      locale={{
+                        emptyText: (
+                          <Empty 
+                            description={
+                              selectedCalendar ? 
+                                "No terms found for this calendar" : 
+                                "Select a calendar to view terms"
+                            }
+                          />
+                        )
+                      }}
+                    />
+                  </Card>
+                </Col>
+              )}
+            </Row>
+          </TabPane>
+
         </Tabs>
       </Card>
 
@@ -2070,6 +2528,120 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
                 {editingRoom ? 'Update Room' : 'Create Room'}
               </Button>
               <Button onClick={() => roomForm.resetFields()}>
+                Reset
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Calendar Modal */}
+      <Modal
+        title={<><CalendarOutlined /> {editingCalendar ? 'Edit Calendar' : 'Add New Calendar'}</>}
+        visible={isCalendarModalVisible}
+        onCancel={() => {
+          setIsCalendarModalVisible(false);
+          setEditingCalendar(null);
+        }}
+        footer={null}
+        width={700}
+      >
+        <Form form={calendarForm} layout="vertical" onFinish={handleCalendarSubmit}>
+          <Form.Item
+            name="name"
+            label="Calendar Name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
+            <Input placeholder="e.g., 2023-2024 Academic Year" />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label="Description (Optional)"
+          >
+            <TextArea rows={3} placeholder="Enter calendar description..." />
+          </Form.Item>
+
+          <Form.Item
+            name="date_range"
+            label="Date Range"
+            rules={[{ required: true, message: 'Please select a date range' }]}
+          >
+            <DatePicker.RangePicker style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            name="is_active"
+            label="Active Calendar"
+            valuePropName="checked"
+            help="Only one calendar can be active at a time. Activating this will deactivate others."
+          >
+            <Switch />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                {editingCalendar ? 'Update Calendar' : 'Create Calendar'}
+              </Button>
+              <Button onClick={() => calendarForm.resetFields()}>
+                Reset
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Term Modal */}
+      <Modal
+        title={<><CalendarOutlined /> {editingTerm ? 'Edit Term' : 'Add New Term'}</>}
+        visible={isTermModalVisible}
+        onCancel={() => {
+          setIsTermModalVisible(false);
+          setEditingTerm(null);
+        }}
+        footer={null}
+        width={700}
+      >
+        <Form form={termForm} layout="vertical" onFinish={handleTermSubmit}>
+          <Form.Item
+            name="name"
+            label="Term Name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
+            <Input placeholder="e.g., Fall Semester, Winter Break, Spring Term" />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label="Description (Optional)"
+          >
+            <TextArea rows={3} placeholder="Enter term description..." />
+          </Form.Item>
+
+          <Form.Item
+            name="date_range"
+            label="Date Range"
+            rules={[{ required: true, message: 'Please select a date range' }]}
+          >
+            <DatePicker.RangePicker style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            name="is_break"
+            label="Is Break?"
+            valuePropName="checked"
+            help="Mark this if the term represents a break period (holidays, vacations, etc.)"
+          >
+            <Switch />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                {editingTerm ? 'Update Term' : 'Create Term'}
+              </Button>
+              <Button onClick={() => termForm.resetFields()}>
                 Reset
               </Button>
             </Space>
