@@ -269,9 +269,9 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
           *,
           classes:classes!teachers_class_id_fkey(name),
           subjects:subjects!teachers_subject_id_fkey(name, code),
-          teacher_roles!inner(
+          teacher_roles(
             is_primary,
-            roles:staff_roles!staff_member_roles_role_id_fkey(id, name)
+            staff_roles:staff_roles!role_id(id, name)
           ),
           financial_details:staff_financial_details(
             salary,
