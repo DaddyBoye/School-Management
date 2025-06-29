@@ -262,16 +262,16 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       if (rolesError) throw rolesError;
       setRoles(rolesData || []);
 
-      // Fetch staff members with their roles and financial details
+      // Fetch staff members with explicit relationship specification
       const { data: staffData, error: staffError } = await supabase
         .from("teachers")
         .select(`
           *,
-          classes:classes(name),
-          subjects:subjects(name, code),
+          classes:classes!teachers_class_id_fkey(name),
+          subjects:subjects!teachers_subject_id_fkey(name, code),
           teacher_roles!inner(
             is_primary,
-            roles:staff_roles(id, name)
+            roles:staff_roles!staff_member_roles_role_id_fkey(id, name)
           ),
           financial_details:staff_financial_details(
             salary,
@@ -1141,7 +1141,7 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
             <Button
               onClick={() => {
                 setIsModalVisible(false);
-                form.resetFields();
+                form.resetFields();0
               }}
             >
               Cancel
