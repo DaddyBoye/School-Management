@@ -2,18 +2,58 @@ import { useState, useEffect } from 'react';
 import { supabase } from "../../supabase";
 import { sendEmail } from '../../services/emailService';
 import { generatePassword } from '../../services/passwordGenerator';
-import { Search, Plus, X, Edit2, Mail, Phone, Book, Calendar, MapPin, Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/Components/ui/alert';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/Components/ui/alert-dialog";
+import { 
+  SearchOutlined, 
+  PlusOutlined, 
+  EditOutlined, 
+  MailOutlined, 
+  PhoneOutlined, 
+  BookOutlined, 
+  CalendarOutlined, 
+  EnvironmentOutlined,
+  UserOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  IdcardOutlined,
+  BankOutlined,
+  DollarOutlined
+} from '@ant-design/icons';
+import { 
+  Table, 
+  Card, 
+  Button, 
+  Input, 
+  Select, 
+  Modal, 
+  Form, 
+  Avatar, 
+  Tag, 
+  message, 
+  Upload,
+  Descriptions,
+  Space,
+  Popconfirm,
+  DatePicker,
+  Tabs,
+  InputNumber,
+  Switch,
+  Alert
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import type { UploadFile } from 'antd/es/upload/interface';
+import dayjs from 'dayjs';
 
-interface Teacher {
+const { TabPane } = Tabs;
+const { Option } = Select;
+
+interface StaffMember {
   id: string;
   user_id: string;
   first_name: string;
   last_name: string;
   email: string;
-  class_id: string;
-  subject_id: number;
+  class_id?: string;
+  subject_id?: number;
   class_name?: string;
   subject_name?: string;
   subject_code?: string;
@@ -32,1205 +72,1103 @@ interface Teacher {
   notes: string;
   created_at: string;
   updated_at: string;
+  image_url: string;
+  staff_code: string;
+  employment_type: string;
+  position: string;
+  department: string;
+  is_teaching_staff: boolean;
+  roles: {
+    id: number;
+    name: string;
+    is_primary: boolean;
+  }[];
+  financial_details?: {
+    salary?: number;
+    bank_name?: string;
+    bank_account_number?: string;
+    tax_id?: string;
+  };
 }
 
-interface FormErrors {
-  email?: string;
-  phone?: string;
-  date_of_birth?: string;
-  emergency_contact_phone?: string;
-  class_id?: string;
-  subject_id?: string;
-  submit?: string;
+interface StaffRole {
+  id: number;
+  name: string;
+  description?: string;
+  is_primary?: boolean;
 }
 
-const TeachersList = ({ schoolId, schoolName }: { schoolId: string; schoolName: string }) => {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolName: string }) => {
+  const [staff, setStaff] = useState<StaffMember[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string | "All Classes">("All Classes");
-  const [selectedSubject, setSelectedSubject] = useState<number | "All Subjects">("All Subjects");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editFormData, setEditFormData] = useState<Teacher | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
-  const [newTeacherData, setNewTeacherData] = useState<Omit<Teacher, 'id'>>({
-    first_name: '',
-    last_name: '',
-    email: '',
-    class_id: '',
-    subject_id: 0,
-    education: '',
-    experience: '',
-    address: '',
-    phone: '',
-    joinDate: new Date().toISOString().split('T')[0],
-    school_id: schoolId,
-    date_of_birth: '',
-    gender: '',
-    marital_status: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    is_active: true,
-    notes: '',
-    user_id: '',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+  const [roles, setRoles] = useState<StaffRole[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [filterParams, setFilterParams] = useState({
+    searchTerm: "",
+    selectedDepartment: "All Departments",
+    selectedRole: "All Roles",
+    selectedStatus: "All",
+    staffType: "All"
   });
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('1');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form] = Form.useForm();
+  const [financialForm] = Form.useForm();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [isFinancialModalVisible, setIsFinancialModalVisible] = useState(false);
+  const [hasFinancialAccess, setHasFinancialAccess] = useState(false); // Based on user role
 
   useEffect(() => {
-    console.log('Initializing component with schoolId:', schoolId);
     fetchData();
+    checkFinancialAccess();
   }, [schoolId]);
+
+  const checkFinancialAccess = async () => {
+    // Implement your actual access control check here
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.rpc('has_role', { role_name: 'admin' });
+      setHasFinancialAccess(data || false);
+    }
+  };
 
   const fetchData = async () => {
     try {
-      setIsLoading(true);
-      console.log('Starting data fetch...');
+      setLoading(true);
       
       // Fetch classes
-      console.log('Fetching classes...');
       const { data: classesData, error: classesError } = await supabase
         .from("classes")
         .select("*")
         .eq("school_id", schoolId);
       
       if (classesError) throw classesError;
-      console.log('Classes fetched:', classesData?.length);
       setClasses(classesData || []);
       
       // Fetch subjects
-      console.log('Fetching subjects...');
       const { data: subjectsData, error: subjectsError } = await supabase
         .from("subjects")
         .select("*")
         .eq("school_id", schoolId);
         
       if (subjectsError) throw subjectsError;
-      console.log('Subjects fetched:', subjectsData?.length);
       setSubjects(subjectsData || []);
-  
-      // Fetch teachers with explicit relationship specification
-      const { data: teachersData, error: teachersError } = await supabase
+
+      // Fetch staff roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("staff_roles")
+        .select("*")
+        .eq("school_id", schoolId);
+      
+      if (rolesError) throw rolesError;
+      setRoles(rolesData || []);
+
+      // Fetch staff members with their roles and financial details
+      const { data: staffData, error: staffError } = await supabase
         .from("teachers")
         .select(`
           *,
-          classes:classes!teachers_class_id_fkey(name),
-          subjects:subjects!teachers_subject_id_fkey(name, code)
+          classes:classes(name),
+          subjects:subjects(name, code),
+          teacher_roles!inner(
+            is_primary,
+            roles:staff_roles(id, name)
+          ),
+          financial_details:staff_financial_details(
+            salary,
+            bank_name,
+            bank_account_number,
+            tax_id
+          )
         `)
         .eq("school_id", schoolId);
-  
-      if (teachersError) throw teachersError;
-      console.log('Teachers raw data:', teachersData);
+
+      if (staffError) throw staffError;
       
-      // Format teachers with class and subject names
-      const formattedTeachers = (teachersData || []).map(teacher => ({
-        ...teacher,
-        class_name: teacher.classes?.name,
-        subject_name: teacher.subjects?.name,
-        subject_code: teacher.subjects?.code
+      // Format staff data
+      const formattedStaff = (staffData || []).map(member => ({
+        ...member,
+        class_name: member.classes?.name,
+        subject_name: member.subjects?.name,
+        subject_code: member.subjects?.code,
+        roles: member.teacher_roles.map((r: any) => ({
+          id: r.roles.id,
+          name: r.roles.name,
+          is_primary: r.is_primary
+        })),
+        financial_details: member.financial_details
       }));
-  
-      console.log('Formatted teachers:', formattedTeachers);
-      setTeachers(formattedTeachers);
+
+      setStaff(formattedStaff);
+
+      // Extract unique departments
+      const depts = [...new Set(formattedStaff.map(m => m.department).filter(Boolean))] as string[];
+      setDepartments(['All Departments', ...depts]);
+
     } catch (error) {
-      console.error('Error in fetchData:', error);
+      console.error('Error fetching data:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch data');
+      message.error('Failed to load staff data');
     } finally {
-      setIsLoading(false);
-      console.log('Data fetch completed');
+      setLoading(false);
     }
   };
 
-  const filteredTeachers = teachers.filter(teacher => {
-    const matchesSearch = teacher.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.last_name.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options;
     
-    const matchesClass = selectedClass === "All Classes" || teacher.class_id === selectedClass;
-    const matchesSubject = selectedSubject === "All Subjects" || 
-                          teacher.subject_id === (typeof selectedSubject === 'number' ? selectedSubject : Number(selectedSubject));
-  
-    return matchesSearch && matchesClass && matchesSubject;
+    try {
+      const fileName = `${schoolId}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from('staff-images')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('staff-images')
+        .getPublicUrl(fileName);
+
+      onSuccess(publicUrl, file);
+      form.setFieldsValue({ image_url: publicUrl });
+    } catch (error) {
+      console.error('Upload error:', error);
+      onError(error);
+      message.error('Failed to upload image');
+    }
+  };
+
+  const uploadProps = {
+    customRequest: handleUpload,
+    fileList,
+    onChange: ({ fileList: newFileList }: { fileList: UploadFile[] }) => setFileList(newFileList),
+    beforeUpload: (file: File) => {
+      const isImage = file.type.startsWith('image/');
+      if (!isImage) {
+        message.error('You can only upload image files!');
+      }
+      const isLt2M = file.size / 1024 / 1024 < 2;
+      if (!isLt2M) {
+        message.error('Image must be smaller than 2MB!');
+      }
+      return isImage && isLt2M;
+    },
+    listType: "picture-card" as const,
+    maxCount: 1
+  };
+
+  const filteredStaff = staff.filter(member => {
+    const matchesSearch = member.first_name.toLowerCase().includes(filterParams.searchTerm.toLowerCase()) ||
+                         member.last_name.toLowerCase().includes(filterParams.searchTerm.toLowerCase()) ||
+                         member.email.toLowerCase().includes(filterParams.searchTerm.toLowerCase()) ||
+                         member.staff_code?.toLowerCase().includes(filterParams.searchTerm.toLowerCase());
+    
+    const matchesDepartment = filterParams.selectedDepartment === "All Departments" || 
+                            member.department === filterParams.selectedDepartment;
+    
+    const matchesRole = filterParams.selectedRole === "All Roles" || 
+                       member.roles.some(r => r.name === filterParams.selectedRole);
+    
+    const matchesStatus = filterParams.selectedStatus === "All" || 
+                         (filterParams.selectedStatus === "Active" && member.is_active) || 
+                         (filterParams.selectedStatus === "Inactive" && !member.is_active);
+    
+    const matchesStaffType = filterParams.staffType === "All" ||
+                           (filterParams.staffType === "Teaching" && member.is_teaching_staff) ||
+                           (filterParams.staffType === "Non-Teaching" && !member.is_teaching_staff);
+
+    return matchesSearch && matchesDepartment && matchesRole && matchesStatus && matchesStaffType;
   });
 
-  const validateTeacherData = async (teacherData: Teacher | Omit<Teacher, 'id'>, currentTeacherId: string | null = null) => {
-    console.log('Validating teacher data:', teacherData);
-    const errors: FormErrors = {};
-    
-    // Email validation (only checks teachers table)
-    if (!teacherData.email) {
-      errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teacherData.email)) {
-      errors.email = "Invalid email format";
-    } else {
-      try {
-        const query = supabase
-          .from("teachers")
-          .select("id, email")
-          .eq("email", teacherData.email);
-    
-        if (currentTeacherId) {
-          query.neq("id", currentTeacherId);
-        }
-    
-        const { data: emailCheck } = await query.maybeSingle();
-        
-        if (emailCheck) {
-          errors.email = "This email is already being used by another teacher";
-        }
-      } catch (error) {
-        console.error('Error validating email:', error);
-        errors.email = "Error validating email availability";
-      }
-    }
-  
-    // Phone validation
-    if (!teacherData.phone) {
-      errors.phone = "Phone number is required";
-    } else if (!/^[\d\s+\-()]{10,20}$/.test(teacherData.phone)) {
-      errors.phone = "Invalid phone number format";
-    }
-  
-    // Date of birth validation
-    if (teacherData.date_of_birth) {
-      const dob = new Date(teacherData.date_of_birth);
-      const today = new Date();
-      const minDate = new Date();
-      minDate.setFullYear(today.getFullYear() - 70);
-      const maxDate = new Date();
-      maxDate.setFullYear(today.getFullYear() - 18);
-  
-      if (dob > today) {
-        errors.date_of_birth = "Date of birth cannot be in the future";
-      } else if (dob < minDate) {
-        errors.date_of_birth = "Teacher must be less than 70 years old";
-      } else if (dob > maxDate) {
-        errors.date_of_birth = "Teacher must be at least 18 years old";
-      }
-    }
-  
-    // Class and subject validation
-    if (!teacherData.class_id || teacherData.class_id === '') {
-      errors.class_id = "Class is required";
-    }
-
-    if (!teacherData.class_id) {
-      errors.class_id = "Class is required";
-    } else if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teacherData.class_id)) {
-      errors.class_id = "Invalid class selection";
-    }
-  
-    if (!teacherData.subject_id) {
-      errors.subject_id = "Subject is required";
-    } else {
-      // Verify subject exists in database
-      const { data: subject, error } = await supabase
-        .from('subjects')
-        .select('id')
-        .eq('id', teacherData.subject_id)
-        .single();
-  
-      if (error || !subject) {
-        errors.subject_id = "Selected subject does not exist";
-      }
-    }
-  
-    console.log('Validation errors:', errors);
-    return errors;
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!editFormData) return;
-  
-    console.log('Submitting edit form:', editFormData);
+  const handleAddStaff = async (values: any) => {
     setIsSubmitting(true);
-    setFormErrors({});
-  
+    
     try {
-      const validationErrors = await validateTeacherData(editFormData, editFormData.id);
-      
-      if (Object.keys(validationErrors).length > 0) {
-        console.log('Validation failed:', validationErrors);
-        setFormErrors(validationErrors);
-        return;
-      }
-  
-      // First update the teacher record
-      const { data, error } = await supabase
-        .from("teachers")
-        .update({
-          // Explicitly list all fields to update (excluding derived fields)
-          first_name: editFormData.first_name,
-          last_name: editFormData.last_name,
-          email: editFormData.email,
-          class_id: editFormData.class_id,
-          subject_id: editFormData.subject_id,
-          education: editFormData.education,
-          experience: editFormData.experience,
-          address: editFormData.address,
-          phone: editFormData.phone,
-          date_of_birth: editFormData.date_of_birth,
-          gender: editFormData.gender,
-          marital_status: editFormData.marital_status,
-          emergency_contact_name: editFormData.emergency_contact_name,
-          emergency_contact_phone: editFormData.emergency_contact_phone,
-          is_active: editFormData.is_active,
-          notes: editFormData.notes,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", editFormData.id)
-        .select() // Only select the teacher fields, not relationships
-  
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("No data returned from update");
-  
-      // Then fetch the updated teacher with relationships
-      const { data: updatedTeacherData, error: fetchError } = await supabase
-        .from("teachers")
-        .select(`
-          *,
-          classes:classes!teachers_class_id_fkey(name),
-          subjects:subjects!teachers_subject_id_fkey(name, code)
-        `)
-        .eq("id", editFormData.id)
-        .single();
-  
-      if (fetchError) throw fetchError;
-  
-      const updatedTeacher = {
-        ...updatedTeacherData,
-        class_name: updatedTeacherData.classes?.name,
-        subject_name: updatedTeacherData.subjects?.name,
-        subject_code: updatedTeacherData.subjects?.code
-      };
-  
-      console.log('Update successful:', updatedTeacher);
-      setTeachers(teachers.map(t => t.id === updatedTeacher.id ? updatedTeacher : t));
-      setIsEditing(false);
-      setSelectedTeacher(updatedTeacher);
-      setEditFormData(null);
-    } catch (error) {
-      console.error('Error updating teacher:', error);
-      setFormErrors({ submit: error instanceof Error ? error.message : 'An unknown error occurred' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const addTeacher = async (teacherData: Omit<Teacher, 'id'>, schoolName: string) => {
-    console.log('Starting to add teacher:', teacherData);
-    setIsSubmitting(true);
-    setFormErrors({});
-  
-    try {
-      const validationErrors = await validateTeacherData(teacherData);
-      if (Object.keys(validationErrors).length > 0) {
-        console.log('Validation failed:', validationErrors);
-        setFormErrors(validationErrors);
-        return;
-      }
-  
-      console.log('Generating password...');
       const password = generatePassword();
       
-      console.log('Creating auth user...');
+      // Create auth user
       const { data: { user }, error: authError } = await supabase.auth.signUp({
-        email: teacherData.email,
+        email: values.email,
         password: password,
-        options: { data: { role: 'teacher' } },
+        options: { 
+          data: { 
+            role: values.is_teaching_staff ? 'teacher' : 'staff' 
+          } 
+        },
       });
   
       if (authError) throw authError;
       if (!user) throw new Error("Failed to create user");
-      console.log('Auth user created:', user.id);
   
-      console.log('Inserting teacher record...');
-      const { data: teacherDataResult, error: teacherError } = await supabase
+      // Insert staff record
+      const { data: staffData, error: staffError } = await supabase
         .from("teachers")
         .insert([{ 
-          ...teacherData,
+          ...values,
           user_id: user.id,
-          joinDate: new Date().toISOString().split('T')[0],
+          joinDate: values.joinDate.format('YYYY-MM-DD'),
+          date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
           is_active: true
         }])
-        .select(`
-          *,
-          classes:classes!teachers_class_id_fkey(name),
-          subjects:subjects!teachers_subject_id_fkey(name, code)
-        `)
+        .select()
         .single();
   
-      if (teacherError) throw teacherError;
-      console.log('Teacher record created:', teacherDataResult);
+      if (staffError) throw staffError;
   
-      const newTeacher = {
-        ...teacherDataResult,
-        class_name: teacherDataResult.classes?.name,
-        subject_name: teacherDataResult.subjects?.name,
-        subject_code: teacherDataResult.subjects?.code
-      };
+      // Add staff roles
+      const rolesToInsert = values.roles.map((role: any) => ({
+        teacher_id: staffData.id,
+        role_id: role,
+        is_primary: role === values.primary_role_id
+      }));
   
-      // Rest of your function remains the same...
-      console.log('Sending welcome email...');
+      const { error: rolesError } = await supabase
+        .from("teacher_roles")
+        .insert(rolesToInsert);
+  
+      if (rolesError) throw rolesError;
+  
+      // Send welcome email
       await sendEmail(
-        teacherData.email,
-        `${teacherData.first_name} ${teacherData.last_name}`,
+        values.email,
+        `${values.first_name} ${values.last_name}`,
         schoolName,
         password,
-        'https://esemes.vercel.app/',
-        'gabrieladjeiboye@gmail.com',
-        'Gabriel Adjei-Boye'
+        'https://your-school-portal.com',
+        'no-reply@school.com',
+        'School Admin'
       );
   
-      console.log('Updating teachers state...');
-      setTeachers([...teachers, newTeacher]);
-      setShowAddModal(false);
-      setNewTeacherData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        class_id: '',
-        subject_id: 0,
-        education: '',
-        experience: '',
-        address: '',
-        phone: '',
-        joinDate: new Date().toISOString().split('T')[0],
-        school_id: schoolId,
-        date_of_birth: '',
-        gender: '',
-        marital_status: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        is_active: true,
-        notes: '',
-        user_id: '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+      // Refresh data
+      await fetchData();
+      setIsModalVisible(false);
+      form.resetFields();
+      setFileList([]);
+      message.success('Staff member added successfully');
     } catch (error) {
-      console.error('Error adding teacher:', error);
-      setFormErrors({ submit: error instanceof Error ? error.message : "An error occurred" });
+      console.error('Error adding staff member:', error);
+      message.error(error instanceof Error ? error.message : "Failed to add staff member");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const startEditing = (teacher: Teacher) => {
-    console.log('Starting to edit teacher:', teacher);
-    setIsEditing(true);
-    setEditFormData(teacher);
+  const handleEditStaff = async (values: any) => {
+    if (!selectedStaff) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Update staff record
+      const { error } = await supabase
+        .from("teachers")
+        .update({
+          ...values,
+          date_of_birth: values.date_of_birth?.format('YYYY-MM-DD')
+        })
+        .eq("id", selectedStaff.id)
+        .select()
+        .single();
+  
+      if (error) throw error;
+  
+      // Update roles - first delete existing roles
+      await supabase
+        .from("teacher_roles")
+        .delete()
+        .eq("teacher_id", selectedStaff.id);
+  
+      // Then insert new roles
+      const rolesToInsert = values.roles.map((role: any) => ({
+        teacher_id: selectedStaff.id,
+        role_id: role,
+        is_primary: role === values.primary_role_id
+      }));
+  
+      await supabase
+        .from("teacher_roles")
+        .insert(rolesToInsert);
+  
+      // Refresh data
+      await fetchData();
+      setIsEditMode(false);
+      setSelectedStaff(null);
+      message.success('Staff member updated successfully');
+    } catch (error) {
+      console.error('Error updating staff member:', error);
+      message.error(error instanceof Error ? error.message : "Failed to update staff member");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const deleteTeacher = async (teacherId: string) => {
-    console.log('Deleting teacher:', teacherId);
-    setIsSubmitting(true);
-    setError(null);
-
+  const handleUpdateFinancialDetails = async (values: any) => {
+    if (!selectedStaff) return;
+    
     try {
+      // Upsert financial details
+      const { error } = await supabase
+        .from("staff_financial_details")
+        .upsert({
+          teacher_id: selectedStaff.id,
+          ...values
+        });
+  
+      if (error) throw error;
+  
+      // Refresh data
+      await fetchData();
+      setIsFinancialModalVisible(false);
+      financialForm.resetFields();
+      message.success('Financial details updated successfully');
+    } catch (error) {
+      console.error('Error updating financial details:', error);
+      message.error(error instanceof Error ? error.message : "Failed to update financial details");
+    }
+  };
+
+  const handleDeleteStaff = async (staffId: string) => {
+    try {
+      setLoading(true);
+      
+      // First get the user_id to delete the auth user
+      const { data: staffData, error: fetchError } = await supabase
+        .from("teachers")
+        .select("user_id")
+        .eq("id", staffId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      // Delete staff member
       const { error } = await supabase
         .from("teachers")
         .delete()
-        .eq("id", teacherId);
-
-      if (error) throw error;
-
-      console.log('Teacher deleted successfully');
-      setTeachers(teachers.filter(teacher => teacher.id !== teacherId));
-      setSelectedTeacher(null);
-      setTeacherToDelete(null);
-    } catch (error: any) {
-      console.error('Error deleting teacher:', error);
-      setError(error instanceof Error ? error.message : 'An unknown error occurred');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleNewTeacherChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setNewTeacherData(prev => ({
-      ...prev,
-      [name]: name === 'subject_id' ? Number(value) : value
-    }));
-  };
+        .eq("id", staffId);
   
-  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    if (editFormData) {
-      setEditFormData({
-        ...editFormData,
-        [name]: name === 'subject_id' || name === 'class_id' ? value : value
-      });
+      if (error) throw error;
+  
+      // Delete auth user if exists
+      if (staffData.user_id) {
+        await supabase.auth.admin.deleteUser(staffData.user_id);
+      }
+  
+      setStaff(staff.filter(member => member.id !== staffId));
+      if (selectedStaff?.id === staffId) {
+        setSelectedStaff(null);
+      }
+      message.success('Staff member deleted successfully');
+    } catch (error) {
+      console.error('Error deleting staff member:', error);
+      message.error(error instanceof Error ? error.message : "Failed to delete staff member");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading teachers...</span>
+  const toggleStaffStatus = async (staffId: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("teachers")
+        .update({ is_active: isActive })
+        .eq("id", staffId);
+  
+      if (error) throw error;
+  
+      setStaff(staff.map(member => 
+        member.id === staffId ? { ...member, is_active: isActive } : member
+      ));
+      
+      if (selectedStaff?.id === staffId) {
+        setSelectedStaff({ ...selectedStaff, is_active: isActive });
+      }
+      
+      message.success(`Staff member ${isActive ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      console.error('Error toggling staff status:', error);
+      message.error(error instanceof Error ? error.message : "Failed to update staff status");
+    }
+  };
+
+  const columns: ColumnsType<StaffMember> = [
+    {
+      title: 'Staff Member',
+      dataIndex: 'first_name',
+      key: 'name',
+      render: (_, record) => (
+        <div className="flex items-center gap-3">
+          <Avatar 
+            src={record.image_url} 
+            icon={<UserOutlined />} 
+            size="large"
+          />
+          <div>
+            <div className="font-medium">{record.first_name} {record.last_name}</div>
+            <div className="text-gray-500 text-sm">{record.staff_code}</div>
+            <div className="text-xs">
+              <Tag color={record.is_teaching_staff ? 'blue' : 'orange'}>
+                {record.is_teaching_staff ? 'Teaching' : 'Non-Teaching'}
+              </Tag>
+            </div>
+          </div>
         </div>
-      </div>
-    );
-  }
+      ),
+      sorter: (a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+    },
+    {
+      title: 'Position',
+      dataIndex: 'position',
+      key: 'position',
+      render: (position, record) => (
+        <div>
+          <div>{position || 'N/A'}</div>
+          <div className="text-gray-500 text-sm">{record.department || 'N/A'}</div>
+        </div>
+      ),
+      sorter: (a, b) => (a.position || '').localeCompare(b.position || '')
+    },
+    {
+      title: 'Roles',
+      dataIndex: 'roles',
+      key: 'roles',
+      render: (roles: StaffRole[]) => (
+        <div className="flex flex-wrap gap-1">
+          {roles.map(role => (
+            <Tag 
+              key={role.id} 
+              color={role.is_primary ? 'blue' : 'default'}
+            >
+              {role.name}
+            </Tag>
+          ))}
+        </div>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'is_active',
+      key: 'status',
+      render: (isActive, record) => (
+        <Switch
+          checked={isActive}
+          onChange={(checked) => toggleStaffStatus(record.id, checked)}
+          checkedChildren="Active"
+          unCheckedChildren="Inactive"
+        />
+      )
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space size="middle">
+          <Button 
+            type="text" 
+            icon={<EyeOutlined />} 
+            onClick={() => setSelectedStaff(record)}
+          />
+          <Button 
+            type="text" 
+            icon={<EditOutlined />} 
+            onClick={() => {
+              setSelectedStaff(record);
+              setIsEditMode(true);
+              setIsModalVisible(true);
+              
+              // Set form values
+              form.setFieldsValue({
+                ...record,
+                date_of_birth: record.date_of_birth ? dayjs(record.date_of_birth) : null,
+                joinDate: dayjs(record.joinDate),
+                roles: record.roles.map(r => r.id),
+                primary_role_id: record.roles.find(r => r.is_primary)?.id
+              });
+              
+              if (record.image_url) {
+                setFileList([{
+                  uid: '-1',
+                  name: 'profile-image',
+                  status: 'done',
+                  url: record.image_url
+                }]);
+              }
+            }}
+          />
+          {hasFinancialAccess && (
+            <Button 
+              type="text" 
+              icon={<DollarOutlined />}
+              onClick={() => {
+                setSelectedStaff(record);
+                setIsFinancialModalVisible(true);
+                financialForm.setFieldsValue(record.financial_details || {});
+              }}
+            />
+          )}
+          <Popconfirm
+            title="Are you sure you want to delete this staff member?"
+            onConfirm={() => handleDeleteStaff(record.id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
 
   return (
-    <div className="text-black min-h-screen">
+    <div className="p-4">
       {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-4">
+          <Alert message="Error" description={error} type="error" showIcon />
+        </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold">Teachers</h1>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 w-full md:w-auto justify-center"
-          disabled={isSubmitting}
-        >
-          <Plus className="w-4 h-4" />
-          Add Teacher
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-700 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search teachers..."
-            className="w-full pl-10 bg-gray-200 pr-4 py-2 border-2 border-zinc-950 rounded-lg"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+      <Card 
+        title="Staff Management" 
+        extra={
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setIsModalVisible(true);
+              setIsEditMode(false);
+              form.resetFields();
+              setFileList([]);
+              form.setFieldsValue({
+                is_teaching_staff: true,
+                is_active: true,
+                joinDate: dayjs(),
+                roles: [],
+                school_id: schoolId
+              });
+            }}
+          >
+            Add Staff
+          </Button>
+        }
+      >
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Input
+            placeholder="Search staff..."
+            prefix={<SearchOutlined />}
+            value={filterParams.searchTerm}
+            onChange={(e) => setFilterParams({...filterParams, searchTerm: e.target.value})}
+            allowClear
+            className="flex-1"
           />
+          <Select
+            placeholder="Filter by department"
+            value={filterParams.selectedDepartment}
+            onChange={(value) => setFilterParams({...filterParams, selectedDepartment: value})}
+            className="w-full md:w-48"
+          >
+            {departments.map(dept => (
+              <Option key={dept} value={dept}>{dept}</Option>
+            ))}
+          </Select>
+          <Select
+            placeholder="Filter by role"
+            value={filterParams.selectedRole}
+            onChange={(value) => setFilterParams({...filterParams, selectedRole: value})}
+            className="w-full md:w-48"
+          >
+            <Option value="All Roles">All Roles</Option>
+            {roles.map(role => (
+              <Option key={role.id} value={role.name}>{role.name}</Option>
+            ))}
+          </Select>
+          <Select
+            placeholder="Filter by status"
+            value={filterParams.selectedStatus}
+            onChange={(value) => setFilterParams({...filterParams, selectedStatus: value})}
+            className="w-full md:w-48"
+          >
+            <Option value="All">All Statuses</Option>
+            <Option value="Active">Active</Option>
+            <Option value="Inactive">Inactive</Option>
+          </Select>
+          <Select
+            placeholder="Staff Type"
+            value={filterParams.staffType}
+            onChange={(value) => setFilterParams({...filterParams, staffType: value})}
+            className="w-full md:w-48"
+          >
+            <Option value="All">All Types</Option>
+            <Option value="Teaching">Teaching Staff</Option>
+            <Option value="Non-Teaching">Non-Teaching Staff</Option>
+          </Select>
         </div>
-        <select 
-          className="bg-gray-200 rounded-lg px-4 py-2"
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value === "All Classes" ? "All Classes" : e.target.value)}
-        >
-          <option value="All Classes">All Classes</option>
-          {classes.map(cls => (
-            <option key={cls.id} value={cls.id}>{cls.name}</option>
-          ))}
-        </select>
-        <select
-          className="bg-gray-200 rounded-lg px-4 py-2"
-          value={selectedSubject === "All Subjects" ? "All Subjects" : selectedSubject}
-          onChange={(e) => setSelectedSubject(
-            e.target.value === "All Subjects" 
-              ? "All Subjects" 
-              : Number(e.target.value)
-          )}
-        >
-          <option value="All Subjects">All Subjects</option>
-          {subjects.map(subj => (
-            <option key={subj.id} value={subj.id}>{subj.name} ({subj.code})</option>
-          ))}
-        </select>
-      </div>
 
-      {/* Teachers List */}
-      <div className="bg-white rounded-lg shadow">
-        {filteredTeachers.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No teachers found. Add a new teacher to get started.
-          </div>
-        ) : (
-          <>
-            <div className="hidden md:grid grid-cols-5 gap-4 p-4 bg-gray-100 rounded-lg font-medium">
-              <div>Name</div>
-              <div>Class</div>
-              <div>Subject</div>
-              <div>Email</div>
-              <div className="text-right">Action</div>
-            </div>
-            
-            <div className="divide-y">
-              {filteredTeachers.map((teacher) => (
-                <div key={teacher.id} className="p-4">
-                  <div className="md:grid md:grid-cols-5 md:gap-4 space-y-2 md:space-y-0">
-                    <div className="font-medium">{teacher.first_name} {teacher.last_name}</div>
-                    <div className="text-gray-600">
-                      <span className="md:hidden">Class: </span>
-                      {teacher.class_name || 'N/A'}
-                    </div>
-                    <div className="text-gray-600">
-                      <span className="md:hidden">Subject: </span>
-                      {teacher.subject_name || 'N/A'} {teacher.subject_code ? `(${teacher.subject_code})` : ''}
-                    </div>
-                    <div className="text-gray-600">
-                      <span className="md:hidden">Email: </span>
-                      {teacher.email}
-                    </div>
-                    <div className="text-right flex gap-2 justify-end">
-                      <button
-                        onClick={() => setSelectedTeacher(teacher)}
-                        className="text-black bg-gray-300 hover:text-blue-600 px-2 py-1 rounded"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={() => setTeacherToDelete(teacher)}
-                        className="text-red-600 bg-gray-300 hover:text-red-800 px-2 py-1 rounded"
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? 'Removing...' : 'Remove'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+        <Table
+          columns={columns}
+          dataSource={filteredStaff}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: true }}
+        />
+      </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!teacherToDelete} onOpenChange={() => setTeacherToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete {teacherToDelete?.first_name}'s record. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => teacherToDelete && deleteTeacher(teacherToDelete.id)}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={isSubmitting}
+      {/* Staff Details Modal */}
+      <Modal
+        title={selectedStaff ? `${selectedStaff.first_name} ${selectedStaff.last_name}` : 'Staff Details'}
+        open={!!selectedStaff && !isModalVisible}
+        onCancel={() => setSelectedStaff(null)}
+        footer={[
+          <Button key="back" onClick={() => setSelectedStaff(null)}>
+            Close
+          </Button>,
+          <Button 
+            key="edit"
+            type="primary" 
+            onClick={() => {
+              setIsEditMode(true);
+              setIsModalVisible(true);
+              form.setFieldsValue({
+                ...selectedStaff,
+                date_of_birth: selectedStaff?.date_of_birth ? dayjs(selectedStaff.date_of_birth) : null,
+                joinDate: dayjs(selectedStaff?.joinDate),
+                roles: selectedStaff?.roles.map(r => r.id),
+                primary_role_id: selectedStaff?.roles.find(r => r.is_primary)?.id
+              });
+              if (selectedStaff?.image_url) {
+                setFileList([{
+                  uid: '-1',
+                  name: 'profile-image',
+                  status: 'done',
+                  url: selectedStaff.image_url
+                }]);
+              }
+            }}
+          >
+            Edit
+          </Button>,
+          hasFinancialAccess && (
+            <Button 
+              key="financial"
+              icon={<DollarOutlined />}
+              onClick={() => {
+                setIsFinancialModalVisible(true);
+                financialForm.setFieldsValue(selectedStaff?.financial_details || {});
+              }}
             >
-              {isSubmitting ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Teacher Details Modal */}
-      {selectedTeacher && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-xl font-bold">Teacher Details</h2>
-                <div className="flex gap-2">
-                  {!isEditing && (
-                    <button
-                      onClick={() => startEditing(selectedTeacher)}
-                      className="flex bg-gray-300 items-center gap-2 px-4 py-2 border rounded-lg"
-                      disabled={isSubmitting}
+              Financial Details
+            </Button>
+          )
+        ]}
+        width={800}
+      >
+        {selectedStaff && (
+          <div className="mt-4">
+            <div className="flex items-start gap-6 mb-6">
+              <Avatar 
+                src={selectedStaff.image_url} 
+                icon={<UserOutlined />} 
+                size={100}
+              />
+              <div>
+                <h3 className="text-xl font-bold">{selectedStaff.first_name} {selectedStaff.last_name}</h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <Tag color={selectedStaff.is_active ? 'green' : 'red'}>
+                    {selectedStaff.is_active ? 'Active' : 'Inactive'}
+                  </Tag>
+                  <Tag color={selectedStaff.is_teaching_staff ? 'blue' : 'orange'}>
+                    {selectedStaff.is_teaching_staff ? 'Teaching Staff' : 'Non-Teaching Staff'}
+                  </Tag>
+                  <Tag color="blue">{selectedStaff.staff_code}</Tag>
+                </div>
+                <div className="mt-2">
+                  {selectedStaff.roles.map(role => (
+                    <Tag 
+                      key={role.id} 
+                      color={role.is_primary ? 'blue' : 'default'}
+                      className="mr-2 mb-2"
                     >
-                      <Edit2 className="w-4 h-4" />
-                      Edit
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setSelectedTeacher(null);
-                      setIsEditing(false);
-                      setEditFormData(null);
-                    }}
-                    className="text-gray-500 bg-gray-300 hover:text-gray-700"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
+                      {role.name}
+                    </Tag>
+                  ))}
                 </div>
               </div>
+            </div>
 
-              {!isEditing ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-2xl font-bold text-blue-600">
-                        {selectedTeacher.first_name.charAt(0)}
-                      </span>
+            <Tabs activeKey={activeTab}  onChange={(key) => setActiveTab(key)}>
+              <TabPane tab="Personal Info" key="1">
+                <Descriptions column={2}>
+                  <Descriptions.Item label="Email">
+                    <div className="flex items-center gap-2">
+                      <MailOutlined />
+                      <a href={`mailto:${selectedStaff.email}`}>{selectedStaff.email}</a>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold">{selectedTeacher.first_name} {selectedTeacher.last_name}</h3>
-                      <p className="text-gray-500">{selectedTeacher.subject_name} Teacher</p>
-                      <p className="text-sm text-gray-500">
-                        {selectedTeacher.is_active ? 'Active' : 'Inactive'} since {selectedTeacher.joinDate}
-                      </p>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Phone">
+                    <div className="flex items-center gap-2">
+                      <PhoneOutlined />
+                      <a href={`tel:${selectedStaff.phone}`}>{selectedStaff.phone}</a>
                     </div>
-                  </div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Date of Birth">
+                    <div className="flex items-center gap-2">
+                      <CalendarOutlined />
+                      {selectedStaff.date_of_birth || 'N/A'}
+                    </div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Gender">{selectedStaff.gender || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Marital Status">{selectedStaff.marital_status || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Address">
+                    <div className="flex items-center gap-2">
+                      <EnvironmentOutlined />
+                      {selectedStaff.address || 'N/A'}
+                    </div>
+                  </Descriptions.Item>
+                </Descriptions>
+              </TabPane>
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <span>{selectedTeacher.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <span>{selectedTeacher.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Book className="w-4 h-4 text-gray-400" />
-                        <span>{selectedTeacher.education}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>Date of Birth: {selectedTeacher.date_of_birth}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-4 h-4 text-gray-400">♀♂</span>
-                        <span>Gender: {selectedTeacher.gender}</span>
-                      </div>
+              <TabPane tab="Employment" key="2">
+                <Descriptions column={2}>
+                  <Descriptions.Item label="Position">{selectedStaff.position || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Department">{selectedStaff.department || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Employment Type">{selectedStaff.employment_type || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Join Date">
+                    <div className="flex items-center gap-2">
+                      <CalendarOutlined />
+                      {selectedStaff.joinDate}
                     </div>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>Joined: {selectedTeacher.joinDate}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span>{selectedTeacher.address}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>Experience: {selectedTeacher.experience}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-4 h-4 text-gray-400">⚭</span>
-                        <span>Status: {selectedTeacher.marital_status}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <span>Emergency: {selectedTeacher.emergency_contact_name} ({selectedTeacher.emergency_contact_phone})</span>
-                      </div>
-                    </div>
-                  </div>
-                  {selectedTeacher.notes && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Additional Notes:</h4>
-                      <p className="text-gray-600 whitespace-pre-line">{selectedTeacher.notes}</p>
-                    </div>
+                  </Descriptions.Item>
+                  {selectedStaff.class_name && (
+                    <Descriptions.Item label="Class">{selectedStaff.class_name}</Descriptions.Item>
                   )}
-                </div>
-              ) : (
-                <form onSubmit={handleEditSubmit} className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      name="first_name"
-                      placeholder="First Name"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.first_name || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    <input
-                      type="text"
-                      name="last_name"
-                      placeholder="Last Name"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.last_name || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="Email"
-                      className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                        formErrors.email ? 'border-red-500' : ''
-                      }`}
-                      value={editFormData?.email || ''}
-                      onChange={handleEditFormChange}
-                      disabled={isSubmitting}
-                    />
-                    {formErrors.email && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
-                    )}
-
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="Phone"
-                      className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                        formErrors.phone ? 'border-red-500' : ''
-                      }`}
-                      value={editFormData?.phone || ''}
-                      onChange={handleEditFormChange}
-                      disabled={isSubmitting}
-                    />
-                    {formErrors.phone && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>
-                    )}
-                    <select
-                      name="class_id"
-                      className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                        formErrors.class_id ? 'border-red-500' : ''
-                      }`}
-                      value={editFormData?.class_id || ''}
-                      onChange={handleEditFormChange}
-                      disabled={isSubmitting}
-                      required
-                    >
-                      <option value="">Select Class</option>
-                      {classes.map(cls => (
-                        <option key={cls.id} value={cls.id}>{cls.name}</option>
-                      ))}
-                    </select>
-                    {formErrors.class_id && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.class_id}</p>
-                    )}
-                    <select
-                      name="subject_id"
-                      className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                        formErrors.subject_id ? 'border-red-500' : ''
-                      }`}
-                      value={editFormData?.subject_id || ''}
-                      onChange={handleEditFormChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Select Subject</option>
-                      {subjects.map(subj => (
-                        <option key={subj.id} value={subj.id}>{subj.name} ({subj.code})</option>
-                      ))}
-                    </select>
-                    {formErrors.subject_id && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.subject_id}</p>
-                    )}
-                    <input
-                      type="date"
-                      name="date_of_birth"
-                      placeholder="Date of Birth"
-                      className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                        formErrors.date_of_birth ? 'border-red-500' : ''
-                      }`}
-                      value={editFormData?.date_of_birth || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    {formErrors.date_of_birth && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.date_of_birth}</p>
-                    )}
-                    <select
-                      name="gender"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.gender || ''}
-                      onChange={handleEditFormChange}
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <select
-                      name="marital_status"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.marital_status || ''}
-                      onChange={handleEditFormChange}
-                    >
-                      <option value="">Marital Status</option>
-                      <option value="Single">Single</option>
-                      <option value="Married">Married</option>
-                      <option value="Divorced">Divorced</option>
-                      <option value="Widowed">Widowed</option>
-                    </select>
-                    <input
-                      type="text"
-                      name="emergency_contact_name"
-                      placeholder="Emergency Contact Name"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.emergency_contact_name || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    <input
-                      type="tel"
-                      name="emergency_contact_phone"
-                      placeholder="Emergency Contact Phone"
-                      className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                        formErrors.emergency_contact_phone ? 'border-red-500' : ''
-                      }`}
-                      value={editFormData?.emergency_contact_phone || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    {formErrors.emergency_contact_phone && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.emergency_contact_phone}</p>
-                    )}
-                    <input
-                      type="text"
-                      name="education"
-                      placeholder="Education"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.education || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    <input
-                      type="text"
-                      name="experience"
-                      placeholder="Experience"
-                      className="border bg-gray-300 rounded-lg px-4 py-2"
-                      value={editFormData?.experience || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    <input
-                      type="text"
-                      name="address"
-                      placeholder="Address"
-                      className="border bg-gray-300 rounded-lg px-4 py-2 md:col-span-2"
-                      value={editFormData?.address || ''}
-                      onChange={handleEditFormChange}
-                    />
-                    <textarea
-                      name="notes"
-                      placeholder="Additional Notes"
-                      className="border bg-gray-300 rounded-lg px-4 py-2 md:col-span-2"
-                      value={editFormData?.notes || ''}
-                      onChange={handleEditFormChange}
-                      rows={3}
-                    />
-                  </div>
-                  {formErrors.submit && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.submit}</p>
+                  {selectedStaff.subject_name && (
+                    <Descriptions.Item label="Subject">
+                      {selectedStaff.subject_name} ({selectedStaff.subject_code})
+                    </Descriptions.Item>
                   )}
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      className="px-4 py-2 border bg-red-600 text-white rounded-lg"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditFormData(null);
-                      }}
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Saving...
-                        </div>
-                      ) : (
-                        'Save Changes'
-                      )}
-                    </button>
+                </Descriptions>
+              </TabPane>
+
+              <TabPane tab="Education & Experience" key="3">
+                <Descriptions column={1}>
+                  <Descriptions.Item label="Education">
+                    <div className="flex items-center gap-2">
+                      <BookOutlined />
+                      {selectedStaff.education || 'N/A'}
+                    </div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Experience">{selectedStaff.experience || 'N/A'}</Descriptions.Item>
+                </Descriptions>
+              </TabPane>
+
+              <TabPane tab="Emergency Contact" key="4">
+                <Descriptions column={2}>
+                  <Descriptions.Item label="Name">{selectedStaff.emergency_contact_name || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Phone">{selectedStaff.emergency_contact_phone || 'N/A'}</Descriptions.Item>
+                </Descriptions>
+              </TabPane>
+
+              {selectedStaff.notes && (
+                <TabPane tab="Notes" key="5">
+                  <div className="p-4 bg-gray-50 rounded">
+                    {selectedStaff.notes}
                   </div>
-                </form>
+                </TabPane>
               )}
-            </div>
+            </Tabs>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
-      {/* Add Teacher Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-xl font-bold">Add New Teacher</h2>
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setNewTeacherData({
-                      first_name: '',
-                      last_name: '',
-                      email: '',
-                      class_id: '',
-                      subject_id: 0,
-                      education: '',
-                      experience: '',
-                      address: '',
-                      phone: '',
-                      joinDate: new Date().toISOString().split('T')[0],
-                      school_id: schoolId,
-                      date_of_birth: '',
-                      gender: '',
-                      marital_status: '',
-                      emergency_contact_name: '',
-                      emergency_contact_phone: '',
-                      is_active: true,
-                      notes: '',
-                      user_id: '',
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString()
-                    });
-                    setFormErrors({});
-                  }}
-                  className="text-gray-500 bg-gray-300 hover:text-gray-700 rounded"
-                  disabled={isSubmitting}
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addTeacher(newTeacherData, schoolName);
-                }}
-              >
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    name="first_name"
-                    placeholder="First Name"
-                    required
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.first_name}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  <input
-                    type="text"
-                    name="last_name"
-                    placeholder="Last Name"
-                    required
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.last_name}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    required
-                    className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                      formErrors.email ? 'border-red-500' : ''
-                    }`}
-                    value={newTeacherData.email}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  {formErrors.email && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
-                  )}
-
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone"
-                    required
-                    className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                      formErrors.phone ? 'border-red-500' : ''
-                    }`}
-                    value={newTeacherData.phone}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  {formErrors.phone && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>
-                  )}
-
-                  <select 
-                    name="class_id" 
-                    required
-                    className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                      formErrors.class_id ? 'border-red-500' : ''
-                    }`}
-                    value={newTeacherData.class_id}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Select Class</option>
-                    {classes.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
-                    ))}
-                  </select>
-                  {formErrors.class_id && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.class_id}</p>
-                  )}
-
-                  <select 
-                    name="subject_id" 
-                    required
-                    className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                      formErrors.subject_id ? 'border-red-500' : ''
-                    }`}
-                    value={newTeacherData.subject_id}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Select Subject</option>
-                    {subjects.map(subj => (
-                      <option key={subj.id} value={subj.id}>{subj.name} ({subj.code})</option>
-                    ))}
-                  </select>
-                  {formErrors.subject_id && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.subject_id}</p>
-                  )}
-
-                  <input
-                    type="date"
-                    name="date_of_birth"
-                    placeholder="Date of Birth"
-                    required
-                    className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                      formErrors.date_of_birth ? 'border-red-500' : ''
-                    }`}
-                    value={newTeacherData.date_of_birth}
-                    onChange={handleNewTeacherChange}
-                  />
-                  {formErrors.date_of_birth && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.date_of_birth}</p>
-                  )}
-                  <select
-                    name="gender"
-                    required
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.gender}
-                    onChange={handleNewTeacherChange}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <select
-                    name="marital_status"
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.marital_status}
-                    onChange={handleNewTeacherChange}
-                  >
-                    <option value="">Marital Status</option>
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                    <option value="Divorced">Divorced</option>
-                    <option value="Widowed">Widowed</option>
-                  </select>
-                  <input
-                    type="text"
-                    name="emergency_contact_name"
-                    placeholder="Emergency Contact Name"
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.emergency_contact_name}
-                    onChange={handleNewTeacherChange}
-                  />
-                  <input
-                    type="tel"
-                    name="emergency_contact_phone"
-                    placeholder="Emergency Contact Phone"
-                    className={`border bg-gray-300 rounded-lg px-4 py-2 ${
-                      formErrors.emergency_contact_phone ? 'border-red-500' : ''
-                    }`}
-                    value={newTeacherData.emergency_contact_phone}
-                    onChange={handleNewTeacherChange}
-                  />
-                  {formErrors.emergency_contact_phone && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.emergency_contact_phone}</p>
-                  )}
-                  <input
-                    type="text"
-                    name="education"
-                    placeholder="Education"
-                    required
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.education}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  <input
-                    type="text"
-                    name="experience"
-                    placeholder="Experience"
-                    required
-                    className="border bg-gray-300 rounded-lg px-4 py-2"
-                    value={newTeacherData.experience}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  <input
-                    type="text"
-                    name="address"
-                    placeholder="Address"
-                    required
-                    className="border bg-gray-300 rounded-lg px-4 py-2 md:col-span-2"
-                    value={newTeacherData.address}
-                    onChange={handleNewTeacherChange}
-                    disabled={isSubmitting}
-                  />
-                  <textarea
-                    name="notes"
-                    placeholder="Additional Notes"
-                    className="border bg-gray-300 rounded-lg px-4 py-2 md:col-span-2"
-                    value={newTeacherData.notes}
-                    onChange={handleNewTeacherChange}
-                    rows={3}
-                  />
-                </div>
-
-                {formErrors.submit && (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.submit}</p>
-                )}
-
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    className="px-4 py-2 border bg-red-600 text-white rounded-lg"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setNewTeacherData({
-                        first_name: '',
-                        last_name: '',
-                        email: '',
-                        class_id: '',
-                        subject_id: 0,
-                        education: '',
-                        experience: '',
-                        address: '',
-                        phone: '',
-                        joinDate: new Date().toISOString().split('T')[0],
-                        school_id: schoolId,
-                        date_of_birth: '',
-                        gender: '',
-                        marital_status: '',
-                        emergency_contact_name: '',
-                        emergency_contact_phone: '',
-                        is_active: true,
-                        notes: '',
-                        user_id: '',
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                      });
-                      setFormErrors({});
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Adding...
+      {/* Add/Edit Staff Modal */}
+      <Modal
+        title={isEditMode ? 'Edit Staff Member' : 'Add New Staff Member'}
+        open={isModalVisible}
+        onCancel={() => {
+          setIsModalVisible(false);
+          form.resetFields();
+          setFileList([]);
+        }}
+        footer={null}
+        width={800}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={isEditMode ? handleEditStaff : handleAddStaff}
+        >
+          <Tabs defaultActiveKey="1">
+            <TabPane tab="Basic Information" key="1">
+              <div className="flex justify-center mb-6">
+                <Form.Item name="image_url" valuePropName="fileList" getValueFromEvent={(e) => e.fileList}>
+                  <Upload {...uploadProps}>
+                    {fileList.length >= 1 ? null : (
+                      <div>
+                        <PlusOutlined />
+                        <div style={{ marginTop: 8 }}>Upload Photo</div>
                       </div>
-                    ) : (
-                      'Add Teacher'
                     )}
-                  </button>
+                  </Upload>
+                </Form.Item>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Form.Item 
+                  label="First Name" 
+                  name="first_name" 
+                  rules={[{ required: true, message: 'Please input first name!' }]}
+                >
+                  <Input />
+                </Form.Item>
+
+                <Form.Item 
+                  label="Last Name" 
+                  name="last_name" 
+                  rules={[{ required: true, message: 'Please input last name!' }]}
+                >
+                  <Input />
+                </Form.Item>
+
+                <Form.Item 
+                  label="Email" 
+                  name="email" 
+                  rules={[{ required: true, type: 'email', message: 'Please input valid email!' }]}
+                >
+                  <Input />
+                </Form.Item>
+
+                <Form.Item 
+                  label="Phone" 
+                  name="phone" 
+                  rules={[{ required: true, message: 'Please input phone number!' }]}
+                >
+                  <Input />
+                </Form.Item>
+
+                <Form.Item 
+                  label="Date of Birth" 
+                  name="date_of_birth"
+                >
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+
+                <Form.Item label="Gender" name="gender">
+                  <Select>
+                    <Option value="Male">Male</Option>
+                    <Option value="Female">Female</Option>
+                    <Option value="Other">Other</Option>
+                  </Select>
+                </Form.Item>
+
+                <Form.Item label="Marital Status" name="marital_status">
+                  <Select>
+                    <Option value="Single">Single</Option>
+                    <Option value="Married">Married</Option>
+                    <Option value="Divorced">Divorced</Option>
+                    <Option value="Widowed">Widowed</Option>
+                  </Select>
+                </Form.Item>
+
+                <Form.Item label="Join Date" name="joinDate" rules={[{ required: true }]}>
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+
+                <Form.Item label="Staff Type" name="is_teaching_staff" valuePropName="checked">
+                  <Switch
+                    checkedChildren="Teaching Staff"
+                    unCheckedChildren="Non-Teaching Staff"
+                  />
+                </Form.Item>
+
+                <Form.Item label="Status" name="is_active" valuePropName="checked">
+                  <Switch
+                    checkedChildren="Active"
+                    unCheckedChildren="Inactive"
+                  />
+                </Form.Item>
+
+                <Form.Item label="Staff Code" name="staff_code" rules={[{ required: true }]}>
+                  <Input />
+                </Form.Item>
+
+                <Form.Item label="Position" name="position">
+                  <Input />
+                </Form.Item>
+
+                <Form.Item label="Department" name="department">
+                  <Input />
+                </Form.Item>
+
+                <Form.Item label="Employment Type" name="employment_type">
+                  <Select>
+                    <Option value="Full-time">Full-time</Option>
+                    <Option value="Part-time">Part-time</Option>
+                    <Option value="Contract">Contract</Option>
+                    <Option value="Temporary">Temporary</Option>
+                  </Select>
+                </Form.Item>
+
+                <Form.Item label="Address" name="address">
+                  <Input.TextArea rows={2} />
+                </Form.Item>
+              </div>
+            </TabPane>
+
+            <TabPane tab="Roles & Education" key="2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Form.Item 
+                  label="Roles" 
+                  name="roles" 
+                  rules={[{ required: true, message: 'Please select at least one role!' }]}
+                >
+                  <Select mode="multiple">
+                    {roles.map(role => (
+                      <Option key={role.id} value={role.id}>{role.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item 
+                  label="Primary Role" 
+                  name="primary_role_id" 
+                  rules={[{ required: true, message: 'Please select primary role!' }]}
+                >
+                  <Select>
+                    {roles.map(role => (
+                      <Option key={role.id} value={role.id}>{role.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item label="Education" name="education">
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+
+                <Form.Item label="Experience" name="experience">
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+              </div>
+            </TabPane>
+
+            <TabPane tab="Additional Information" key="3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Form.Item label="Emergency Contact Name" name="emergency_contact_name">
+                  <Input />
+                </Form.Item>
+
+                <Form.Item label="Emergency Contact Phone" name="emergency_contact_phone">
+                  <Input />
+                </Form.Item>
+
+                <Form.Item label="Notes" name="notes" className="md:col-span-2">
+                  <Input.TextArea rows={4} />
+                </Form.Item>
+              </div>
+            </TabPane>
+
+            {isEditMode && selectedStaff?.is_teaching_staff && (
+              <TabPane tab="Teaching Details" key="4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Form.Item label="Class" name="class_id">
+                    <Select>
+                      <Option value="">Select Class</Option>
+                      {classes.map(cls => (
+                        <Option key={cls.id} value={cls.id}>{cls.name}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item label="Subject" name="subject_id">
+                    <Select>
+                      <Option value="">Select Subject</Option>
+                      {subjects.map(subj => (
+                        <Option key={subj.id} value={subj.id}>{subj.name} ({subj.code})</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </div>
-              </form>
-            </div>
+              </TabPane>
+            )}
+          </Tabs>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              onClick={() => {
+                setIsModalVisible(false);
+                form.resetFields();
+                setFileList([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={isSubmitting}
+            >
+              {isEditMode ? 'Update Staff' : 'Add Staff'}
+            </Button>
           </div>
-        </div>
-      )}
+        </Form>
+      </Modal>
+
+      {/* Financial Details Modal */}
+      <Modal
+        title={`Financial Details - ${selectedStaff?.first_name} ${selectedStaff?.last_name}`}
+        open={isFinancialModalVisible}
+        onCancel={() => setIsFinancialModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={financialForm}
+          layout="vertical"
+          onFinish={handleUpdateFinancialDetails}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Form.Item label="Salary" name="salary">
+              <InputNumber 
+                style={{ width: '100%' }} 
+                min={0} 
+                prefix={<DollarOutlined />}
+              />
+            </Form.Item>
+
+            <Form.Item label="Bank Name" name="bank_name">
+              <Input prefix={<BankOutlined />} />
+            </Form.Item>
+
+            <Form.Item label="Bank Account Number" name="bank_account_number">
+              <Input />
+            </Form.Item>
+
+            <Form.Item label="Tax ID" name="tax_id">
+              <Input prefix={<IdcardOutlined />} />
+            </Form.Item>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              onClick={() => setIsFinancialModalVisible(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+            >
+              Update Financial Details
+            </Button>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 };
 
-export default TeachersList;
+export default StaffManagement;
