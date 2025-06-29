@@ -6,7 +6,7 @@ import {
   FilePdfOutlined, DownloadOutlined, 
   BarChartOutlined, ProfileOutlined
 } from '@ant-design/icons';
-import { Document, Page, PDFViewer, Text as PdfText, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { Document, Page, PDFViewer, Text as PdfText, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist';
 import moment from 'moment';
 import { supabase } from '../../supabase';
@@ -1081,7 +1081,6 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 <View style={styles.logoSection}>
                 {/* School Logo */}
                 {logoUrl ? (
-                  // @ts-ignore: Image is available in @react-pdf/renderer
                   <Image
                   src={logoUrl}
                   style={{ width: 40, height: 40, objectFit: 'contain', border: '1px solid black' }}
