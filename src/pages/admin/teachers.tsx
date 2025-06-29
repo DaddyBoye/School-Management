@@ -290,11 +290,11 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         class_name: member.classes?.name,
         subject_name: member.subjects?.name,
         subject_code: member.subjects?.code,
-        roles: member.teacher_roles.map((r: any) => ({
-          id: r.roles.id,
-          name: r.roles.name,
+        roles: member.teacher_roles?.map((r: any) => ({
+          id: r.staff_roles?.id,
+          name: r.staff_roles?.name,
           is_primary: r.is_primary
-        })),
+        })) || [],
         financial_details: member.financial_details
       }));
 
