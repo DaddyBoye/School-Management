@@ -15,6 +15,7 @@ import {
   DeleteOutlined,
   EyeOutlined,
   IdcardOutlined,
+  LoadingOutlined,
   BankOutlined,
   DollarOutlined
 } from '@ant-design/icons';
@@ -34,6 +35,7 @@ import {
   Space,
   Popconfirm,
   DatePicker,
+  UploadProps,
   Tabs,
   InputNumber,
   Switch,
@@ -73,6 +75,7 @@ interface StaffMember {
   created_at: string;
   updated_at: string;
   image_url: string;
+  image_path?: string;
   staff_code: string;
   employment_type: string;
   position: string;
@@ -98,6 +101,97 @@ interface StaffRole {
   is_primary?: boolean;
 }
 
+const ImageUploader = ({ onUpload, currentImage }: { 
+  onUpload: (url: string, path: string) => void;
+  currentImage?: string;
+}) => {
+  const [uploading, setUploading] = useState(false);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+
+  useEffect(() => {
+    if (currentImage) {
+      setFileList([{
+        uid: '-1',
+        name: 'current-image',
+        status: 'done',
+        url: currentImage
+      }]);
+    }
+  }, [currentImage]);
+
+  const handleUpload = async (options: any) => {
+    const { file } = options;
+    setUploading(true);
+    
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload to Supabase storage
+      const { error } = await supabase.storage
+        .from('staff-photos')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('staff-photos')
+        .getPublicUrl(filePath);
+
+      setFileList([{
+        uid: filePath,
+        name: filePath,
+        status: 'done',
+        url: publicUrl
+      }]);
+
+      onUpload(publicUrl, filePath);
+    } catch (error) {
+      message.error('Upload failed');
+      console.error('Upload error:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadProps: UploadProps = {
+    accept: 'image/*',
+    maxCount: 1,
+    fileList,
+    customRequest: handleUpload,
+    onChange: ({ fileList: newFileList }) => setFileList(newFileList),
+    beforeUpload: (file) => {
+      const isImage = file.type.startsWith('image/');
+      if (!isImage) {
+        message.error('You can only upload image files!');
+      }
+      const isLt5M = file.size / 1024 / 1024 < 5;
+      if (!isLt5M) {
+        message.error('Image must be smaller than 5MB!');
+      }
+      return isImage && isLt5M;
+    },
+    listType: "picture-card",
+    showUploadList: {
+      showRemoveIcon: true,
+    },
+  };
+
+  return (
+    <Upload {...uploadProps}>
+      {fileList.length >= 1 ? null : (
+        <div>
+          {uploading ? <LoadingOutlined /> : <PlusOutlined />}
+          <div style={{ marginTop: 8 }}>Upload Photo</div>
+        </div>
+      )}
+    </Upload>
+  );
+};
+
 const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolName: string }) => {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
@@ -120,7 +214,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   const [financialForm] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isFinancialModalVisible, setIsFinancialModalVisible] = useState(false);
   const [hasFinancialAccess, setHasFinancialAccess] = useState(false); // Based on user role
 
@@ -220,49 +313,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     }
   };
 
-  const handleUpload = async (options: any) => {
-    const { file, onSuccess, onError } = options;
-    
-    try {
-      const fileName = `${schoolId}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage
-        .from('staff-images')
-        .upload(fileName, file);
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('staff-images')
-        .getPublicUrl(fileName);
-
-      onSuccess(publicUrl, file);
-      form.setFieldsValue({ image_url: publicUrl });
-    } catch (error) {
-      console.error('Upload error:', error);
-      onError(error);
-      message.error('Failed to upload image');
-    }
-  };
-
-  const uploadProps = {
-    customRequest: handleUpload,
-    fileList,
-    onChange: ({ fileList: newFileList }: { fileList: UploadFile[] }) => setFileList(newFileList),
-    beforeUpload: (file: File) => {
-      const isImage = file.type.startsWith('image/');
-      if (!isImage) {
-        message.error('You can only upload image files!');
-      }
-      const isLt2M = file.size / 1024 / 1024 < 2;
-      if (!isLt2M) {
-        message.error('Image must be smaller than 2MB!');
-      }
-      return isImage && isLt2M;
-    },
-    listType: "picture-card" as const,
-    maxCount: 1
-  };
-
   const filteredStaff = staff.filter(member => {
     const matchesSearch = member.first_name.toLowerCase().includes(filterParams.searchTerm.toLowerCase()) ||
                          member.last_name.toLowerCase().includes(filterParams.searchTerm.toLowerCase()) ||
@@ -349,7 +399,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       await fetchData();
       setIsModalVisible(false);
       form.resetFields();
-      setFileList([]);
       message.success('Staff member added successfully');
     } catch (error) {
       console.error('Error adding staff member:', error);
@@ -437,28 +486,37 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     try {
       setLoading(true);
       
-      // First get the user_id to delete the auth user
+      // Get staff member to delete
       const { data: staffData, error: fetchError } = await supabase
         .from("teachers")
-        .select("user_id")
+        .select("user_id, image_path")
         .eq("id", staffId)
         .single();
       
       if (fetchError) throw fetchError;
+      
+      // Delete image from storage if exists
+      if (staffData.image_path) {
+        const { error: deleteImageError } = await supabase.storage
+          .from('staff-photos')
+          .remove([staffData.image_path]);
+        
+        if (deleteImageError) console.error('Error deleting image:', deleteImageError);
+      }
       
       // Delete staff member
       const { error } = await supabase
         .from("teachers")
         .delete()
         .eq("id", staffId);
-  
+
       if (error) throw error;
-  
+
       // Delete auth user if exists
       if (staffData.user_id) {
         await supabase.auth.admin.deleteUser(staffData.user_id);
       }
-  
+
       setStaff(staff.filter(member => member.id !== staffId));
       if (selectedStaff?.id === staffId) {
         setSelectedStaff(null);
@@ -590,14 +648,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
                 primary_role_id: record.roles.find(r => r.is_primary)?.id
               });
               
-              if (record.image_url) {
-                setFileList([{
-                  uid: '-1',
-                  name: 'profile-image',
-                  status: 'done',
-                  url: record.image_url
-                }]);
-              }
             }}
           />
           {hasFinancialAccess && (
@@ -642,7 +692,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
               setIsModalVisible(true);
               setIsEditMode(false);
               form.resetFields();
-              setFileList([]);
               form.setFieldsValue({
                 is_teaching_staff: true,
                 is_active: true,
@@ -740,14 +789,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
                 roles: selectedStaff?.roles.map(r => r.id),
                 primary_role_id: selectedStaff?.roles.find(r => r.is_primary)?.id
               });
-              if (selectedStaff?.image_url) {
-                setFileList([{
-                  uid: '-1',
-                  name: 'profile-image',
-                  status: 'done',
-                  url: selectedStaff.image_url
-                }]);
-              }
             }}
           >
             Edit
@@ -892,7 +933,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         onCancel={() => {
           setIsModalVisible(false);
           form.resetFields();
-          setFileList([]);
         }}
         footer={null}
         width={800}
@@ -905,15 +945,16 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
           <Tabs defaultActiveKey="1">
             <TabPane tab="Basic Information" key="1">
               <div className="flex justify-center mb-6">
-                <Form.Item name="image_url" valuePropName="fileList" getValueFromEvent={(e) => e.fileList}>
-                  <Upload {...uploadProps}>
-                    {fileList.length >= 1 ? null : (
-                      <div>
-                        <PlusOutlined />
-                        <div style={{ marginTop: 8 }}>Upload Photo</div>
-                      </div>
-                    )}
-                  </Upload>
+                <Form.Item label="Profile Photo" name="image_url">
+                  <ImageUploader 
+                    onUpload={(url, path) => {
+                      form.setFieldsValue({
+                        image_url: url,
+                        image_path: path
+                      });
+                    }}
+                    currentImage={selectedStaff?.image_url}
+                  />
                 </Form.Item>
               </div>
 
@@ -1101,7 +1142,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
               onClick={() => {
                 setIsModalVisible(false);
                 form.resetFields();
-                setFileList([]);
               }}
             >
               Cancel
