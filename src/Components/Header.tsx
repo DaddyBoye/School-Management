@@ -1,3 +1,4 @@
+// Header.tsx
 import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -14,6 +15,7 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userName, setUserName] = useState('');
   const [userImage, setUserImage] = useState('');
+  const [userInitials, setUserInitials] = useState('');
   const [isLoadingUser, setIsLoadingUser] = useState(false);
 
   // Role-based styling configurations
@@ -21,17 +23,20 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
     admin: {
       profileButton: 'bg-blue-600 hover:bg-blue-700',
       profileButtonText: 'text-white',
-      chevronColor: 'text-white'
+      chevronColor: 'text-white',
+      avatarBg: 'bg-blue-500'
     },
     teacher: {
       profileButton: 'bg-green-600 hover:bg-green-700',
       profileButtonText: 'text-white',
-      chevronColor: 'text-white'
+      chevronColor: 'text-white',
+      avatarBg: 'bg-green-500'
     },
     student: {
       profileButton: 'bg-purple-600 hover:bg-purple-700',
       profileButtonText: 'text-white',
-      chevronColor: 'text-white'
+      chevronColor: 'text-white',
+      avatarBg: 'bg-purple-500'
     }
   };
 
@@ -74,9 +79,15 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
         if (userError) throw userError;
 
         if (userData) {
-          setUserName(`${userData.first_name} ${userData.last_name}`);
+          const fullName = `${userData.first_name} ${userData.last_name}`;
+          setUserName(fullName);
           
-          // Get public image URL
+          // Generate initials
+          const initials = userData.first_name?.[0]?.toUpperCase() + 
+                         (userData.last_name?.[0]?.toUpperCase() || '');
+          setUserInitials(initials);
+          
+          // Get public image URL if available
           if (userData.image_path) {
             const { data: { publicUrl } } = supabase.storage
               .from(bucketName)
@@ -120,41 +131,28 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
                   alt="Profile" 
                   className="w-8 h-8 rounded-full ring-2 ring-white shadow-sm object-cover"
                   onError={(e) => {
-                    // Fallback to default avatar if image fails to load
-                    (e.target as HTMLImageElement).src = '';
-                    (e.target as HTMLImageElement).className = 'w-8 h-8 rounded-full ring-2 ring-white shadow-sm bg-gray-100 flex items-center justify-center';
+                    // Fallback to initials if image fails to load
+                    (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <span className="w-8 h-8 rounded-full ring-2 ring-white shadow-sm bg-gray-100 flex items-center justify-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-6 h-6 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 1115 0v.75a.75.75 0 01-.75.75h-13.5a.75.75 0 01-.75-.75v-.75z"
-                    />
-                  </svg>
-                </span>
+                <div className={`w-8 h-8 rounded-full ring-2 ring-white shadow-sm flex items-center justify-center ${currentStyle.avatarBg} text-white font-medium`}>
+                  {userInitials}
+                </div>
               )}
               <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${currentStyle.chevronColor} ${isProfileOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Profile Dropdown */}
             {isProfileOpen && (
               <ProfileDropdown 
                 onClose={() => setIsProfileOpen(false)}
                 userName={userName}
+                userInitials={userInitials}
                 userRole={userRole || ''}
                 userEmail={userEmail || ''}
                 userImage={userImage}
                 isLoadingUser={isLoadingUser}
+                avatarBg={currentStyle.avatarBg}
               />
             )}
           </div>

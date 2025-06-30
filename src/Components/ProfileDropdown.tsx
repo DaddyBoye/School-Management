@@ -1,3 +1,4 @@
+// ProfileDropdown.tsx
 import React, { useRef, useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -5,19 +6,23 @@ import { useAuth } from '../context/AuthContext';
 interface ProfileDropdownProps {
   onClose: () => void;
   userName: string;
+  userInitials: string;
   userEmail: string;
   userRole: string;
   userImage: string;
   isLoadingUser: boolean;
+  avatarBg: string;
 }
 
 const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ 
   onClose, 
   userName, 
+  userInitials,
   userEmail,
   userRole, 
   userImage,
-  isLoadingUser 
+  isLoadingUser,
+  avatarBg
 }) => {
   const { signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +32,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   const roleStyles = {
     admin: {
       headerBackground: 'bg-gradient-to-r from-blue-50 to-blue-100',
-      avatarBackground: 'bg-gradient-to-br from-blue-500 to-blue-600',
       roleLabel: 'Administrator',
       roleBadge: 'bg-blue-100 text-blue-800',
       logoutButton: 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200',
@@ -35,7 +39,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     },
     teacher: {
       headerBackground: 'bg-gradient-to-r from-green-50 to-green-100',
-      avatarBackground: 'bg-gradient-to-br from-green-500 to-green-600',
       roleLabel: 'Teacher',
       roleBadge: 'bg-green-100 text-green-800',
       logoutButton: 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200',
@@ -43,7 +46,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     },
     student: {
       headerBackground: 'bg-gradient-to-r from-purple-50 to-purple-100',
-      avatarBackground: 'bg-gradient-to-br from-purple-500 to-purple-600',
       roleLabel: 'Student',
       roleBadge: 'bg-purple-100 text-purple-800',
       logoutButton: 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200',
@@ -96,8 +98,8 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
               }}
             />
           ) : (
-            <div className={`w-12 h-12 rounded-full ${currentStyle.avatarBackground} flex items-center justify-center text-white font-semibold text-lg shadow-lg`}>
-              {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+            <div className={`w-12 h-12 rounded-full ${avatarBg} flex items-center justify-center text-white font-semibold text-lg shadow-lg ring-2 ring-white`}>
+              {userInitials}
             </div>
           )}
           <div className="flex-1">
