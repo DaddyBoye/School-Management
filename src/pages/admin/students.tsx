@@ -143,7 +143,7 @@ const ImageUploader = ({ onUpload, currentImage }: {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('staff-photos')
+        .from('student-photos')
         .getPublicUrl(filePath);
 
       setFileList([{
