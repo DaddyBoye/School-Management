@@ -426,26 +426,28 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         .eq("id", selectedStaff.id)
         .select()
         .single();
-  
+
       if (error) throw error;
-  
+
       // Update roles - first delete existing roles
       await supabase
         .from("teacher_roles")
         .delete()
         .eq("teacher_id", selectedStaff.id);
-  
-      // Then insert new roles
-      const rolesToInsert = values.roles.map((role: any) => ({
+
+      // Then insert new roles - with safety check for undefined roles
+      const rolesToInsert = (values.roles || []).map((role: any) => ({
         teacher_id: selectedStaff.id,
         role_id: role,
         is_primary: role === values.primary_role_id
       }));
-  
-      await supabase
-        .from("teacher_roles")
-        .insert(rolesToInsert);
-  
+
+      if (rolesToInsert.length > 0) {
+        await supabase
+          .from("teacher_roles")
+          .insert(rolesToInsert);
+      }
+
       // Refresh data
       await fetchData();
       setIsEditMode(false);
@@ -646,7 +648,7 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
                 ...record,
                 date_of_birth: record.date_of_birth ? dayjs(record.date_of_birth) : null,
                 joinDate: dayjs(record.joinDate),
-                roles: record.roles.map(r => r.id),
+                roles: record.roles.map(r => r.id) || [],
                 primary_role_id: record.roles.find(r => r.is_primary)?.id
               });
               
