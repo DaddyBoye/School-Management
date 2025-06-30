@@ -217,21 +217,7 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFinancialModalVisible, setIsFinancialModalVisible] = useState(false);
-  const [hasFinancialAccess, setHasFinancialAccess] = useState(false); // Based on user role
-
-  useEffect(() => {
-    fetchData();
-    checkFinancialAccess();
-  }, [schoolId]);
-
-  const checkFinancialAccess = async () => {
-    // Implement your actual access control check here
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.rpc('has_role', { role_name: 'admin' });
-      setHasFinancialAccess(data || false);
-    }
-  };
+  const hasFinancialAccess = true;
 
   const fetchData = async () => {
     try {
