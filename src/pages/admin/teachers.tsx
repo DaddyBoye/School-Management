@@ -39,7 +39,7 @@ import {
   Tabs,
   InputNumber,
   Switch,
-  Alert
+  Alert,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -134,10 +134,9 @@ const ImageUploader = ({ onUpload, currentImage }: {
 
       if (uploadError) throw uploadError;
 
-      // Get signed URL instead of public URL
       const { data, error: urlError } = await supabase.storage
         .from('staff-photos')
-        .createSignedUrl(filePath, 60 * 60); // 1 hour
+        .createSignedUrl(filePath, 60 * 60);
 
       if (urlError) throw urlError;
 
@@ -198,8 +197,9 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<string[]>(['All Departments']);
   const [roles, setRoles] = useState<StaffRole[]>([]);
-  const [departments, setDepartments] = useState<string[]>([]);
+  const [positions, setPositions] = useState<string[]>([]);
   const [filterParams, setFilterParams] = useState({
     searchTerm: "",
     selectedDepartment: "All Departments",
@@ -217,6 +217,10 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFinancialModalVisible, setIsFinancialModalVisible] = useState(false);
+  const [activeMainTab, setActiveMainTab] = useState('staff');
+  const [newDepartment, setNewDepartment] = useState('');
+  const [newRole, setNewRole] = useState('');
+  const [newPosition, setNewPosition] = useState('');
   const hasFinancialAccess = true;
 
   const fetchData = async () => {
@@ -241,6 +245,20 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       if (subjectsError) throw subjectsError;
       setSubjects(subjectsData || []);
 
+      // Fetch departments
+      const { data: deptData } = await supabase
+        .from('staff_departments')
+        .select('name')
+        .eq('school_id', schoolId);
+      setDepartments(['All Departments', ...(deptData?.map(d => d.name) || [])]);
+
+      // Fetch positions
+      const { data: positionData } = await supabase
+        .from('staff_positions')
+        .select('title')
+        .eq('school_id', schoolId);
+      setPositions(positionData?.map(p => p.title) || []);
+
       // Fetch staff roles
       const { data: rolesData, error: rolesError } = await supabase
         .from("staff_roles")
@@ -250,7 +268,7 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       if (rolesError) throw rolesError;
       setRoles(rolesData || []);
 
-      // Fetch staff members with explicit relationship specification
+      // Fetch staff members
       const { data: staffData, error: staffError } = await supabase
         .from("teachers")
         .select(`
@@ -272,7 +290,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
 
       if (staffError) throw staffError;
       
-      // Format staff data
       const formattedStaff = (staffData || []).map(member => ({
         ...member,
         class_name: member.classes?.name,
@@ -287,10 +304,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       }));
 
       setStaff(formattedStaff);
-
-      // Extract unique departments
-      const depts = [...new Set(formattedStaff.map(m => m.department).filter(Boolean))] as string[];
-      setDepartments(['All Departments', ...depts]);
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -329,8 +342,13 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     
     try {
       const password = generatePassword();
+      const { count } = await supabase
+        .from('teachers')
+        .select('*', { count: 'exact', head: true })
+        .eq('school_id', schoolId);
+
+      const staffCode = `${schoolId}-${(count || 0) + 1}`;
       
-      // Create auth user
       const { data: { user }, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: password,
@@ -344,11 +362,11 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       if (authError) throw authError;
       if (!user) throw new Error("Failed to create user");
   
-      // Insert staff record
       const { data: staffData, error: staffError } = await supabase
         .from("teachers")
         .insert([{ 
           ...values,
+          staff_code: staffCode,
           user_id: user.id,
           joinDate: values.joinDate.format('YYYY-MM-DD'),
           date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
@@ -359,7 +377,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   
       if (staffError) throw staffError;
   
-      // Add staff roles
       const rolesToInsert = values.roles.map((role: any) => ({
         teacher_id: staffData.id,
         role_id: role,
@@ -372,7 +389,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   
       if (rolesError) throw rolesError;
   
-      // Send welcome email
       await sendEmail(
         values.email,
         `${values.first_name} ${values.last_name}`,
@@ -383,7 +399,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         'School Admin'
       );
   
-      // Refresh data
       await fetchData();
       setIsModalVisible(false);
       form.resetFields();
@@ -402,7 +417,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     setIsSubmitting(true);
     
     try {
-      // Update staff record
       const { error } = await supabase
         .from("teachers")
         .update({
@@ -415,13 +429,11 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
 
       if (error) throw error;
 
-      // Update roles - first delete existing roles
       await supabase
         .from("teacher_roles")
         .delete()
         .eq("teacher_id", selectedStaff.id);
 
-      // Then insert new roles - with safety check for undefined roles
       const rolesToInsert = (values.roles || []).map((role: any) => ({
         teacher_id: selectedStaff.id,
         role_id: role,
@@ -434,7 +446,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
           .insert(rolesToInsert);
       }
 
-      // Refresh data
       await fetchData();
       setIsEditMode(false);
       setSelectedStaff(null);
@@ -451,7 +462,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     if (!selectedStaff) return;
     
     try {
-      // Upsert financial details
       const { error } = await supabase
         .from("staff_financial_details")
         .upsert({
@@ -461,7 +471,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
   
       if (error) throw error;
   
-      // Refresh data
       await fetchData();
       setIsFinancialModalVisible(false);
       financialForm.resetFields();
@@ -476,7 +485,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     try {
       setLoading(true);
       
-      // Get staff member to delete
       const { data: staffData, error: fetchError } = await supabase
         .from("teachers")
         .select("user_id, image_path")
@@ -485,7 +493,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       
       if (fetchError) throw fetchError;
       
-      // Delete image from storage if exists
       if (staffData.image_path) {
         const { error: deleteImageError } = await supabase.storage
           .from('staff-photos')
@@ -494,7 +501,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         if (deleteImageError) console.error('Error deleting image:', deleteImageError);
       }
       
-      // Delete staff member
       const { error } = await supabase
         .from("teachers")
         .delete()
@@ -502,7 +508,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
 
       if (error) throw error;
 
-      // Delete auth user if exists
       if (staffData.user_id) {
         await supabase.auth.admin.deleteUser(staffData.user_id);
       }
@@ -541,6 +546,87 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     } catch (error) {
       console.error('Error toggling staff status:', error);
       message.error(error instanceof Error ? error.message : "Failed to update staff status");
+    }
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDepartment.trim()) return;
+    
+    const { error } = await supabase
+      .from('staff_departments')
+      .insert([{ name: newDepartment, school_id: schoolId }]);
+    
+    if (!error) {
+      setDepartments([...departments, newDepartment]);
+      setNewDepartment('');
+      message.success('Department added');
+    }
+  };
+
+  const handleDeleteDepartment = async (name: string) => {
+    const { error } = await supabase
+      .from('staff_departments')
+      .delete()
+      .eq('name', name)
+      .eq('school_id', schoolId);
+    
+    if (!error) {
+      setDepartments(departments.filter(d => d !== name));
+      message.success('Department removed');
+    }
+  };
+
+  const handleAddRole = async () => {
+    if (!newRole.trim()) return;
+    
+    const { data, error } = await supabase
+      .from('staff_roles')
+      .insert([{ name: newRole, school_id: schoolId }])
+      .select();
+    
+    if (!error && data) {
+      setRoles([...roles, data[0]]);
+      setNewRole('');
+      message.success('Role added');
+    }
+  };
+
+  const handleDeleteRole = async (id: number) => {
+    const { error } = await supabase
+      .from('staff_roles')
+      .delete()
+      .eq('id', id);
+    
+    if (!error) {
+      setRoles(roles.filter(r => r.id !== id));
+      message.success('Role removed');
+    }
+  };
+
+  const handleAddPosition = async () => {
+    if (!newPosition.trim()) return;
+    
+    const { error } = await supabase
+      .from('staff_positions')
+      .insert([{ title: newPosition, school_id: schoolId }]);
+    
+    if (!error) {
+      setPositions([...positions, newPosition]);
+      setNewPosition('');
+      message.success('Position added');
+    }
+  };
+
+  const handleDeletePosition = async (title: string) => {
+    const { error } = await supabase
+      .from('staff_positions')
+      .delete()
+      .eq('title', title)
+      .eq('school_id', schoolId);
+    
+    if (!error) {
+      setPositions(positions.filter(p => p !== title));
+      message.success('Position removed');
     }
   };
 
@@ -629,7 +715,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
               setIsEditMode(true);
               setIsModalVisible(true);
               
-              // Set form values
               form.setFieldsValue({
                 ...record,
                 date_of_birth: record.date_of_birth ? dayjs(record.date_of_birth) : null,
@@ -637,7 +722,6 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
                 roles: record.roles.map(r => r.id) || [],
                 primary_role_id: record.roles.find(r => r.is_primary)?.id
               });
-              
             }}
           />
           {hasFinancialAccess && (
@@ -664,6 +748,10 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     }
   ];
 
+  useEffect(() => {
+    fetchData();
+  }, [schoolId]);
+
   return (
     <div className="p-4">
       {error && (
@@ -672,90 +760,197 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         </div>
       )}
 
-      <Card 
-        title="Staff Management" 
-        extra={
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setIsModalVisible(true);
-              setIsEditMode(false);
-              form.resetFields();
-              form.setFieldsValue({
-                is_teaching_staff: true,
-                is_active: true,
-                joinDate: dayjs(),
-                roles: [],
-                school_id: schoolId
-              });
-            }}
-          >
-            Add Staff
-          </Button>
-        }
+      <Tabs 
+        activeKey={activeMainTab} 
+        onChange={setActiveMainTab}
+        type="card"
+        size="large"
       >
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <Input
-            placeholder="Search staff..."
-            prefix={<SearchOutlined />}
-            value={filterParams.searchTerm}
-            onChange={(e) => setFilterParams({...filterParams, searchTerm: e.target.value})}
-            allowClear
-            className="flex-1"
-          />
-          <Select
-            placeholder="Filter by department"
-            value={filterParams.selectedDepartment}
-            onChange={(value) => setFilterParams({...filterParams, selectedDepartment: value})}
-            className="w-full md:w-48"
+        {/* Staff Management Tab */}
+        <TabPane tab="Staff Management" key="staff">
+          <Card 
+            title="Staff Members"
+            extra={
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setIsModalVisible(true);
+                  setIsEditMode(false);
+                  form.resetFields();
+                  form.setFieldsValue({
+                    is_teaching_staff: true,
+                    is_active: true,
+                    joinDate: dayjs(),
+                    roles: [],
+                    school_id: schoolId
+                  });
+                }}
+              >
+                Add Staff
+              </Button>
+            }
           >
-            {departments.map(dept => (
-              <Option key={dept} value={dept}>{dept}</Option>
-            ))}
-          </Select>
-          <Select
-            placeholder="Filter by role"
-            value={filterParams.selectedRole}
-            onChange={(value) => setFilterParams({...filterParams, selectedRole: value})}
-            className="w-full md:w-48"
-          >
-            <Option value="All Roles">All Roles</Option>
-            {roles.map(role => (
-              <Option key={role.id} value={role.name}>{role.name}</Option>
-            ))}
-          </Select>
-          <Select
-            placeholder="Filter by status"
-            value={filterParams.selectedStatus}
-            onChange={(value) => setFilterParams({...filterParams, selectedStatus: value})}
-            className="w-full md:w-48"
-          >
-            <Option value="All">All Statuses</Option>
-            <Option value="Active">Active</Option>
-            <Option value="Inactive">Inactive</Option>
-          </Select>
-          <Select
-            placeholder="Staff Type"
-            value={filterParams.staffType}
-            onChange={(value) => setFilterParams({...filterParams, staffType: value})}
-            className="w-full md:w-48"
-          >
-            <Option value="All">All Types</Option>
-            <Option value="Teaching">Teaching Staff</Option>
-            <Option value="Non-Teaching">Non-Teaching Staff</Option>
-          </Select>
-        </div>
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <Input
+                placeholder="Search staff..."
+                prefix={<SearchOutlined />}
+                value={filterParams.searchTerm}
+                onChange={(e) => setFilterParams({...filterParams, searchTerm: e.target.value})}
+                allowClear
+                className="flex-1"
+              />
+              <Select
+                placeholder="Filter by department"
+                value={filterParams.selectedDepartment}
+                onChange={(value) => setFilterParams({...filterParams, selectedDepartment: value})}
+                className="w-full md:w-48"
+              >
+                {departments.map(dept => (
+                  <Option key={dept} value={dept}>{dept}</Option>
+                ))}
+              </Select>
+              <Select
+                placeholder="Filter by role"
+                value={filterParams.selectedRole}
+                onChange={(value) => setFilterParams({...filterParams, selectedRole: value})}
+                className="w-full md:w-48"
+              >
+                <Option value="All Roles">All Roles</Option>
+                {roles.map(role => (
+                  <Option key={role.id} value={role.name}>{role.name}</Option>
+                ))}
+              </Select>
+              <Select
+                placeholder="Filter by status"
+                value={filterParams.selectedStatus}
+                onChange={(value) => setFilterParams({...filterParams, selectedStatus: value})}
+                className="w-full md:w-48"
+              >
+                <Option value="All">All Statuses</Option>
+                <Option value="Active">Active</Option>
+                <Option value="Inactive">Inactive</Option>
+              </Select>
+              <Select
+                placeholder="Staff Type"
+                value={filterParams.staffType}
+                onChange={(value) => setFilterParams({...filterParams, staffType: value})}
+                className="w-full md:w-48"
+              >
+                <Option value="All">All Types</Option>
+                <Option value="Teaching">Teaching Staff</Option>
+                <Option value="Non-Teaching">Non-Teaching Staff</Option>
+              </Select>
+            </div>
 
-        <Table
-          columns={columns}
-          dataSource={filteredStaff}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-          scroll={{ x: true }}
-        />
-      </Card>
+            <Table
+              columns={columns}
+              dataSource={filteredStaff}
+              rowKey="id"
+              loading={loading}
+              pagination={{ pageSize: 10 }}
+              scroll={{ x: true }}
+            />
+          </Card>
+        </TabPane>
+
+        {/* Metadata Management Tab */}
+        <TabPane tab="Metadata Management" key="metadata">
+          <Card title="Staff Metadata">
+            <Tabs defaultActiveKey="departments">
+              <TabPane tab="Departments" key="departments">
+                <div className="space-y-4">
+                  <div className="flex gap-2 mb-4">
+                    <Input
+                      placeholder="New department name"
+                      value={newDepartment}
+                      onChange={(e) => setNewDepartment(e.target.value)}
+                      style={{ width: 300 }}
+                    />
+                    <Button 
+                      type="primary"
+                      onClick={handleAddDepartment}
+                    >
+                      Add Department
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {departments.filter(d => d !== 'All Departments').map(dept => (
+                      <Tag 
+                        key={dept} 
+                        closable
+                        onClose={() => handleDeleteDepartment(dept)}
+                      >
+                        {dept}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              </TabPane>
+
+              <TabPane tab="Roles" key="roles">
+                <div className="space-y-4">
+                  <div className="flex gap-2 mb-4">
+                    <Input
+                      placeholder="New role name"
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value)}
+                      style={{ width: 300 }}
+                    />
+                    <Button
+                      type="primary"
+                      onClick={handleAddRole}
+                    >
+                      Add Role
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {roles.map(role => (
+                      <Tag 
+                        key={role.id}
+                        closable
+                        onClose={() => handleDeleteRole(role.id)}
+                      >
+                        {role.name}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              </TabPane>
+
+              <TabPane tab="Positions" key="positions">
+                <div className="space-y-4">
+                  <div className="flex gap-2 mb-4">
+                    <Input
+                      placeholder="New position title"
+                      value={newPosition}
+                      onChange={(e) => setNewPosition(e.target.value)}
+                      style={{ width: 300 }}
+                    />
+                    <Button
+                      type="primary"
+                      onClick={handleAddPosition}
+                    >
+                      Add Position
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {positions.map(position => (
+                      <Tag 
+                        key={position}
+                        closable
+                        onClose={() => handleDeletePosition(position)}
+                      >
+                        {position}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              </TabPane>
+            </Tabs>
+          </Card>
+        </TabPane>
+      </Tabs>
 
       {/* Staff Details Modal */}
       <Modal
@@ -831,7 +1026,7 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
               </div>
             </div>
 
-            <Tabs activeKey={activeTab}  onChange={(key) => setActiveTab(key)}>
+            <Tabs activeKey={activeTab} onChange={(key) => setActiveTab(key)}>
               <TabPane tab="Personal Info" key="1">
                 <Descriptions column={2}>
                   <Descriptions.Item label="Email">
@@ -1024,15 +1219,23 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
                 </Form.Item>
 
                 <Form.Item label="Staff Code" name="staff_code" rules={[{ required: true }]}>
-                  <Input />
+                  <Input disabled={isEditMode} />
                 </Form.Item>
 
                 <Form.Item label="Position" name="position">
-                  <Input />
+                  <Select showSearch>
+                    {positions.map(pos => (
+                      <Option key={pos} value={pos}>{pos}</Option>
+                    ))}
+                  </Select>
                 </Form.Item>
 
                 <Form.Item label="Department" name="department">
-                  <Input />
+                  <Select showSearch>
+                    {departments.filter(d => d !== 'All Departments').map(dept => (
+                      <Option key={dept} value={dept}>{dept}</Option>
+                    ))}
+                  </Select>
                 </Form.Item>
 
                 <Form.Item label="Employment Type" name="employment_type">
@@ -1131,7 +1334,7 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
             <Button
               onClick={() => {
                 setIsModalVisible(false);
-                form.resetFields();0
+                form.resetFields();
               }}
             >
               Cancel
