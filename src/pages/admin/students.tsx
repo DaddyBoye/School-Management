@@ -142,12 +142,6 @@ const ImageUploader = ({ onUpload, currentImage }: {
 
       if (uploadError) throw uploadError;
 
-      const { error: urlError } = await supabase.storage
-        .from('student-photos')
-        .createSignedUrl(filePath, 60 * 60);
-
-      if (urlError) throw urlError;
-
       const { data: { publicUrl } } = supabase.storage
         .from('staff-photos')
         .getPublicUrl(filePath);

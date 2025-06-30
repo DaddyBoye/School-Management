@@ -6,7 +6,8 @@ interface ProfileDropdownProps {
   onClose: () => void;
   userName: string;
   userEmail: string;
-  userRole: string | null;
+  userRole: string;
+  userImage: string;
   isLoadingUser: boolean;
 }
 
@@ -15,13 +16,14 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   userName, 
   userEmail,
   userRole, 
+  userImage,
   isLoadingUser 
 }) => {
-  const { signOut } = useAuth(); // Add this line to get signOut from context
+  const { signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Role-based styling configurations (matching LeftNav)
+  // Role-based styling configurations
   const roleStyles = {
     admin: {
       headerBackground: 'bg-gradient-to-r from-blue-50 to-blue-100',
@@ -49,7 +51,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     }
   };
 
-  // Default to admin styling if role is not recognized
   const currentStyle = roleStyles[userRole as keyof typeof roleStyles] || roleStyles.admin;
 
   // Handle click outside to close dropdown
@@ -67,7 +68,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      await signOut(); // Use AuthContext's signOut instead
+      await signOut();
       onClose();
     } catch (err) {
       console.error('Logout error:', err);
@@ -84,9 +85,21 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
       {/* Header */}
       <div className={`${currentStyle.headerBackground} px-6 py-4 border-b border-gray-100`}>
         <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-full ${currentStyle.avatarBackground} flex items-center justify-center text-white font-semibold text-lg shadow-lg`}>
-            {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
-          </div>
+          {userImage ? (
+            <img 
+              src={userImage} 
+              alt="Profile" 
+              className="w-12 h-12 rounded-full object-cover shadow-lg ring-2 ring-white"
+              onError={(e) => {
+                // Fallback to initials if image fails to load
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className={`w-12 h-12 rounded-full ${currentStyle.avatarBackground} flex items-center justify-center text-white font-semibold text-lg shadow-lg`}>
+              {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </div>
+          )}
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900">My Profile</h3>
             <span className={`inline-block text-xs px-2 py-1 rounded-full ${currentStyle.roleBadge} font-medium mt-1`}>
