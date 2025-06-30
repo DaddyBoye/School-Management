@@ -52,7 +52,7 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
   // Define navigation links with better icons
   const navigationLinks = [
     { path: '/', label: 'Dashboard', icon: Home },
-    { path: '/teachers', label: 'Teachers', icon: Users },
+    { path: '/staff', label: 'Staff', icon: Users },
     { path: '/students', label: 'Students', icon: GraduationCap },
     { path: '/studentfees', label: 'Fees', icon: DollarSign },
     { path: '/studentgrades', label: 'Grades', icon: Award },

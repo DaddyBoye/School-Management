@@ -82,7 +82,7 @@ const AppContent = () => {
   }, [isNavOpen]);
 
   const accessibleRoutes = {
-    admin: ['/', '/teachers', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager', '/adminattendance'],
+    admin: ['/', '/staff', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager', '/adminattendance'],
     teacher: ['/', '/teacherstudentview', '/teachergrades', '/teacherrankings', '/teacherattendance', '/teachertimetable'],
     student: ['/', '/studentgradesview', '/studentfeeview', '/studenttimetable'],
   };
@@ -91,7 +91,7 @@ const AppContent = () => {
     const path = location.pathname;
     const titles: { [key: string]: string } = {
       '/': 'Dashboard',
-      '/teachers': 'Teachers',
+      '/staff': 'Staff',
       '/studentfees': 'Student Fees',
       '/studentgrades': 'Student Grades',
       '/students': 'Students',
@@ -167,7 +167,7 @@ const AppContent = () => {
                   </ProtectedRoute>
                 }
               />
-                <Route path="/teachers" element={
+                <Route path="/staff" element={
                   <ProtectedRoute roles={['admin']}>
                     <Teachers schoolId={schoolId} schoolName={schoolName} />
                   </ProtectedRoute>
