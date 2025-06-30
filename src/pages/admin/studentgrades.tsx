@@ -1945,7 +1945,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                       selectedClass={selectedClass}
                       selectedSemester={selectedSemester}
                       studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
-                      subjectGrades={studentSubjectGrades[selectedStudent.id] || {}} studentImageUrl={null}                    />
+                      subjectGrades={studentSubjectGrades[selectedStudent.id] || {}} 
+                      studentImageUrl={selectedStudent.image_url}              
+                    />
                   } 
                   fileName={`Student_Report_${selectedStudent.first_name}_${selectedStudent.last_name}_${selectedSemester}.pdf`}
                 >
