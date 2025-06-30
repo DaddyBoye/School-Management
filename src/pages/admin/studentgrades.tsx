@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     border: '1px solid black',
     height: 60,
+    overflow: 'hidden',
   },
   
   schoolName: {
@@ -442,6 +443,7 @@ interface Subject {
 }
 
 interface Student {
+  image_url: string | null;
   id: string;
   user_id: string;
   first_name: string;
@@ -617,7 +619,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     try {
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, user_id, first_name, last_name, roll_no, class_id')
+        .select('id, user_id, first_name, last_name, roll_no, class_id, image_url')
         .eq('class_id', selectedClass.id);
   
       if (studentsError) throw studentsError;
@@ -1060,13 +1062,15 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     selectedClass, 
     selectedSemester, 
     studentOverall, 
-    subjectGrades 
+    subjectGrades,
+    studentImageUrl 
   }: {
     student: any;
     selectedClass: any;
     selectedSemester: string;
     studentOverall: any;
     subjectGrades: any;
+    studentImageUrl: string | null;
   }) => {
     return (
       <Document>
@@ -1106,11 +1110,18 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 </PdfText>
                 <PdfText style={styles.schoolAddress}>ADDRESS: {schoolAddress}</PdfText>
                 <PdfText style={styles.schoolAddress}>TELEPHONE: {schoolContact}</PdfText>
-                </View>
+          </View>
               
-              <View style={styles.photoSection}>
-                <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
-              </View>
+          <View style={styles.photoSection}>
+            {studentImageUrl ? (
+              <Image
+                src={studentImageUrl}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
+            )}
+          </View>
             </View>
             
             <View style={styles.department}>
@@ -1922,6 +1933,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                   selectedSemester={selectedSemester}
                   studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
                   subjectGrades={studentSubjectGrades[selectedStudent.id] || {}}
+                  studentImageUrl={selectedStudent.image_url}
                 />
               </PDFViewer>
               
@@ -1933,8 +1945,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                       selectedClass={selectedClass}
                       selectedSemester={selectedSemester}
                       studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
-                      subjectGrades={studentSubjectGrades[selectedStudent.id] || {}}
-                    />
+                      subjectGrades={studentSubjectGrades[selectedStudent.id] || {}} studentImageUrl={null}                    />
                   } 
                   fileName={`Student_Report_${selectedStudent.first_name}_${selectedStudent.last_name}_${selectedSemester}.pdf`}
                 >
