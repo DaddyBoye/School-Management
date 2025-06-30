@@ -134,22 +134,19 @@ const ImageUploader = ({ onUpload, currentImage }: {
 
       if (uploadError) throw uploadError;
 
-      const { data, error: urlError } = await supabase.storage
+      // Get public URL instead of signed URL
+      const { data: { publicUrl } } = supabase.storage
         .from('staff-photos')
-        .createSignedUrl(filePath, 60 * 60);
-
-      if (urlError) throw urlError;
-
-      const signedUrl = data?.signedUrl;
+        .getPublicUrl(filePath);
 
       setFileList([{
         uid: filePath,
         name: filePath,
         status: 'done',
-        url: signedUrl
+        url: publicUrl
       }]);
 
-      onUpload(signedUrl, filePath);
+      onUpload(publicUrl, filePath);
     } catch (error) {
       console.error("Upload error:", error);
       message.error("Upload failed.");
