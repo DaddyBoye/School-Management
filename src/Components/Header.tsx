@@ -50,29 +50,25 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
       setIsLoadingUser(true);
       try {
         let tableName = '';
-        let bucketName = '';
         
         switch (userRole) {
           case 'admin':
             tableName = 'administrators';
-            bucketName = 'admin-photos';
             break;
           case 'teacher':
             tableName = 'teachers';
-            bucketName = 'staff-photos';
             break;
           case 'student':
             tableName = 'students';
-            bucketName = 'student-photos';
             break;
           default:
             return;
         }
 
-        // Fetch user details
+        // Only request columns that exist in your database
         const { data: userData, error: userError } = await supabase
           .from(tableName)
-          .select('first_name, last_name, image_url, image_path')
+          .select('first_name, last_name, image_url') // Removed image_path
           .eq('user_id', userId)
           .single();
 
@@ -84,22 +80,21 @@ const Header: React.FC<HeaderProps> = ({ title, userId, userRole, userEmail }) =
           
           // Generate initials
           const initials = userData.first_name?.[0]?.toUpperCase() + 
-                         (userData.last_name?.[0]?.toUpperCase() || '');
+                        (userData.last_name?.[0]?.toUpperCase() || '');
           setUserInitials(initials);
           
-          // Get public image URL if available
-          if (userData.image_path) {
-            const { data: { publicUrl } } = supabase.storage
-              .from(bucketName)
-              .getPublicUrl(userData.image_path);
-            
-            setUserImage(publicUrl);
-          } else if (userData.image_url) {
+          // Use image_url directly (no need for path conversion)
+          if (userData.image_url) {
             setUserImage(userData.image_url);
           }
         }
       } catch (err) {
         console.error('Error fetching user details:', err);
+        // Set initials from email if name not available
+        if (userEmail) {
+          const emailInitial = userEmail[0]?.toUpperCase();
+          setUserInitials(emailInitial);
+        }
       } finally {
         setIsLoadingUser(false);
       }
