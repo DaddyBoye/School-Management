@@ -452,6 +452,7 @@ interface Student {
   class_id: string;
   totalScore: number | null;
   letterGrade: string;
+  gender: string;
   grades?: Grade[];
   rank?: number;
 }
@@ -491,6 +492,22 @@ interface ComprehensiveStats {
   gradedStudentCount: number;
 }
 
+interface CalendarTerm {
+  id: number;
+  calendar_id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  is_break: boolean;
+}
+
+interface Holiday {
+  id: number;
+  calendar_id: number;
+  name: string;
+  date: string;
+}
+
 const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester }) => {
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -508,6 +525,10 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const [classReportVisible, setClassReportVisible] = useState(false);
   const [individualReportVisible, setIndividualReportVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  // Calendar data
+  const [calendarTerms, setCalendarTerms] = useState<CalendarTerm[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [selectedCalendar, setSelectedCalendar] = useState<number | null>(null);
 
   const { school } = useAuth();
 
@@ -516,6 +537,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
       setLoading(true);
       try {
         await fetchClasses();
+        await fetchSchoolCalendars();
         await Promise.all([
           fetchSubjects(),
           fetchGradeScale()
@@ -532,6 +554,13 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   }, [schoolId]);
 
   useEffect(() => {
+    if (selectedCalendar) {
+      fetchCalendarTerms(selectedCalendar);
+      fetchHolidays(selectedCalendar);
+    }
+  }, [selectedCalendar]);
+
+  useEffect(() => {
     if (classes.length > 0 && subjects.length > 0 && selectedClass && students.length === 0) {
       fetchStudentsWithGrades();
     }
@@ -542,6 +571,44 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
       fetchStudentsWithGrades();
     }
   }, [selectedClass, selectedSubject, selectedSemester]);
+
+  const fetchSchoolCalendars = async () => {
+    const { data, error } = await supabase
+      .from('school_calendar')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('start_date', { ascending: true });
+
+    if (error) throw error;
+    
+    // Set the first active calendar as selected by default
+    const activeCalendar = data?.find(c => c.is_active);
+    if (activeCalendar) {
+      setSelectedCalendar(activeCalendar.id);
+    }
+  };
+
+  const fetchCalendarTerms = async (calendarId: number) => {
+    const { data, error } = await supabase
+      .from('calendar_terms')
+      .select('*')
+      .eq('calendar_id', calendarId)
+      .order('start_date', { ascending: true });
+
+    if (error) throw error;
+    setCalendarTerms(data || []);
+  };
+
+  const fetchHolidays = async (calendarId: number) => {
+    const { data, error } = await supabase
+      .from('holidays')
+      .select('*')
+      .eq('calendar_id', calendarId)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+    setHolidays(data || []);
+  };
 
   const fetchClasses = async () => {
     const { data, error } = await supabase
@@ -619,7 +686,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     try {
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, user_id, first_name, last_name, roll_no, class_id, image_url')
+        .select('id, user_id, first_name, last_name, roll_no, class_id, image_url, gender')
         .eq('class_id', selectedClass.id);
   
       if (studentsError) throw studentsError;
@@ -844,19 +911,90 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   };
 
   const getLetterGrade = (score: number | null) => {
-  if (score === null) return 'N/A';
-  if (!gradeScale) {
-    if (score >= 90) return 'A+';
-    if (score >= 85) return 'A';
-    if (score >= 80) return 'A-';
-    if (score >= 75) return 'B+';
-    if (score >= 70) return 'B';
-    if (score >= 65) return 'B-';
-    if (score >= 60) return 'C+';
-    if (score >= 55) return 'C';
-    if (score >= 50) return 'C-';
-    return 'F';
+    if (score === null) return 'N/A';
+    if (!gradeScale) {
+      if (score >= 90) return 'A+';
+      if (score >= 85) return 'A';
+      if (score >= 80) return 'A-';
+      if (score >= 75) return 'B+';
+      if (score >= 70) return 'B';
+      if (score >= 65) return 'B-';
+      if (score >= 60) return 'C+';
+      if (score >= 55) return 'C';
+      if (score >= 50) return 'C-';
+      return 'F';
     }
+  };
+
+  const getCurrentTermAndVacationDates = () => {
+    if (!calendarTerms.length) return { currentTerm: 'N/A', vacationDate: 'N/A', reopenDate: 'N/A' };
+    
+    const now = moment();
+    let currentTerm = 'N/A';
+    let vacationDate = 'N/A';
+    let reopenDate = 'N/A';
+    
+    // Find current term
+    const currentTermObj = calendarTerms.find(term => 
+      moment(term.start_date).isSameOrBefore(now) && 
+      moment(term.end_date).isSameOrAfter(now) &&
+      !term.is_break
+    );
+    
+    if (currentTermObj) {
+      currentTerm = currentTermObj.name;
+      vacationDate = moment(currentTermObj.end_date).format('DD/MM/YYYY');
+      
+      // Find next term (reopen date)
+      const nextTerm = calendarTerms.find(term => 
+        moment(term.start_date).isAfter(currentTermObj.end_date) &&
+        !term.is_break
+      );
+      
+      if (nextTerm) {
+        reopenDate = moment(nextTerm.start_date).format('DD/MM/YYYY');
+      }
+    }
+    
+    return { currentTerm, vacationDate, reopenDate };
+  };
+
+  const calculateSchoolDays = () => {
+    if (!calendarTerms.length || !holidays.length) return { daysOpen: 0, daysPresent: 0 };
+    
+    const { currentTerm } = getCurrentTermAndVacationDates();
+    const term = calendarTerms.find(t => t.name === currentTerm && !t.is_break);
+    
+    if (!term) return { daysOpen: 0, daysPresent: 0 };
+    
+    const startDate = moment(term.start_date);
+    const endDate = moment(term.end_date);
+    
+    // Calculate total days in term (excluding weekends)
+    let totalDays = 0;
+    let currentDate = startDate.clone();
+    
+    while (currentDate.isSameOrBefore(endDate)) {
+      if (currentDate.day() !== 0 && currentDate.day() !== 6) { // Skip weekends
+        totalDays++;
+      }
+      currentDate.add(1, 'day');
+    }
+    
+    // Subtract holidays
+    const termHolidays = holidays.filter(h => 
+      moment(h.date).isSameOrAfter(startDate) && 
+      moment(h.date).isSameOrBefore(endDate) &&
+      moment(h.date).day() !== 0 && 
+      moment(h.date).day() !== 6
+    );
+    
+    const daysOpen = totalDays - termHolidays.length;
+    
+    // For demo purposes, assume 95% attendance
+    const daysPresent = Math.round(daysOpen * 0.95);
+    
+    return { daysOpen, daysPresent };
   };
 
   const logoUrl = school?.logo_url || null;
@@ -1060,18 +1198,22 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const StudentReportPdf = ({ 
     student, 
     selectedClass, 
-    selectedSemester, 
     studentOverall, 
     subjectGrades,
-    studentImageUrl 
-  }: {
+    studentImageUrl  }: {
     student: any;
     selectedClass: any;
     selectedSemester: string;
     studentOverall: any;
     subjectGrades: any;
     studentImageUrl: string | null;
+    calendarTerms: CalendarTerm[];
+    holidays: Holiday[];
   }) => {
+    const { currentTerm, vacationDate, reopenDate } = getCurrentTermAndVacationDates();
+    const { daysOpen, daysPresent } = calculateSchoolDays();
+    const classSize = students.filter(s => s.class_id === student.class_id).length;
+
     return (
       <Document>
         <Page size="A4" style={styles.page}>
@@ -1098,30 +1240,21 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
               
                 <View style={styles.schoolDetails}>
                 <PdfText style={styles.schoolName}>{schoolName}</PdfText>
-                <PdfText style={{
-                  fontSize: 9,
-                  fontStyle: 'italic',
-                  color: '#1890ff',
-                  textAlign: 'center',
-                  marginBottom: 2,
-                  letterSpacing: 1,
-                }}>
-                  {schoolSlogan}
-                </PdfText>
+                <PdfText style={styles.schoolSlogan}>{schoolSlogan}</PdfText>
                 <PdfText style={styles.schoolAddress}>ADDRESS: {schoolAddress}</PdfText>
                 <PdfText style={styles.schoolAddress}>TELEPHONE: {schoolContact}</PdfText>
-          </View>
+              </View>
               
-          <View style={styles.photoSection}>
-            {studentImageUrl ? (
-              <Image
-                src={studentImageUrl}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
-            )}
-          </View>
+              <View style={styles.photoSection}>
+                {studentImageUrl ? (
+                  <Image
+                    src={studentImageUrl}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
+                )}
+              </View>
             </View>
             
             <View style={styles.department}>
@@ -1139,7 +1272,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             <View style={styles.studentLeft}>
               <View style={styles.infoRow}>
                 <PdfText style={styles.infoLabel}>STUDENT ID #:</PdfText>
-                <PdfText style={styles.infoValue}>{student.roll_no || 'N/A'}</PdfText>
+                <PdfText style={styles.infoValue}>SJ{student.roll_no || 'N/A'}</PdfText>
               </View>
               <View style={styles.infoRow}>
                 <PdfText style={styles.infoLabel}>NAME:</PdfText>
@@ -1153,15 +1286,15 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             <View style={styles.studentRight}>
               <View style={styles.infoRow}>
                 <PdfText style={styles.infoLabel}>TERM:</PdfText>
-                <PdfText style={styles.infoValue}>{selectedSemester}</PdfText>
+                <PdfText style={styles.infoValue}>{currentTerm}</PdfText>
               </View>
               <View style={styles.infoRow}>
                 <PdfText style={styles.infoLabel}>GENDER:</PdfText>
                 <PdfText style={styles.infoValue}>{student.gender || 'N/A'}</PdfText>
               </View>
               <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>HOUSE/COLOUR:</PdfText>
-                <PdfText style={styles.infoValue}>N/A</PdfText>
+                <PdfText style={styles.infoLabel}>NUMBER ON ROLL:</PdfText>
+                <PdfText style={styles.infoValue}>{classSize}</PdfText>
               </View>
             </View>
           </View>
@@ -1173,19 +1306,19 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             </View>
             <View style={styles.attendanceRow}>
               <View style={styles.attendanceCell}>
-                <PdfText>95</PdfText>
+                <PdfText>{daysOpen}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText>92</PdfText>
+                <PdfText>{daysPresent}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
                 <PdfText>{studentOverall.overallScore ? studentOverall.overallScore.toFixed(1) : 'N/A'}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText>19/12/2025</PdfText>
+                <PdfText>{vacationDate}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText>06/01/2026</PdfText>
+                <PdfText>{reopenDate}</PdfText>
               </View>
             </View>
           </View>
@@ -1215,12 +1348,6 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
               <View style={[styles.tableHeaderCell, { width: '15%' }]}>
                 <PdfText>PERFORMANCE</PdfText>
               </View>
-              <View style={[styles.tableHeaderCell, styles.gradeCol]}>
-                <PdfText>POSITION</PdfText>
-              </View>
-              <View style={[styles.tableHeaderCell, { width: '12%' }]}>
-                <PdfText>TEACHER INITIALS</PdfText>
-              </View>
             </View>
 
             {Object.values(subjectGrades).map((subject: any, index: number) => (
@@ -1242,12 +1369,6 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 </View>
                 <View style={[styles.tableCell, { width: '15%' }]}>
                   <PdfText>{getPerformanceText(subject.score || 0)}</PdfText>
-                </View>
-                <View style={[styles.tableCell, styles.gradeCol]}>
-                  <PdfText>{subject.position || 'N/A'}</PdfText>
-                </View>
-                <View style={[styles.tableCell, { width: '12%' }]}>
-                  <PdfText>{subject.teacherInitials || ''}</PdfText>
                 </View>
               </View>
             ))}
@@ -1462,7 +1583,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             {students.map((student) => (
               <View style={styles.pdfTableRow} key={student.id}>
                 <View style={styles.tableCol}>
-                  <PdfText style={styles.cellText}>{student.roll_no}</PdfText>
+                  <PdfText style={styles.cellText}>SJ{student.roll_no}</PdfText>
                 </View>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.cellText}>
@@ -1934,6 +2055,8 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                   studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
                   subjectGrades={studentSubjectGrades[selectedStudent.id] || {}}
                   studentImageUrl={selectedStudent.image_url}
+                  calendarTerms={calendarTerms}
+                  holidays={holidays}
                 />
               </PDFViewer>
               
@@ -1946,7 +2069,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                       selectedSemester={selectedSemester}
                       studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
                       subjectGrades={studentSubjectGrades[selectedStudent.id] || {}} 
-                      studentImageUrl={selectedStudent.image_url}              
+                      studentImageUrl={selectedStudent.image_url}
+                      calendarTerms={calendarTerms}
+                      holidays={holidays}              
                     />
                   } 
                   fileName={`Student_Report_${selectedStudent.first_name}_${selectedStudent.last_name}_${selectedSemester}.pdf`}
