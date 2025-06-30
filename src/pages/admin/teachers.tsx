@@ -122,36 +122,38 @@ const ImageUploader = ({ onUpload, currentImage }: {
   const handleUpload = async (options: any) => {
     const { file } = options;
     setUploading(true);
-    
+
     try {
-      // Generate unique filename
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = fileName;
 
-      // Upload to Supabase storage
-      const { error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('staff-photos')
-        .upload(filePath, file);
+        .upload(filePath, file, { upsert: true });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Get signed URL instead of public URL
+      const { data, error: urlError } = await supabase.storage
         .from('staff-photos')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 60 * 60); // 1 hour
+
+      if (urlError) throw urlError;
+
+      const signedUrl = data?.signedUrl;
 
       setFileList([{
         uid: filePath,
         name: filePath,
         status: 'done',
-        url: publicUrl
+        url: signedUrl
       }]);
 
-      onUpload(publicUrl, filePath);
+      onUpload(signedUrl, filePath);
     } catch (error) {
-      message.error('Upload failed');
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
+      message.error("Upload failed.");
     } finally {
       setUploading(false);
     }
