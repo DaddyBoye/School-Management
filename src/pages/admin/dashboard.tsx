@@ -3,26 +3,8 @@ import StudentDistribution from '../../Components/StudentDistribution';
 import TeacherList from '../../Components/TeacherList';
 import AttendanceChart from '../../Components/Attendance';
 import EarningsChart from '../../Components/Earnings';
-import { supabase } from '@/supabase';
 
 const Dashboard: React.FC<{ schoolId: string }> = ({ schoolId }) => {
-  
-  React.useEffect(() => {
-    const handlePasswordChange = async () => {
-      const { error } = await supabase.auth.updateUser({
-        password: "newStrongPassword123"
-      });
-
-      if (error) {
-        alert('Failed to update password: ' + error.message);
-      } else {
-        alert('Password updated successfully');
-      }
-    };
-
-    handlePasswordChange();
-  }, []);
-
   return (
     <div className="w-full min-h-screen">
       <div className="space-y-6">
