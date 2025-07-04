@@ -29,88 +29,7 @@ declare module 'jspdf' {
 }
 
 // PDF Styles
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Helvetica',
-    fontSize: 8,
-    paddingTop: 20,
-    paddingLeft: 20,
-    paddingRight: 20,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
-  },
-  
-  // Header Section
-  headerSection: {
-    border: '2px solid black',
-    marginBottom: 5,
-  },
-  
-  topHeader: {
-    backgroundColor: '#000000',
-    color: 'white',
-    padding: 2,
-    textAlign: 'center',
-  },
-  
-  schoolInfo: {
-    flexDirection: 'row',
-    padding: 5,
-    borderBottom: '1px solid black',
-  },
-  
-  logoSection: {
-    width: '15%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  
-  schoolDetails: {
-    width: '70%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  
-  photoSection: {
-    width: '15%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '1px solid black',
-    height: 60,
-    overflow: 'hidden',
-  },
-  
-  schoolName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  
-  schoolSlogan: {
-    fontSize: 9,
-    fontStyle: 'italic',
-    color: '#1890ff',
-    textAlign: 'center',
-    marginBottom: 2,
-    letterSpacing: 1,
-  },
-
-  schoolAddress: {
-    fontSize: 8,
-    textAlign: 'center',
-    marginBottom: 1,
-  },
-  
-  department: {
-    backgroundColor: '#000000',
-    color: 'white',
-    padding: 2,
-    textAlign: 'center',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  
+const styles = StyleSheet.create({  
   // Student Info Section
   studentInfo: {
     flexDirection: 'row',
@@ -131,52 +50,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   
-  infoLabel: {
-    width: '40%',
-    fontWeight: 'bold',
-  },
-  
-  infoValue: {
-    width: '60%',
-  },
-  
-  // Performance Section Header
-  performanceHeader: {
-    backgroundColor: '#000000',
-    color: 'white',
-    padding: 3,
-    textAlign: 'center',
-    fontSize: 9,
-    fontWeight: 'bold',
-    marginTop: 5,
-  },
-  
-  // Days and Attendance Section
-  attendanceSection: {
-    border: '1px solid black',
-    marginTop: 2,
-  },
-  
-  attendanceHeader: {
-    backgroundColor: '#000000',
-    color: 'white',
-    padding: 2,
-    fontSize: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  
   attendanceRow: {
     flexDirection: 'row',
     borderBottom: '1px solid black',
-  },
-  
-  attendanceCell: {
-    flex: 1,
-    padding: 2,
-    textAlign: 'center',
-    fontSize: 7,
-    borderRight: '1px solid black',
   },
   
   // Subject Performance Table
@@ -192,20 +68,6 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     textAlign: 'center',
-  },
-  
-  tableHeaderRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderBottom: '1px solid black',
-  },
-  
-  tableHeaderCell: {
-    padding: 2,
-    fontSize: 7,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    borderRight: '1px solid black',
   },
   
   subjectCol: {
@@ -279,21 +141,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   
-  // Comments Section
-  commentsSection: {
-    border: '1px solid black',
-    marginTop: 5,
-  },
-  
-  commentsHeader: {
-    backgroundColor: '#000000',
-    color: 'white',
-    padding: 2,
-    fontSize: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  
   commentsRow: {
     flexDirection: 'row',
     minHeight: 25,
@@ -304,21 +151,6 @@ const styles = StyleSheet.create({
     padding: 3,
     fontSize: 7,
     borderRight: '1px solid black',
-  },
-  
-  // Signatures Section
-  signaturesSection: {
-    border: '1px solid black',
-    marginTop: 5,
-  },
-  
-  signaturesHeader: {
-    backgroundColor: '#000000',
-    color: 'white',
-    padding: 2,
-    fontSize: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
   },
   
   signaturesRow: {
@@ -340,15 +172,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   
-  // Footer
-  footer: {
-    textAlign: 'center',
-    marginTop: 10,
-    fontSize: 6,
-    color: '#666666',
-  },
-
-    // PDF styles:
+  // General Styles
   header: {
     marginBottom: 10,
     textAlign: 'center'
@@ -413,16 +237,517 @@ const styles = StyleSheet.create({
   cellText: {
     fontSize: 10
   },
-  performanceText: {
-    fontSize: 10,
-    fontWeight: 'bold'
-  },
   landscapePage: {
     fontFamily: 'Helvetica',
     fontSize: 8,
     padding: 20,
     backgroundColor: '#ffffff'
-  }
+  },
+  
+  page: {
+    fontFamily: 'Helvetica',
+    fontSize: 8,
+    padding: 15,
+    backgroundColor: '#ffffff',
+    lineHeight: 1.2,
+  },
+  
+  // Header Section
+  headerSection: {
+    border: '2px solid #000000',
+    marginBottom: 8,
+  },
+  
+  topHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  topHeaderText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  
+  schoolInfo: {
+    flexDirection: 'row',
+    padding: 8,
+    alignItems: 'center',
+    borderBottom: '1px solid #000000',
+  },
+  
+  logoSection: {
+    width: '15%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  logoImage: {
+    width: 45,
+    height: 45,
+    objectFit: 'contain',
+    border: '1px solid #000000',
+  },
+  
+  logoPlaceholder: {
+    width: 45,
+    height: 45,
+    border: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f8f8',
+  },
+  
+  logoText: {
+    fontSize: 6,
+    fontWeight: 'bold',
+  },
+  
+  schoolDetails: {
+    width: '70%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  
+  schoolName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 3,
+    color: '#000000',
+  },
+  
+  schoolSlogan: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    color: '#333333',
+    textAlign: 'center',
+    marginBottom: 3,
+  },
+  
+  schoolAddress: {
+    fontSize: 8,
+    textAlign: 'center',
+    marginBottom: 1,
+    fontWeight: 'bold',
+  },
+  
+  photoSection: {
+    width: '15%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '2px solid #000000',
+    height: 55,
+    overflow: 'hidden',
+  },
+  
+  studentPhoto: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  
+  photoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f8f8',
+  },
+  
+  photoText: {
+    fontSize: 6,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  department: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  departmentText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  
+  // Progress Report Header
+  progressReportHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  
+  progressReportText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  
+  // Student Information Section
+  studentInfoSection: {
+    border: '1px solid #000000',
+    marginBottom: 8,
+  },
+  
+  studentInfoRow: {
+    flexDirection: 'row',
+    padding: 8,
+  },
+  
+  studentInfoLeft: {
+    width: '50%',
+    paddingRight: 10,
+  },
+  
+  studentInfoRight: {
+    width: '50%',
+    paddingLeft: 10,
+  },
+  
+  infoItem: {
+    flexDirection: 'row',
+    marginBottom: 3,
+    alignItems: 'center',
+  },
+  
+  infoLabel: {
+    width: '50%',
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  
+  infoValue: {
+    width: '50%',
+    fontSize: 8,
+    color: '#000000',
+  },
+  
+  // Attendance Section
+  attendanceSection: {
+    border: '2px solid #000000',
+    marginBottom: 8,
+  },
+  
+  attendanceHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  attendanceHeaderText: {
+    color: '#ffffff',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  
+  attendanceDataRow: {
+    flexDirection: 'row',
+    minHeight: 25,
+    alignItems: 'center',
+  },
+  
+  attendanceCell: {
+    flex: 1,
+    padding: 4,
+    textAlign: 'center',
+    borderRight: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  attendanceCellLast: {
+    flex: 1,
+    padding: 4,
+    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  attendanceValue: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  
+  // Performance Section
+  performanceSection: {
+    border: '2px solid #000000',
+    marginBottom: 8,
+  },
+  
+  performanceHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  performanceHeaderText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    minHeight: 20,
+    alignItems: 'center',
+    borderBottom: '1px solid #000000',
+  },
+  
+  tableHeaderCell: {
+    padding: 4,
+    borderRight: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  tableHeaderText: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: '#000000',
+    textAlign: 'center',
+  },
+  
+  subjectColumn: {
+    width: '30%',
+  },
+  
+  scoreColumn: {
+    width: '12%',
+  },
+  
+  gradeColumn: {
+    width: '10%',
+  },
+  
+  performanceColumn: {
+    width: '24%',
+  },
+  
+  tableDataRow: {
+    flexDirection: 'row',
+    minHeight: 18,
+    alignItems: 'center',
+    borderBottom: '1px solid #cccccc',
+  },
+  
+  tableDataCell: {
+    padding: 4,
+    borderRight: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  subjectText: {
+    fontSize: 7,
+    color: '#000000',
+    textAlign: 'left',
+    paddingLeft: 2,
+  },
+  
+  scoreText: {
+    fontSize: 7,
+    color: '#000000',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  
+  gradeText: {
+    fontSize: 7,
+    color: '#000000',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  
+  performanceText: {
+    fontSize: 7,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  
+  // Grading System Section
+  gradingSystemSection: {
+    border: '2px solid #000000',
+    marginBottom: 8,
+  },
+  
+  gradingSystemHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  gradingSystemHeaderText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  
+  gradingSystemContent: {
+    padding: 0,
+  },
+  
+  gradingTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    minHeight: 18,
+    alignItems: 'center',
+    borderBottom: '1px solid #000000',
+  },
+  
+  gradingHeaderCell: {
+    flex: 1,
+    padding: 3,
+    borderRight: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  gradingHeaderText: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: '#000000',
+    textAlign: 'center',
+  },
+  
+  gradingTableRow: {
+    flexDirection: 'row',
+    minHeight: 15,
+    alignItems: 'center',
+    borderBottom: '1px solid #cccccc',
+  },
+  
+  gradingDataCell: {
+    flex: 1,
+    padding: 3,
+    borderRight: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  gradingDataText: {
+    fontSize: 7,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  
+  // Comments Section
+  commentsSection: {
+    border: '2px solid #000000',
+    marginBottom: 8,
+  },
+  
+  commentsHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  commentsHeaderText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  
+  commentsContent: {
+    flexDirection: 'row',
+    minHeight: 35,
+  },
+  
+  commentBox: {
+    flex: 1,
+    padding: 6,
+    borderRight: '1px solid #000000',
+    justifyContent: 'flex-start',
+  },
+  
+  commentTitle: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 3,
+  },
+  
+  commentText: {
+    fontSize: 6,
+    color: '#000000',
+    lineHeight: 1.3,
+  },
+  
+  // Signatures Section
+  signaturesSection: {
+    border: '2px solid #000000',
+    marginBottom: 8,
+  },
+  
+  signaturesHeader: {
+    backgroundColor: '#000000',
+    padding: 4,
+    textAlign: 'center',
+  },
+  
+  signaturesHeaderText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  
+  signaturesContent: {
+    flexDirection: 'row',
+    minHeight: 50,
+  },
+  
+  signatureBox: {
+    flex: 1,
+    padding: 10,
+    borderRight: '1px solid #000000',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  
+  signatureTitle: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 15,
+  },
+  
+  signatureName: {
+    fontSize: 6,
+    color: '#000000',
+    borderTop: '1px solid #000000',
+    paddingTop: 2,
+    textAlign: 'center',
+    minWidth: 80,
+  },
+  
+  // Footer
+  footer: {
+    textAlign: 'center',
+    marginTop: 8,
+    borderTop: '1px solid #cccccc',
+    paddingTop: 5,
+  },
+  
+  footerText: {
+    fontSize: 8,
+    color: '#000000',
+    fontWeight: 'bold',
+  },
+  
+  footerDate: {
+    fontSize: 6,
+    color: '#666666',
+    marginTop: 2,
+  },
 });
 
 interface StudentGradesProps {
@@ -1200,7 +1525,8 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     selectedClass, 
     studentOverall, 
     subjectGrades,
-    studentImageUrl  }: {
+    studentImageUrl  
+  }: {
     student: any;
     selectedClass: any;
     selectedSemester: string;
@@ -1220,25 +1546,25 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           {/* Header Section */}
           <View style={styles.headerSection}>
             <View style={styles.topHeader}>
-              <PdfText>#UNKNOWN#</PdfText>
+              <PdfText style={styles.topHeaderText}>#UNKNOWN#</PdfText>
             </View>
             
             <View style={styles.schoolInfo}>
-                <View style={styles.logoSection}>
+              <View style={styles.logoSection}>
                 {/* School Logo */}
                 {logoUrl ? (
                   <Image
-                  src={logoUrl}
-                  style={{ width: 40, height: 40, objectFit: 'contain', border: '1px solid black' }}
+                    src={logoUrl}
+                    style={styles.logoImage}
                   />
                 ) : (
-                  <View style={{ width: 40, height: 40, border: '1px solid black', alignItems: 'center', justifyContent: 'center' }}>
-                  <PdfText style={{ fontSize: 6 }}>LOGO</PdfText>
+                  <View style={styles.logoPlaceholder}>
+                    <PdfText style={styles.logoText}>LOGO</PdfText>
                   </View>
                 )}
-                </View>
+              </View>
               
-                <View style={styles.schoolDetails}>
+              <View style={styles.schoolDetails}>
                 <PdfText style={styles.schoolName}>{schoolName}</PdfText>
                 <PdfText style={styles.schoolSlogan}>{schoolSlogan}</PdfText>
                 <PdfText style={styles.schoolAddress}>ADDRESS: {schoolAddress}</PdfText>
@@ -1249,52 +1575,64 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 {studentImageUrl ? (
                   <Image
                     src={studentImageUrl}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={styles.studentPhoto}
                   />
                 ) : (
-                  <PdfText style={{ fontSize: 6 }}>STUDENT PHOTO</PdfText>
+                  <View style={styles.photoPlaceholder}>
+                    <PdfText style={styles.photoText}>STUDENT PHOTO</PdfText>
+                  </View>
                 )}
               </View>
             </View>
             
             <View style={styles.department}>
-              <PdfText>PRIMARY DEPARTMENT</PdfText>
+              <PdfText style={styles.departmentText}>PRIMARY DEPARTMENT</PdfText>
             </View>
           </View>
 
           {/* Student Progress Report Header */}
-          <View style={styles.performanceHeader}>
-            <PdfText>STUDENT PROGRESS REPORT</PdfText>
+          <View style={styles.progressReportHeader}>
+            <PdfText style={styles.progressReportText}>STUDENT PROGRESS REPORT</PdfText>
           </View>
 
           {/* Student Information */}
-          <View style={styles.studentInfo}>
-            <View style={styles.studentLeft}>
-              <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>STUDENT ID #:</PdfText>
-                <PdfText style={styles.infoValue}>SJ{student.roll_no || 'N/A'}</PdfText>
+          <View style={styles.studentInfoSection}>
+            <View style={styles.studentInfoRow}>
+              <View style={styles.studentInfoLeft}>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>STUDENT ID NO:</PdfText>
+                  <PdfText style={styles.infoValue}>SJ{student.roll_no || 'N/A'}</PdfText>
+                </View>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>NAME:</PdfText>
+                  <PdfText style={styles.infoValue}>{student.first_name} {student.last_name}</PdfText>
+                </View>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>GRADE:</PdfText>
+                  <PdfText style={styles.infoValue}>{selectedClass?.name || 'N/A'}</PdfText>
+                </View>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>YEAR:</PdfText>
+                  <PdfText style={styles.infoValue}>{new Date().getFullYear()}</PdfText>
+                </View>
               </View>
-              <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>NAME:</PdfText>
-                <PdfText style={styles.infoValue}>{student.first_name} {student.last_name}</PdfText>
-              </View>
-              <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>GRADE:</PdfText>
-                <PdfText style={styles.infoValue}>{selectedClass?.name || 'N/A'}</PdfText>
-              </View>
-            </View>
-            <View style={styles.studentRight}>
-              <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>TERM:</PdfText>
-                <PdfText style={styles.infoValue}>{currentTerm}</PdfText>
-              </View>
-              <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>GENDER:</PdfText>
-                <PdfText style={styles.infoValue}>{student.gender || 'N/A'}</PdfText>
-              </View>
-              <View style={styles.infoRow}>
-                <PdfText style={styles.infoLabel}>NUMBER ON ROLL:</PdfText>
-                <PdfText style={styles.infoValue}>{classSize}</PdfText>
+              <View style={styles.studentInfoRight}>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>TERM:</PdfText>
+                  <PdfText style={styles.infoValue}>{currentTerm}</PdfText>
+                </View>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>GENDER:</PdfText>
+                  <PdfText style={styles.infoValue}>{student.gender || 'N/A'}</PdfText>
+                </View>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>AGE:</PdfText>
+                  <PdfText style={styles.infoValue}>{student.age || 'N/A'}</PdfText>
+                </View>
+                <View style={styles.infoItem}>
+                  <PdfText style={styles.infoLabel}>NUMBER ON ROLL:</PdfText>
+                  <PdfText style={styles.infoValue}>{classSize}</PdfText>
+                </View>
               </View>
             </View>
           </View>
@@ -1302,147 +1640,111 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           {/* Attendance Section */}
           <View style={styles.attendanceSection}>
             <View style={styles.attendanceHeader}>
-              <PdfText>NO. DAYS OPEN | ATTENDANCE | NAME AVERAGE | VACATION DATE | NEXT TERM BEGINS</PdfText>
+              <PdfText style={styles.attendanceHeaderText}>NO. DAYS OPEN | ATTENDANCE | LEARNER AVERAGE | VACATION DATE | NEXT TERM BEGINS</PdfText>
             </View>
-            <View style={styles.attendanceRow}>
+            <View style={styles.attendanceDataRow}>
               <View style={styles.attendanceCell}>
-                <PdfText>{daysOpen}</PdfText>
+                <PdfText style={styles.attendanceValue}>{daysOpen}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText>{daysPresent}</PdfText>
+                <PdfText style={styles.attendanceValue}>{daysPresent}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText>{studentOverall.overallScore ? studentOverall.overallScore.toFixed(1) : 'N/A'}</PdfText>
+                <PdfText style={styles.attendanceValue}>{studentOverall.overallScore ? studentOverall.overallScore.toFixed(1) : 'N/A'}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText>{vacationDate}</PdfText>
+                <PdfText style={styles.attendanceValue}>{vacationDate}</PdfText>
               </View>
-              <View style={styles.attendanceCell}>
-                <PdfText>{reopenDate}</PdfText>
+              <View style={styles.attendanceCellLast}>
+                <PdfText style={styles.attendanceValue}>{reopenDate}</PdfText>
               </View>
             </View>
           </View>
 
           {/* Subject Performance Table */}
-          <View style={styles.subjectTable}>
-            <View style={styles.subjectHeader}>
-              <PdfText>PERFORMANCE BREAKDOWN</PdfText>
+          <View style={styles.performanceSection}>
+            <View style={styles.performanceHeader}>
+              <PdfText style={styles.performanceHeaderText}>PERFORMANCE BREAKDOWN</PdfText>
             </View>
             
             <View style={styles.tableHeaderRow}>
-              <View style={[styles.tableHeaderCell, styles.subjectCol]}>
-                <PdfText>SUBJECT</PdfText>
+              <View style={[styles.tableHeaderCell, styles.subjectColumn]}>
+                <PdfText style={styles.tableHeaderText}>SUBJECT</PdfText>
               </View>
-              <View style={[styles.tableHeaderCell, styles.scoreCol]}>
-                <PdfText>CLASS SCORE</PdfText>
+              <View style={[styles.tableHeaderCell, styles.scoreColumn]}>
+                <PdfText style={styles.tableHeaderText}>CLASS</PdfText>
               </View>
-              <View style={[styles.tableHeaderCell, styles.scoreCol]}>
-                <PdfText>EXAM SCORE</PdfText>
+              <View style={[styles.tableHeaderCell, styles.scoreColumn]}>
+                <PdfText style={styles.tableHeaderText}>EXAM</PdfText>
               </View>
-              <View style={[styles.tableHeaderCell, styles.scoreCol]}>
-                <PdfText>TOTAL SCORE</PdfText>
+              <View style={[styles.tableHeaderCell, styles.scoreColumn]}>
+                <PdfText style={styles.tableHeaderText}>TOTAL</PdfText>
               </View>
-              <View style={[styles.tableHeaderCell, styles.gradeCol]}>
-                <PdfText>GRADE</PdfText>
+              <View style={[styles.tableHeaderCell, styles.gradeColumn]}>
+                <PdfText style={styles.tableHeaderText}>GRADE</PdfText>
               </View>
-              <View style={[styles.tableHeaderCell, { width: '15%' }]}>
-                <PdfText>PERFORMANCE</PdfText>
+              <View style={[styles.tableHeaderCell, styles.performanceColumn]}>
+                <PdfText style={styles.tableHeaderText}>PERFORMANCE</PdfText>
               </View>
             </View>
 
             {Object.values(subjectGrades).map((subject: any, index: number) => (
-              <View style={styles.subjectTableRow} key={subject.subjectCode || index}>
-                <View style={[styles.tableCell, styles.subjectCol, styles.subjectName]}>
-                  <PdfText>{subject.subject || 'N/A'}</PdfText>
+              <View style={styles.tableDataRow} key={subject.subjectCode || index}>
+                <View style={[styles.tableDataCell, styles.subjectColumn]}>
+                  <PdfText style={styles.subjectText}>{subject.subject || 'N/A'}</PdfText>
                 </View>
-                <View style={[styles.tableCell, styles.scoreCol]}>
-                  <PdfText>{subject.classScore || '0.0'}</PdfText>
+                <View style={[styles.tableDataCell, styles.scoreColumn]}>
+                  <PdfText style={styles.scoreText}>{subject.classScore || '0.0'}</PdfText>
                 </View>
-                <View style={[styles.tableCell, styles.scoreCol]}>
-                  <PdfText>{subject.examScore || '0.0'}</PdfText>
+                <View style={[styles.tableDataCell, styles.scoreColumn]}>
+                  <PdfText style={styles.scoreText}>{subject.examScore || '0.0'}</PdfText>
                 </View>
-                <View style={[styles.tableCell, styles.scoreCol]}>
-                  <PdfText>{subject.score ? subject.score.toFixed(1) : '0.0'}</PdfText>
+                <View style={[styles.tableDataCell, styles.scoreColumn]}>
+                  <PdfText style={styles.scoreText}>{subject.score ? subject.score.toFixed(1) : '0.0'}</PdfText>
                 </View>
-                <View style={[styles.tableCell, styles.gradeCol]}>
-                  <PdfText>{subject.letterGrade || getLetterGrade(subject.score || 0)}</PdfText>
+                <View style={[styles.tableDataCell, styles.gradeColumn]}>
+                  <PdfText style={styles.gradeText}>{subject.letterGrade || getLetterGrade(subject.score || 0)}</PdfText>
                 </View>
-                <View style={[styles.tableCell, { width: '15%' }]}>
-                  <PdfText>{getPerformanceText(subject.score || 0)}</PdfText>
+                <View style={[styles.tableDataCell, styles.performanceColumn]}>
+                  <PdfText style={styles.performanceText}>{getPerformanceText(subject.score || 0)}</PdfText>
                 </View>
               </View>
             ))}
           </View>
 
           {/* Grading System */}
-          <View style={styles.gradingSection}>
-            <View style={styles.gradingLeft}>
-              <View style={styles.gradingHeader}>
-                <PdfText>GRADING SYSTEM</PdfText>
-              </View>
-              <View style={styles.gradingRow}>
-                <View style={styles.gradingCell}>
-                  <PdfText>GRADE</PdfText>
-                </View>
-                <View style={styles.gradingCell}>
-                  <PdfText>MARKS</PdfText>
-                </View>
-                <View style={styles.gradingCell}>
-                  <PdfText>POINTS</PdfText>
-                </View>
-                <View style={styles.gradingCell}>
-                  <PdfText>REMARK</PdfText>
-                </View>
-              </View>
-              {gradingScale.slice(0, 5).map((grade, index) => (
-                <View style={styles.gradingRow} key={index}>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.grade}</PdfText>
-                  </View>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.range}</PdfText>
-                  </View>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.points}</PdfText>
-                  </View>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.remark}</PdfText>
-                  </View>
-                </View>
-              ))}
+          <View style={styles.gradingSystemSection}>
+            <View style={styles.gradingSystemHeader}>
+              <PdfText style={styles.gradingSystemHeaderText}>GRADING SYSTEM</PdfText>
             </View>
-            
-            <View style={styles.gradingRight}>
-              <View style={styles.gradingHeader}>
-                <PdfText>PROFICIENCY LEVELS</PdfText>
-              </View>
-              <View style={styles.gradingRow}>
-                <View style={styles.gradingCell}>
-                  <PdfText>GRADE</PdfText>
+            <View style={styles.gradingSystemContent}>
+              <View style={styles.gradingTableHeader}>
+                <View style={styles.gradingHeaderCell}>
+                  <PdfText style={styles.gradingHeaderText}>GRADE</PdfText>
                 </View>
-                <View style={styles.gradingCell}>
-                  <PdfText>MARKS</PdfText>
+                <View style={styles.gradingHeaderCell}>
+                  <PdfText style={styles.gradingHeaderText}>MARKS</PdfText>
                 </View>
-                <View style={styles.gradingCell}>
-                  <PdfText>POINTS</PdfText>
+                <View style={styles.gradingHeaderCell}>
+                  <PdfText style={styles.gradingHeaderText}>POINTS</PdfText>
                 </View>
-                <View style={styles.gradingCell}>
-                  <PdfText>REMARK</PdfText>
+                <View style={styles.gradingHeaderCell}>
+                  <PdfText style={styles.gradingHeaderText}>REMARK</PdfText>
                 </View>
               </View>
-              {gradingScale.slice(5).map((grade, index) => (
-                <View style={styles.gradingRow} key={index}>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.grade}</PdfText>
+              {gradingScale.map((grade, index) => (
+                <View style={styles.gradingTableRow} key={index}>
+                  <View style={styles.gradingDataCell}>
+                    <PdfText style={styles.gradingDataText}>{grade.grade}</PdfText>
                   </View>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.range}</PdfText>
+                  <View style={styles.gradingDataCell}>
+                    <PdfText style={styles.gradingDataText}>{grade.range}</PdfText>
                   </View>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.points}</PdfText>
+                  <View style={styles.gradingDataCell}>
+                    <PdfText style={styles.gradingDataText}>{grade.points}</PdfText>
                   </View>
-                  <View style={styles.gradingCell}>
-                    <PdfText>{grade.remark}</PdfText>
+                  <View style={styles.gradingDataCell}>
+                    <PdfText style={styles.gradingDataText}>{grade.remark}</PdfText>
                   </View>
                 </View>
               ))}
@@ -1452,20 +1754,20 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           {/* Comments Section */}
           <View style={styles.commentsSection}>
             <View style={styles.commentsHeader}>
-              <PdfText>TEACHER COMMENTS</PdfText>
+              <PdfText style={styles.commentsHeaderText}>TEACHER COMMENTS</PdfText>
             </View>
-            <View style={styles.commentsRow}>
-              <View style={styles.commentsCell}>
-                <PdfText style={{ fontWeight: 'bold' }}>CONDUCT</PdfText>
-                <PdfText style={{ marginTop: 5 }}>Good behavior and participation in class activities.</PdfText>
+            <View style={styles.commentsContent}>
+              <View style={styles.commentBox}>
+                <PdfText style={styles.commentTitle}>CONDUCT</PdfText>
+                <PdfText style={styles.commentText}>Good behavior and participation in class activities.</PdfText>
               </View>
-              <View style={styles.commentsCell}>
-                <PdfText style={{ fontWeight: 'bold' }}>STUDENT INTEREST</PdfText>
-                <PdfText style={{ marginTop: 5 }}>Shows keen interest in learning and asks relevant questions.</PdfText>
+              <View style={styles.commentBox}>
+                <PdfText style={styles.commentTitle}>STUDENT INTEREST</PdfText>
+                <PdfText style={styles.commentText}>Shows keen interest in learning and asks relevant questions.</PdfText>
               </View>
-              <View style={styles.commentsCell}>
-                <PdfText style={{ fontWeight: 'bold' }}>GENERAL CLASS TEACHER REMARKS</PdfText>
-                <PdfText style={{ marginTop: 5 }}>
+              <View style={styles.commentBox}>
+                <PdfText style={styles.commentTitle}>GENERAL CLASS TEACHER REMARKS</PdfText>
+                <PdfText style={styles.commentText}>
                   {studentOverall.overallScore >= 80 
                     ? "Excellent performance. Keep up the good work!" 
                     : studentOverall.overallScore >= 60 
@@ -1479,24 +1781,24 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           {/* Signatures Section */}
           <View style={styles.signaturesSection}>
             <View style={styles.signaturesHeader}>
-              <PdfText>SIGNATURES</PdfText>
+              <PdfText style={styles.signaturesHeaderText}>SIGNATURES</PdfText>
             </View>
-            <View style={styles.signaturesRow}>
-              <View style={styles.signatureCell}>
-                <PdfText style={styles.signatureLabel}>ACADEMIC HEAD</PdfText>
-                <PdfText style={{ fontSize: 6, marginTop: 2 }}>BAAFOUR ADUAMOA</PdfText>
+            <View style={styles.signaturesContent}>
+              <View style={styles.signatureBox}>
+                <PdfText style={styles.signatureTitle}>ACADEMIC HEAD</PdfText>
+                <PdfText style={styles.signatureName}>BAAFOUR ADUAMOAH</PdfText>
               </View>
-              <View style={styles.signatureCell}>
-                <PdfText style={styles.signatureLabel}>CLASS FACILITATOR</PdfText>
-                <PdfText style={{ fontSize: 6, marginTop: 2 }}>N/A</PdfText>
+              <View style={styles.signatureBox}>
+                <PdfText style={styles.signatureTitle}>CLASS FACILITATOR</PdfText>
+                <PdfText style={styles.signatureName}>N/A</PdfText>
               </View>
             </View>
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
-            <PdfText>#UNKNOWN#</PdfText>
-            <PdfText style={{ marginTop: 2 }}>Generated on: {moment().format('MMMM Do YYYY')}</PdfText>
+            <PdfText style={styles.footerText}>#UNKNOWN#</PdfText>
+            <PdfText style={styles.footerDate}>Generated on: {moment().format('MMMM Do YYYY')}</PdfText>
           </View>
         </Page>
       </Document>
