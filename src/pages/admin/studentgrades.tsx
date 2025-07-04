@@ -1341,16 +1341,11 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const schoolContact = school?.contact || 'School Contact';
 
   const gradingScale = [
-    { grade: 'A+', range: '90-100', points: '4.0', remark: 'EXCELLENT' },
-    { grade: 'A', range: '85-89', points: '3.7', remark: 'VERY GOOD' },
-    { grade: 'A-', range: '80-84', points: '3.3', remark: 'GOOD' },
-    { grade: 'B+', range: '75-79', points: '3.0', remark: 'SATISFACTORY' },
-    { grade: 'B', range: '70-74', points: '2.7', remark: 'PASS' },
-    { grade: 'B-', range: '65-69', points: '2.3', remark: 'PASS' },
-    { grade: 'C+', range: '60-64', points: '2.0', remark: 'PASS' },
-    { grade: 'C', range: '55-59', points: '1.7', remark: 'PASS' },
-    { grade: 'C-', range: '50-54', points: '1.3', remark: 'PASS' },
-    { grade: 'F', range: '0-49', points: '0.0', remark: 'FAIL' },
+    { grade: 'A', range: '80-100', points: '4.0', remark: 'Excellent' },
+    { grade: 'B', range: '70-79', points: '3.0', remark: 'Good' },
+    { grade: 'C', range: '60-69', points: '2.0', remark: 'Satisfactory' },
+    { grade: 'D', range: '50-59', points: '1.0', remark: 'Pass' },
+    { grade: 'F', range: '0-49', points: '0.0', remark: 'Fail' },
   ];
 
   const getPerformanceText = (score: number) => {
