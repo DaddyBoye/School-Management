@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 20,
   },
-  
+
   // General Styles
   header: {
     marginBottom: 10,
@@ -249,32 +249,32 @@ const styles = StyleSheet.create({
     fontSize: 8,
     padding: 15,
     backgroundColor: '#ffffff',
-    lineHeight: 1.2,
+    lineHeight: 1.1,
   },
   
   // Header Section
   headerSection: {
     border: '2px solid #000000',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   
   topHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 6,
     textAlign: 'center',
   },
   
   topHeaderText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   
   schoolInfo: {
     flexDirection: 'row',
-    padding: 8,
+    padding: 10,
     alignItems: 'center',
-    borderBottom: '1px solid #000000',
+    borderBottom: '2px solid #000000',
   },
   
   logoSection: {
@@ -284,24 +284,25 @@ const styles = StyleSheet.create({
   },
   
   logoImage: {
-    width: 45,
-    height: 45,
+    width: 50,
+    height: 50,
     objectFit: 'contain',
-    border: '1px solid #000000',
+    border: '2px solid #000000',
   },
   
   logoPlaceholder: {
-    width: 45,
-    height: 45,
-    border: '1px solid #000000',
+    width: 50,
+    height: 50,
+    border: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#4A90E2',
   },
   
   logoText: {
-    fontSize: 6,
+    fontSize: 8,
     fontWeight: 'bold',
+    color: '#ffffff',
   },
   
   schoolDetails: {
@@ -312,26 +313,28 @@ const styles = StyleSheet.create({
   },
   
   schoolName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 3,
+    marginBottom: 4,
     color: '#000000',
   },
   
   schoolSlogan: {
-    fontSize: 10,
+    fontSize: 11,
     fontStyle: 'italic',
     color: '#333333',
     textAlign: 'center',
-    marginBottom: 3,
+    marginBottom: 4,
+    fontWeight: 'bold',
   },
   
   schoolAddress: {
-    fontSize: 8,
+    fontSize: 9,
     textAlign: 'center',
-    marginBottom: 1,
+    marginBottom: 2,
     fontWeight: 'bold',
+    color: '#000000',
   },
   
   photoSection: {
@@ -339,7 +342,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     border: '2px solid #000000',
-    height: 55,
+    height: 60,
     overflow: 'hidden',
   },
   
@@ -354,45 +357,46 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f0f0f0',
   },
   
   photoText: {
-    fontSize: 6,
+    fontSize: 7,
     fontWeight: 'bold',
     textAlign: 'center',
+    color: '#666666',
   },
   
   department: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 6,
     textAlign: 'center',
   },
   
   departmentText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   
   // Progress Report Header
   progressReportHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 6,
     textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   
   progressReportText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   
   // Student Information Section
   studentInfoSection: {
-    border: '1px solid #000000',
-    marginBottom: 8,
+    border: '2px solid #000000',
+    marginBottom: 6,
   },
   
   studentInfoRow: {
@@ -402,12 +406,12 @@ const styles = StyleSheet.create({
   
   studentInfoLeft: {
     width: '50%',
-    paddingRight: 10,
+    paddingRight: 8,
   },
   
   studentInfoRight: {
     width: '50%',
-    paddingLeft: 10,
+    paddingLeft: 8,
   },
   
   infoItem: {
@@ -417,61 +421,62 @@ const styles = StyleSheet.create({
   },
   
   infoLabel: {
-    width: '50%',
-    fontSize: 8,
+    width: '55%',
+    fontSize: 9,
     fontWeight: 'bold',
     color: '#000000',
   },
   
   infoValue: {
-    width: '50%',
-    fontSize: 8,
+    width: '45%',
+    fontSize: 9,
+    fontWeight: 'bold',
     color: '#000000',
   },
   
   // Attendance Section
   attendanceSection: {
     border: '2px solid #000000',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   
   attendanceHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
   },
   
   attendanceHeaderText: {
     color: '#ffffff',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   
   attendanceDataRow: {
     flexDirection: 'row',
-    minHeight: 25,
+    minHeight: 28,
     alignItems: 'center',
   },
   
   attendanceCell: {
     flex: 1,
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
-    borderRight: '1px solid #000000',
+    borderRight: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   attendanceCellLast: {
     flex: 1,
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   attendanceValue: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#000000',
   },
@@ -479,45 +484,45 @@ const styles = StyleSheet.create({
   // Performance Section
   performanceSection: {
     border: '2px solid #000000',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   
   performanceHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
   },
   
   performanceHeaderText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   
   tableHeaderRow: {
     flexDirection: 'row',
     backgroundColor: '#f0f0f0',
-    minHeight: 20,
+    minHeight: 22,
     alignItems: 'center',
-    borderBottom: '1px solid #000000',
+    borderBottom: '2px solid #000000',
   },
   
   tableHeaderCell: {
     padding: 4,
-    borderRight: '1px solid #000000',
+    borderRight: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   tableHeaderText: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#000000',
     textAlign: 'center',
   },
   
   subjectColumn: {
-    width: '30%',
+    width: '28%',
   },
   
   scoreColumn: {
@@ -529,65 +534,67 @@ const styles = StyleSheet.create({
   },
   
   performanceColumn: {
-    width: '24%',
+    width: '26%',
   },
   
   tableDataRow: {
     flexDirection: 'row',
-    minHeight: 18,
+    minHeight: 20,
     alignItems: 'center',
-    borderBottom: '1px solid #cccccc',
+    borderBottom: '1px solid #000000',
   },
   
   tableDataCell: {
     padding: 4,
-    borderRight: '1px solid #000000',
+    borderRight: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   subjectText: {
-    fontSize: 7,
+    fontSize: 8,
     color: '#000000',
     textAlign: 'left',
-    paddingLeft: 2,
+    paddingLeft: 3,
+    fontWeight: 'bold',
   },
   
   scoreText: {
-    fontSize: 7,
+    fontSize: 8,
     color: '#000000',
     textAlign: 'center',
     fontWeight: 'bold',
   },
   
   gradeText: {
-    fontSize: 7,
+    fontSize: 8,
     color: '#000000',
     textAlign: 'center',
     fontWeight: 'bold',
   },
   
   performanceText: {
-    fontSize: 7,
+    fontSize: 8,
     color: '#000000',
     textAlign: 'center',
+    fontWeight: 'bold',
   },
   
   // Grading System Section
   gradingSystemSection: {
     border: '2px solid #000000',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   
   gradingSystemHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
   },
   
   gradingSystemHeaderText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   
@@ -598,21 +605,21 @@ const styles = StyleSheet.create({
   gradingTableHeader: {
     flexDirection: 'row',
     backgroundColor: '#f0f0f0',
-    minHeight: 18,
+    minHeight: 20,
     alignItems: 'center',
-    borderBottom: '1px solid #000000',
+    borderBottom: '2px solid #000000',
   },
   
   gradingHeaderCell: {
     flex: 1,
-    padding: 3,
-    borderRight: '1px solid #000000',
+    padding: 4,
+    borderRight: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   gradingHeaderText: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#000000',
     textAlign: 'center',
@@ -620,132 +627,137 @@ const styles = StyleSheet.create({
   
   gradingTableRow: {
     flexDirection: 'row',
-    minHeight: 15,
+    minHeight: 18,
     alignItems: 'center',
-    borderBottom: '1px solid #cccccc',
+    borderBottom: '1px solid #000000',
   },
   
   gradingDataCell: {
     flex: 1,
-    padding: 3,
-    borderRight: '1px solid #000000',
+    padding: 4,
+    borderRight: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   gradingDataText: {
-    fontSize: 7,
+    fontSize: 8,
     color: '#000000',
     textAlign: 'center',
+    fontWeight: 'bold',
   },
   
   // Comments Section
   commentsSection: {
     border: '2px solid #000000',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   
   commentsHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
   },
   
   commentsHeaderText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   
   commentsContent: {
     flexDirection: 'row',
-    minHeight: 35,
+    minHeight: 32,
   },
   
   commentBox: {
     flex: 1,
     padding: 6,
-    borderRight: '1px solid #000000',
+    borderRight: '2px solid #000000',
     justifyContent: 'flex-start',
   },
   
   commentTitle: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#000000',
     marginBottom: 3,
   },
   
   commentText: {
-    fontSize: 6,
+    fontSize: 7,
     color: '#000000',
-    lineHeight: 1.3,
+    lineHeight: 1.2,
+    fontWeight: 'normal',
   },
   
   // Signatures Section
   signaturesSection: {
     border: '2px solid #000000',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   
   signaturesHeader: {
     backgroundColor: '#000000',
-    padding: 4,
+    padding: 5,
     textAlign: 'center',
   },
   
   signaturesHeaderText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   
   signaturesContent: {
     flexDirection: 'row',
-    minHeight: 50,
+    minHeight: 45,
   },
   
   signatureBox: {
     flex: 1,
-    padding: 10,
-    borderRight: '1px solid #000000',
+    padding: 8,
+    borderRight: '2px solid #000000',
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
   
   signatureTitle: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#000000',
-    marginBottom: 15,
+    marginBottom: 12,
   },
   
   signatureName: {
-    fontSize: 6,
+    fontSize: 7,
     color: '#000000',
     borderTop: '1px solid #000000',
-    paddingTop: 2,
+    paddingTop: 3,
     textAlign: 'center',
     minWidth: 80,
+    fontWeight: 'bold',
   },
   
   // Footer
   footer: {
     textAlign: 'center',
-    marginTop: 8,
-    borderTop: '1px solid #cccccc',
-    paddingTop: 5,
+    marginTop: 4,
+    borderTop: '2px solid #000000',
+    paddingTop: 4,
+    backgroundColor: '#000000',
+    padding: 4,
   },
   
   footerText: {
-    fontSize: 8,
-    color: '#000000',
+    fontSize: 9,
+    color: '#ffffff',
     fontWeight: 'bold',
   },
   
   footerDate: {
-    fontSize: 6,
-    color: '#666666',
+    fontSize: 7,
+    color: '#ffffff',
     marginTop: 2,
   },
 });
@@ -1546,12 +1558,11 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           {/* Header Section */}
           <View style={styles.headerSection}>
             <View style={styles.topHeader}>
-              <PdfText style={styles.topHeaderText}>#UNKNOWN#</PdfText>
+              <PdfText style={styles.topHeaderText}>ST. JOBA LEARNING CENTRE</PdfText>
             </View>
             
             <View style={styles.schoolInfo}>
               <View style={styles.logoSection}>
-                {/* School Logo */}
                 {logoUrl ? (
                   <Image
                     src={logoUrl}
@@ -1797,7 +1808,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
 
           {/* Footer */}
           <View style={styles.footer}>
-            <PdfText style={styles.footerText}>#UNKNOWN#</PdfText>
+            <PdfText style={styles.footerText}>ST. JOBA LEARNING CENTRE</PdfText>
             <PdfText style={styles.footerDate}>Generated on: {moment().format('MMMM Do YYYY')}</PdfText>
           </View>
         </Page>
