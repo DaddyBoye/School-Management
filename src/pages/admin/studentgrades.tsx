@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   
   tableCell: {
     padding: 2,
-    fontSize: 7,
+    fontSize: 10,
     textAlign: 'center',
     borderRight: '1px solid black',
     justifyContent: 'center',
@@ -357,27 +357,27 @@ const styles = StyleSheet.create({
   
   department: {
     backgroundColor: '#000000',
-    padding: 6,
+    padding: 5,
     textAlign: 'center',
   },
   
   departmentText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   
   // Progress Report Header
   progressReportHeader: {
     backgroundColor: '#000000',
-    padding: 6,
+    padding: 5,
     textAlign: 'center',
     marginBottom: 4,
   },
   
   progressReportText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   attendanceHeader: {
     flexDirection: 'row',
     backgroundColor: '#000000',
-    minHeight: 28,
+    minHeight: 24,
     alignItems: 'center',
   },
   
@@ -444,13 +444,13 @@ const styles = StyleSheet.create({
   
   attendanceDataRow: {
     flexDirection: 'row',
-    minHeight: 28,
+    minHeight: 24,
     alignItems: 'center',
   },
   
   attendanceCell: {
     flex: 1,
-    padding: 5,
+    padding: 4,
     textAlign: 'center',
     borderRight: '2px solid #000000',
     alignItems: 'center',
@@ -459,14 +459,14 @@ const styles = StyleSheet.create({
   
   attendanceCellLast: {
     flex: 1,
-    padding: 5,
+    padding: 4,
     textAlign: 'center',
     alignItems: 'center',
     justifyContent: 'center',
   },
   
   attendanceValue: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#000000',
   },
@@ -668,14 +668,14 @@ const styles = StyleSheet.create({
   },
   
   commentTitle: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#000000',
     marginBottom: 3,
   },
   
   commentText: {
-    fontSize: 7,
+    fontSize: 9,
     color: '#000000',
     lineHeight: 1.2,
     fontWeight: 'normal',
