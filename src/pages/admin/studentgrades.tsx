@@ -252,22 +252,10 @@ const styles = StyleSheet.create({
     lineHeight: 1.1,
   },
   
-  // Header Section
+  // Header Section (removed topHeader)
   headerSection: {
     border: '2px solid #000000',
     marginBottom: 6,
-  },
-  
-  topHeader: {
-    backgroundColor: '#000000',
-    padding: 6,
-    textAlign: 'center',
-  },
-  
-  topHeaderText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   
   schoolInfo: {
@@ -316,7 +304,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 8, // Increased spacing between name and slogan
     color: '#000000',
   },
   
@@ -434,22 +422,24 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   
-  // Attendance Section
+  // Attendance Section with improved column headers
   attendanceSection: {
     border: '2px solid #000000',
     marginBottom: 6,
   },
   
   attendanceHeader: {
+    flexDirection: 'row',
     backgroundColor: '#000000',
-    padding: 5,
-    textAlign: 'center',
+    minHeight: 28,
+    alignItems: 'center',
   },
   
   attendanceHeaderText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   
   attendanceDataRow: {
@@ -1552,10 +1542,6 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
         <Page size="A4" style={styles.page}>
           {/* Header Section */}
           <View style={styles.headerSection}>
-            <View style={styles.topHeader}>
-              <PdfText style={styles.topHeaderText}>ST. JOBA LEARNING CENTRE</PdfText>
-            </View>
-            
             <View style={styles.schoolInfo}>
               <View style={styles.logoSection}>
                 {logoUrl ? (
@@ -1646,7 +1632,21 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           {/* Attendance Section */}
           <View style={styles.attendanceSection}>
             <View style={styles.attendanceHeader}>
-              <PdfText style={styles.attendanceHeaderText}>NO. DAYS OPEN | ATTENDANCE | LEARNER AVERAGE | VACATION DATE | NEXT TERM BEGINS</PdfText>
+              <View style={styles.attendanceCell}>
+                <PdfText style={styles.attendanceHeaderText}>NO. DAYS OPEN</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText style={styles.attendanceHeaderText}>ATTENDANCE</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText style={styles.attendanceHeaderText}>LEARNER AVERAGE</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
+                <PdfText style={styles.attendanceHeaderText}>VACATION DATE</PdfText>
+              </View>
+              <View style={styles.attendanceCellLast}>
+                <PdfText style={styles.attendanceHeaderText}>NEXT TERM BEGINS</PdfText>
+              </View>
             </View>
             <View style={styles.attendanceDataRow}>
               <View style={styles.attendanceCell}>
