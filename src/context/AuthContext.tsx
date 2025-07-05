@@ -18,6 +18,7 @@ interface AuthContextType {
   user: any;
   userRole: string | null;
   school: SchoolInfo;
+  currentTerm: { id: number; name: string } | null; // Add currentTerm to the context
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string, role: string) => Promise<void>;
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
   school: { id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null, address: null, contact: null },
+  currentTerm: null, // Add default value
   loading: true,
   error: null,
   signIn: async () => {},
@@ -42,6 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [school, setSchool] = useState<SchoolInfo>({ id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null, address: null, contact: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentTerm, setCurrentTerm] = useState<{ id: number; name: string } | null>(null);
   const navigate = useNavigate();
 
   // Extract school ID from subdomain (e.g., stjoba.klaso.site → stjoba)
@@ -81,6 +84,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const fetchCurrentTerm = async (schoolId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('calendar_terms')
+        .select('id, name')
+        .eq('school_id', schoolId)
+        .lte('start_date', new Date().toISOString())
+        .gte('end_date', new Date().toISOString())
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Error fetching current term:', err);
+      return null;
+    }
+  };
+
   // In your initialization useEffect:
   useEffect(() => {
     const initializeAuth = async () => {
@@ -105,8 +126,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (schoolInfo?.name) {
             localStorage.setItem('school_name', schoolInfo.name);
           }
-        }
 
+          // Fetch current term
+          const term = await fetchCurrentTerm(schoolId);
+          if (term) {
+            setCurrentTerm(term);
+            localStorage.setItem('current_term_id', term.id.toString());
+            localStorage.setItem('current_term_name', term.name);
+          }
+        }
+      
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
 
@@ -263,6 +292,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         userRole,
         school,
+        currentTerm, // Add currentTerm to the context
         loading,
         error,
         signIn,

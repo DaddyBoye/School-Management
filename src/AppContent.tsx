@@ -32,7 +32,7 @@ const AppContent = () => {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, userRole, loading } = useAuth(); // Get user and userRole from auth context
+  const { user, userRole, loading, currentTerm } = useAuth();
   const schoolId = localStorage.getItem('school_id') || '';
   const schoolName = localStorage.getItem('school_name') || '';
 
@@ -176,7 +176,7 @@ const AppContent = () => {
                 path="/studentfees"
                 element={
                   <ProtectedRoute roles={['admin']}>
-                    <StudentFees schoolId={schoolId} adminId={user?.id || ''} currentSemester="2025 Spring" />
+                    <StudentFees schoolId={schoolId} adminId={user?.id || ''} currentTerm={currentTerm} />
                   </ProtectedRoute>
                 }
               />
@@ -184,7 +184,7 @@ const AppContent = () => {
                 path="/studentgrades"
                 element={
                   <ProtectedRoute roles={['admin']}>
-                    <StudentGrades schoolId={schoolId} currentSemester="2025 Spring" />
+                    <StudentGrades schoolId={schoolId} />
                   </ProtectedRoute>
                 }
               />

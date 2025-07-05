@@ -31,7 +31,7 @@ import {
 import moment from 'moment';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { supabase } from '../../supabase'; // Import Supabase client
+import { supabase } from '../../supabase';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
@@ -39,7 +39,7 @@ const { Title, Text } = Typography;
 interface StudentFeeManagementPageProps {
   schoolId: string;
   adminId?: string;
-  currentSemester: string;
+  currentTerm: { id: number; name: string } | null;
 }
 
 interface Class {
@@ -61,7 +61,8 @@ interface Student {
     paid: number;
     dueDate: string;
     status: string;
-    semester: string;
+    term: string;
+    term_id: number;
     paymentDate: string;
   }>;
 }
@@ -81,7 +82,8 @@ interface FeeType {
 }
 
 interface StudentHistory {
-  semester: string;
+  term: string;
+  term_id: number;
   payments: Array<{
     id: number;
     type: string;
@@ -89,14 +91,15 @@ interface StudentHistory {
     paid: number;
     dueDate: string;
     status: string;
-    semester: string;
+    term: string;
+    term_id: number;
     paymentDate: string;
     admin_id?: string;
     admin_name?: string;
   }>;
 }
 
-const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ schoolId, adminId, currentSemester }) => {
+const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ schoolId, adminId, currentTerm }) => {
   // States
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -105,13 +108,14 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
-  const [selectedSemester, setSelectedSemester] = useState(currentSemester || moment().format('YYYY [Spring]'));
+  const [selectedTerm, setSelectedTerm] = useState(currentTerm);
+  const [selectedTermName, setSelectedTermName] = useState(currentTerm?.name || '');  
+  const [availableTerms, setAvailableTerms] = useState<{id: number, name: string}[]>([]);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [selectedFeeType, setSelectedFeeType] = useState(null);
   const [studentDetailsVisible, setStudentDetailsVisible] = useState(false);
   const [studentHistory, setStudentHistory] = useState<StudentHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedHistorySemester, setSelectedHistorySemester] = useState(currentSemester || 'All'); // Default to current semester
   const [statistics, setStatistics] = useState({
     totalFees: 0,
     totalCollected: 0,
@@ -138,35 +142,57 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
     }
   };
 
-useEffect(() => {
-  fetchData();
-}, [schoolId, currentSemester]);
-
-// When currentSemester changes, update the selected semester
-useEffect(() => {
-  if (currentSemester) {
-    setSelectedSemester(currentSemester);
-    students.filter(student => student.class_id === selectedClass?.id);
-  }
-}, [currentSemester]);
-
-useEffect(() => {
-  // Filter students by selected class
-  if (selectedClass && students.length > 0) {
-    const filtered = students.filter(student => student.class_id === selectedClass.id);
-    setFilteredStudents(filtered);
-  } else {
-    setFilteredStudents([]);
-  }
-}, [selectedClass, students]);
+  useEffect(() => {
+    fetchData();
+  }, [schoolId, currentTerm]);
 
   useEffect(() => {
-    // Re-fetch fees when the semester changes
-    const updateFeesForSemester = async () => {
+    const fetchAvailableTerms = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('calendar_terms')
+          .select('id, name')
+          .eq('school_id', schoolId)
+          .order('start_date', { ascending: false }); // Most recent first
+
+        if (error) throw error;
+        setAvailableTerms(data || []);
+      } catch (error) {
+        console.error('Error fetching available terms:', error);
+        message.error('Failed to fetch available terms');
+      }
+    };
+
+    if (schoolId) {
+      fetchAvailableTerms();
+    }
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (currentTerm) {
+      setSelectedTerm(currentTerm);
+      setSelectedTermName(currentTerm.name);
+      students.filter(student => student.class_id === selectedClass?.id);
+    }
+  }, [currentTerm]);
+
+  useEffect(() => {
+    // Filter students by selected class
+    if (selectedClass && students.length > 0) {
+      const filtered = students.filter(student => student.class_id === selectedClass.id);
+      setFilteredStudents(filtered);
+    } else {
+      setFilteredStudents([]);
+    }
+  }, [selectedClass, students]);
+
+  useEffect(() => {
+    const updateFeesForTerm = async () => {
       if (students.length > 0) {
         const updatedStudents = await Promise.all(
           students.map(async (student) => {
-            const fees = await fetchStudentFees(student.id, selectedSemester);
+            const fees = await fetchStudentFees(student.id, selectedTerm?.id || 0);
+
             return { ...student, fees };
           })
         );
@@ -174,8 +200,8 @@ useEffect(() => {
       }
     };
   
-    updateFeesForSemester();
-  }, [selectedSemester]);
+      updateFeesForTerm();
+  }, [selectedTerm]);
 
   // Fetch classes for the specific school
   const fetchClasses = async (schoolId: string) => {
@@ -208,7 +234,7 @@ useEffect(() => {
         try {
           const { data: feesData, error: feesError } = await supabase
             .from('student_fees')
-            .select('*, fee_types(name, due_date), administrators!admin_id(first_name, last_name)')
+            .select('*, fee_types(name, due_date), administrators!admin_id(first_name, last_name), calendar_terms!term_id(name)')
             .eq('student_id', currentStudent.id);
 
           if (feesError) throw feesError;
@@ -223,19 +249,17 @@ useEffect(() => {
             paymentDate: fee.created_at
           }));
 
-          const historyBySemester = formattedData.reduce((acc, fee) => {
-            const semester = fee.semester;
-            if (!acc[semester]) acc[semester] = [];
-            acc[semester].push(fee);
+          const historyByTerm = formattedData.reduce((acc, fee) => {
+            const term = fee.calendar_terms?.name || 'Unknown Term';
+            const termId = fee.term_id;
+            const key = `${termId}|${term}`;
+            
+            if (!acc[key]) acc[key] = { term, term_id: termId, payments: [] };
+            acc[key].payments.push(fee);
             return acc;
           }, {});
 
-          setStudentHistory(
-            Object.keys(historyBySemester).map(semester => ({
-              semester,
-              payments: historyBySemester[semester]
-            }))
-          );
+          setStudentHistory(Object.values(historyByTerm));
         } catch (error) {
           console.error('Error fetching student history:', error);
           message.error('Failed to fetch payment history');
@@ -299,16 +323,16 @@ useEffect(() => {
       // Map the database fields to the expected fields
       const studentsWithFees = await Promise.all(
         data.map(async (student) => {
-          const fees = await fetchStudentFees(student.id, selectedSemester);
-          return {
-            id: student.id,
-            rollNo: student.roll_no,
-            name: `${student.first_name} ${student.last_name}`,
-            class_id: student.class_id,
-            fees: fees,
-          } as Student; // Explicitly type as Student
-        })
-      );
+          const fees = await fetchStudentFees(student.id, selectedTerm?.id || 0);
+            return {
+              id: student.id,
+              rollNo: student.roll_no,
+              name: `${student.first_name} ${student.last_name}`,
+              class_id: student.class_id,
+              fees: fees,
+            } as Student; // Explicitly type as Student
+          })
+        );
   
       setStudents(studentsWithFees);
   
@@ -323,29 +347,30 @@ useEffect(() => {
     }
   };
   
-  const fetchStudentFees = async (studentId: number, semester: string) => {
+  const fetchStudentFees = async (studentId: number, termId: number) => {
     try {
       const { data, error } = await supabase
         .from('student_fees')
         .select(`
           *,
           fee_types(name, amount, due_date),
-          administrators!admin_id(first_name, last_name)
+          administrators!admin_id(first_name, last_name),
+          calendar_terms!term_id(name)
         `)
         .eq('student_id', studentId)
-        .eq('semester', semester);
+        .eq('term_id', termId);
 
       if (error) throw error;
       
-      // Process the data to include admin name
-      return (data || []).map(fee => ({
+           return (data || []).map(fee => ({
         id: fee.id,
         type: fee.fee_types?.name || 'Unknown',
         amount: fee.fee_types?.amount || 0,
         paid: fee.paid || 0,
         dueDate: fee.fee_types?.due_date || fee.due_date,
         status: fee.status || 'unpaid',
-        semester: fee.semester,
+        term: fee.calendar_terms?.name || 'Unknown Term',
+        term_id: fee.term_id,
         paymentDate: fee.created_at,
         admin_id: fee.admin_id,
         admin_name: fee.administrators 
@@ -364,7 +389,7 @@ useEffect(() => {
     feeTypeId: number, 
     fullAmount: number, 
     paidAmount: number, 
-    semester: string, 
+    termId: number, 
     dueDate: string
   ) => {
     if (!adminId) {
@@ -379,7 +404,7 @@ useEffect(() => {
         .select('*')
         .eq('student_id', studentId)
         .eq('fee_type_id', feeTypeId)
-        .eq('semester', semester);
+        .eq('term_id', termId);
 
       if (fetchError) throw fetchError;
 
@@ -397,8 +422,8 @@ useEffect(() => {
             paid: paidAmount,
             due_date: dueDate,
             status: newTotalPaid >= fullAmount ? 'paid' : 'partial',
-            semester: semester,
-            admin_id: adminId, // Automatically use the logged-in admin's ID
+            term_id: termId,
+            admin_id: adminId,
             school_id: schoolId
           }
         ])
@@ -413,7 +438,7 @@ useEffect(() => {
     }
   };
   
-  const handlePaymentSubmit = async () => {
+const handlePaymentSubmit = async () => {
     if (!selectedFeeType || paymentAmount <= 0) {
       message.error('Please fill all required fields');
       return;
@@ -452,7 +477,7 @@ useEffect(() => {
         selectedFeeType,
         fullAmount,
         paymentAmount,
-        selectedSemester,
+        selectedTerm?.id || 0,
         feeType.due_date
       );
 
@@ -462,7 +487,7 @@ useEffect(() => {
 
         // Refresh student data
         if (currentStudent) {
-          const updatedFees = await fetchStudentFees(currentStudent.id, selectedSemester);
+          const updatedFees = await fetchStudentFees(currentStudent.id, selectedTerm?.id || 0); // Changed here
           setCurrentStudent(prev => prev ? { ...prev, fees: updatedFees } : null);
           setStudents(prevStudents =>
             prevStudents.map(student =>
@@ -558,151 +583,151 @@ useEffect(() => {
     }
   };
 
-// Enhanced PDF generation function
-interface ReportOptions {
-  title: string;
-  subtitle?: string;
-  headers: string[];
-  data: any[]; // Replace `any[]` with a more specific type if possible
-  summary?: Record<string, string | number>;
-  styles?: {
-    styles?: Record<string, any>;
-    headStyles?: Record<string, any>;
-    columnStyles?: Record<number, any>;
-  };
-  filename?: string;
-}
-
-const downloadReport = (options: ReportOptions) => {
-  const {
-    title,
-    subtitle,
-    headers,
-    data,
-    summary = null,
-    styles = {},
-    filename = 'report.pdf'
-  } = options;
-
-  const doc = new jsPDF();
-  
-  // Set document properties
-  doc.setProperties({
-    title: title,
-    subject: subtitle,
-    author: 'School Management System',
-    creator: 'Fee Management Module'
-  });
-
-  // Add header with logo and title
-  doc.setFillColor(114, 46, 209);
-  doc.rect(0, 0, doc.internal.pageSize.width, 30, 'F');
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(255, 255, 255);
-  doc.text(title, 14, 15);
-  
-  // Add subtitle
-  if (subtitle) {
-    doc.setFontSize(12);
-    doc.setTextColor(245, 245, 245);
-    doc.text(subtitle, 14, 25);
+  // Enhanced PDF generation function
+  interface ReportOptions {
+    title: string;
+    subtitle?: string;
+    headers: string[];
+    data: any[]; // Replace `any[]` with a more specific type if possible
+    summary?: Record<string, string | number>;
+    styles?: {
+      styles?: Record<string, any>;
+      headStyles?: Record<string, any>;
+      columnStyles?: Record<number, any>;
+    };
+    filename?: string;
   }
-  
-  // Add date
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-  doc.setFontSize(10);
-  doc.text(`Generated on: ${dateStr}`, doc.internal.pageSize.width - 65, 25);
 
-  // Add summary if provided
-  let startY = 40;
-  if (summary) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(40, 40, 40);
-    doc.text('Summary', 14, startY);
+  const downloadReport = (options: ReportOptions) => {
+    const {
+      title,
+      subtitle,
+      headers,
+      data,
+      summary = null,
+      styles = {},
+      filename = 'report.pdf'
+    } = options;
+
+    const doc = new jsPDF();
     
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(60, 60, 60);
-    
-    startY += 10;
-    
-    Object.entries(summary).forEach(([key, value], index) => {
-      const formattedKey = key.replace(/([A-Z])/g, ' GH₵1')
-        .replace(/^./, str => str.toUpperCase())
-        .replace(/_/g, ' ');
-      
-      const valueText = typeof value === 'number' && key.toLowerCase().includes('amount') 
-        ? `GH₵${value.toFixed(2)}` 
-        : value;
-      
-      doc.text(`${formattedKey}: ${valueText}`, 14, startY + (index * 7));
+    // Set document properties
+    doc.setProperties({
+      title: title,
+      subject: subtitle,
+      author: 'School Management System',
+      creator: 'Fee Management Module'
     });
-    
-    startY += (Object.keys(summary).length * 7) + 10;
-    
-    // Add line separator
-    doc.setDrawColor(200, 200, 200);
-    doc.line(14, startY - 5, doc.internal.pageSize.width - 14, startY - 5);
-  }
 
-  // Add table
-  autoTable(doc, {
-    head: [headers],
-    body: data,
-    startY: startY,
-    theme: 'grid',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 3, 
-      lineColor: [220, 220, 220],
-      lineWidth: 0.1,
-      ...styles.styles 
-    },
-    headStyles: { 
-      fillColor: [114, 46, 209], 
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      ...styles.headStyles 
-    },
-    alternateRowStyles: {
-      fillColor: [245, 245, 250]
-    },
-    columnStyles: styles.columnStyles || {},
-    didDrawPage: function() {
-      // Add page number at the bottom
+    // Add header with logo and title
+    doc.setFillColor(114, 46, 209);
+    doc.rect(0, 0, doc.internal.pageSize.width, 30, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, 14, 15);
+    
+    // Add subtitle
+    if (subtitle) {
+      doc.setFontSize(12);
+      doc.setTextColor(245, 245, 245);
+      doc.text(subtitle, 14, 25);
+    }
+    
+    // Add date
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${dateStr}`, doc.internal.pageSize.width - 65, 25);
+
+    // Add summary if provided
+    let startY = 40;
+    if (summary) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Summary', 14, startY);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      
+      startY += 10;
+      
+      Object.entries(summary).forEach(([key, value], index) => {
+        const formattedKey = key.replace(/([A-Z])/g, ' GH₵1')
+          .replace(/^./, str => str.toUpperCase())
+          .replace(/_/g, ' ');
+        
+        const valueText = typeof value === 'number' && key.toLowerCase().includes('amount') 
+          ? `GH₵${value.toFixed(2)}` 
+          : value;
+        
+        doc.text(`${formattedKey}: ${valueText}`, 14, startY + (index * 7));
+      });
+      
+      startY += (Object.keys(summary).length * 7) + 10;
+      
+      // Add line separator
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, startY - 5, doc.internal.pageSize.width - 14, startY - 5);
+    }
+
+    // Add table
+    autoTable(doc, {
+      head: [headers],
+      body: data,
+      startY: startY,
+      theme: 'grid',
+      styles: { 
+        fontSize: 9, 
+        cellPadding: 3, 
+        lineColor: [220, 220, 220],
+        lineWidth: 0.1,
+        ...styles.styles 
+      },
+      headStyles: { 
+        fillColor: [114, 46, 209], 
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        ...styles.headStyles 
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 250]
+      },
+      columnStyles: styles.columnStyles || {},
+      didDrawPage: function() {
+        // Add page number at the bottom
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Page ${doc.getNumberOfPages()}`, doc.internal.pageSize.width / 2, 
+          doc.internal.pageSize.height - 10, { align: 'center' });
+      }
+    });
+
+    // Add footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text(`Page ${doc.getNumberOfPages()}`, doc.internal.pageSize.width / 2, 
-        doc.internal.pageSize.height - 10, { align: 'center' });
+      doc.text('School Management System - Fee Report', 14, doc.internal.pageSize.height - 10);
     }
-  });
 
-  // Add footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text('School Management System - Fee Report', 14, doc.internal.pageSize.height - 10);
-  }
+    doc.save(filename);
+  };
 
-  doc.save(filename);
-};
-
-// Function to generate class fee report
-const generateClassFeeReport = (classInfo: Class, students: Student[], semester: string) => {
-  if (!classInfo || !students) {
-    message.error('No class or student data available');
-    return;
-  }
+  // Function to generate class fee report
+  const generateClassFeeReport = (classInfo: Class, students: Student[]) => {
+    if (!classInfo || !students) {
+      message.error('No class or student data available');
+      return;
+    }
 
   // Calculate detailed statistics
   const totalPotentialFees = filteredStudents.reduce((sum, student) => {
@@ -788,7 +813,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
   // Set document properties
   doc.setProperties({
     title: `Class Fee Report - ${classInfo.name}`,
-    subject: `Fee collection report for ${classInfo.name} - ${semester}`,
+    subject: `Fee collection report for ${classInfo.name} - ${selectedTermName}`,
     author: 'School Management System'
   });
 
@@ -799,7 +824,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
   
   doc.setFontSize(12);
   doc.setTextColor(81, 81, 81);
-  doc.text(`Semester: ${semester} | Generated on: ${moment().format('MMMM Do YYYY')}`, 105, 28, { align: 'center' });
+  doc.text(`Term: ${selectedTermName} | Generated on: ${moment().format('MMMM Do YYYY')}`, 105, 28, { align: 'center' });
 
   // Add summary statistics
   doc.setFontSize(14);
@@ -913,7 +938,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
   }
 
   // Save the PDF
-  doc.save(`Class_Fee_Report_${classInfo.name}_${semester.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Class_Fee_Report_${classInfo.name}_${selectedTermName.replace(/\s+/g, '_')}.pdf`);
 };
 
   const showPaymentModal = (student: Student) => {
@@ -926,35 +951,29 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
     setStudentDetailsVisible(true);
   };
 
-  const formatSemesterForDisplay = (semester: string) => {
-    if (semester === 'All') return 'All Semesters';
-    const [year, season] = semester.split(' ');
-    return `${season} ${year}`;
-  };
-
-  // Get filtered history based on selected semester
   const getFilteredHistory = () => {
-    if (selectedHistorySemester === 'All') {
+    if (!selectedTerm) {
       return studentHistory;
     }
-    return studentHistory.filter(history => history.semester === selectedHistorySemester);
+    return studentHistory.filter(history => history.term_id === selectedTerm.id);
   };
 
-  const generateSemesterOptions = () => {
-    const currentYear = parseInt(moment().format('YYYY'));
-    const semesters = [];
-    
-    // Generate options for current year and previous/next year
-    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-      semesters.push({ key: `${year} Spring`, label: `Spring ${year}` }); // Database format: "YYYY Spring"
-      semesters.push({ key: `${year} Fall`, label: `Fall ${year}` });   // Database format: "YYYY Fall"
-    }
-    
-    return semesters;
+  const generateTermOptions = () => {
+    const options = [
+      { key: 'current', label: 'Current Term' },
+      { key: 'all', label: 'All Terms' }
+    ];
+
+    // Add fetched terms to options
+    availableTerms.forEach(term => {
+      options.push({
+        key: term.id.toString(),
+        label: term.name
+      });
+    });
+
+    return options;
   };
-  
-  // Use dynamic semester items
-  const semesterMenuItems = generateSemesterOptions();
 
   // Table columns
   const studentColumns = [
@@ -1147,20 +1166,37 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
             <Divider className="my-4" />
             
             <Title level={4} className="mb-2">Academic Period</Title>
+
             <Menu
               mode="inline"
-              selectedKeys={[selectedSemester]}
+              selectedKeys={[selectedTerm?.id ? selectedTerm.id.toString() : 'current']}
               className="border-r-0"
-              onClick={({ key }) => setSelectedSemester(key)}
+              onClick={({ key }) => {
+                if (key === 'current') {
+                  setSelectedTerm(currentTerm);
+                  setSelectedTermName(currentTerm?.name || '');
+                } else if (key === 'all') {
+                  setSelectedTerm(null);
+                  setSelectedTermName('All Terms');
+                } else {
+                  const term = availableTerms.find(t => t.id.toString() === key);
+                  if (term) {
+                    setSelectedTerm(term);
+                    setSelectedTermName(term.name);
+                  }
+                }
+              }}
             >
-              {semesterMenuItems.map(item => (
+              {generateTermOptions().map(item => (
                 <Menu.Item 
                   key={item.key} 
                   icon={<CalendarOutlined />}
-                  className={`${item.key === currentSemester ? 'font-bold bg-blue-50' : ''}`}
+                  className={`${item.key === 'current' && currentTerm?.id === selectedTerm?.id ? 'font-bold bg-blue-50' : ''}`}
                 >
                   {item.label}
-                  {item.key === currentSemester && <Tag color="blue" className="ml-2">Current</Tag>}
+                  {item.key === 'current' && currentTerm?.id === selectedTerm?.id && (
+                    <Tag color="blue" className="ml-2">Current</Tag>
+                  )}
                 </Menu.Item>
               ))}
             </Menu>
@@ -1227,8 +1263,8 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                         {selectedClass?.name} - {selectedClass?.grade}
                       </Title>
                       <Text type="secondary" className="flex items-center">
-                        Semester: {formatSemesterForDisplay(selectedSemester)}
-                        {selectedSemester === currentSemester && <Tag color="blue" className="ml-2">Current</Tag>}
+                        Term: {selectedTermName}
+                        {selectedTerm?.id === currentTerm?.id && <Tag color="blue" className="ml-2">Current</Tag>}
                       </Text>
                     </div>
                     <Button 
@@ -1236,7 +1272,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                       icon={<BarChartOutlined />}
                       onClick={() => {
                         if (selectedClass) {
-                          generateClassFeeReport(selectedClass, filteredStudents, selectedSemester);
+                          generateClassFeeReport(selectedClass, filteredStudents);
                         } else {
                           message.error('Please select a class before generating the report');
                         }
@@ -1313,7 +1349,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
 
             // Check if student has existing payment for this fee
             const studentFee = currentStudent.fees.find(
-              fee => fee.type === feeType.name && fee.semester === selectedSemester
+              fee => fee.type === feeType.name && fee.term_id === selectedTerm?.id
             );
             
             // Set payment amount (remaining balance or full amount)
@@ -1400,7 +1436,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
             icon={<DownloadOutlined />}
             onClick={() => {
               const feeReportOptions = {
-                title: `Fee Report - ${currentStudent?.name} (${selectedSemester})`,
+                title: `Fee Report - ${currentStudent?.name} (${selectedTermName})`,
                 subtitle: `Class: ${selectedClass?.name} - ${selectedClass?.grade}`,
                 headers: ['Fee Type', 'Amount', 'Paid', 'Due Date', 'Status'],
                 data: currentStudent?.fees.map(fee => [
@@ -1410,7 +1446,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
                   moment(fee.dueDate).format('MMM DD, YYYY'),
                   fee.status
                 ]),
-                filename: `Fee_Report_${currentStudent?.name}_${selectedSemester}.pdf`
+                filename: `Fee_Report_${currentStudent?.name}_${selectedTermName.replace(/\s+/g, '_')}.pdf`
               };
               downloadReport({ ...feeReportOptions, data: feeReportOptions.data || [] });
             }}
@@ -1429,7 +1465,7 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
       label: (
         <span>
           <DollarOutlined />
-          Current Fees ({selectedSemester})
+          Current Fees ({selectedTermName})
         </span>
       ),
       children: (
@@ -1490,28 +1526,35 @@ const generateClassFeeReport = (classInfo: Class, students: Student[], semester:
           <div style={{ marginBottom: 16 }}>
             <Select 
               style={{ width: 200 }} 
-              placeholder="Filter by semester"
-              value={selectedHistorySemester} // Controlled by state
-              onChange={(value) => setSelectedHistorySemester(value)} // Update state on change
+              placeholder="Filter by term"
+              value={selectedTerm?.id || 'all'}
+              onChange={(value) => {
+                if (value === 'all') {
+                  setSelectedTerm(null);
+                } else {
+                  const term = availableTerms.find(t => t.id.toString() === value);
+                  if (term) setSelectedTerm(term);
+                }
+              }}
               options={[
-                { value: 'All', label: 'All Semesters' },
-                ...semesterMenuItems.map(item => ({ 
-                  value: item.key, 
-                  label: item.key === currentSemester ? `${item.label} (Current)` : item.label 
+                { value: 'all', label: 'All Terms' },
+                ...availableTerms.map(term => ({ 
+                  value: term.id.toString(), 
+                  label: term.id === currentTerm?.id ? `${term.name} (Current)` : term.name 
                 }))
               ]}
             />
           </div>
           
-          {getFilteredHistory().map(monthData => (
-            <div key={monthData.semester} style={{ marginBottom: 24 }}>
+          {getFilteredHistory().map(termData => (
+            <div key={termData.term_id} style={{ marginBottom: 24 }}>
               <Divider orientation="left">
                 <Text strong style={{ fontSize: '16px' }}>
-                  {monthData.semester}
+                  {termData.term}
                 </Text>
               </Divider>
               <Table 
-                dataSource={monthData.payments} 
+                dataSource={termData.payments} 
                 columns={[
                   {
                     title: 'Fee Type',
