@@ -11,7 +11,8 @@ import {
   ScheduleOutlined, TeamOutlined, BookOutlined, 
   UserOutlined, HomeOutlined,
   SyncOutlined, CalendarOutlined, UnorderedListOutlined,
-  CoffeeOutlined, WarningOutlined
+  CoffeeOutlined, WarningOutlined,
+  CheckOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../supabase';
 import dayjs from 'dayjs';
@@ -1257,13 +1258,16 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
           dayjs(term.start_date),
           dayjs(term.end_date)
         ],
-        is_break: term.is_break
+        is_break: term.is_break,
+        term_type: term.term_type,
+        is_current: term.is_current
       });
     } else {
       setEditingTerm(null);
       termForm.resetFields();
       termForm.setFieldsValue({
-        is_break: false
+        is_break: false,
+        is_current: false
       });
     }
     setIsTermModalVisible(true);
@@ -2317,11 +2321,12 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
                             <Space>
                               {!record.is_current && !record.is_break && (
                                 <Button 
-                                  type="link"
+                                  type="primary" 
                                   onClick={() => setCurrentTerm(record.id)}
                                   size="small"
+                                  style={{ marginRight: 8 }}
                                 >
-                                  Set Current
+                                  <CheckOutlined /> Set Current
                                 </Button>
                               )}
                               <Button 
@@ -3103,11 +3108,14 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
           {({ getFieldValue }) => !getFieldValue('is_break') && (
             <Form.Item
               name="is_current"
-              label="Set as Current Term?"
+              label="Current Term"
               valuePropName="checked"
               help="Only one term can be current at a time. This will unset any other current term."
             >
-              <Switch />
+              <Switch 
+                checkedChildren="Current" 
+                unCheckedChildren="Not Current" 
+              />
             </Form.Item>
           )}
         </Form.Item>
