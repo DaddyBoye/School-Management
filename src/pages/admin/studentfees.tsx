@@ -349,27 +349,34 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
   
   const fetchStudentFees = async (studentId: number, termId: number) => {
     try {
+      // First get the fees data
       const { data, error } = await supabase
         .from('student_fees')
         .select(`
           *,
           fee_types(name, amount, due_date),
-          administrators!admin_id(first_name, last_name),
-          calendar_terms(name)
+          administrators!admin_id(first_name, last_name)
         `)
         .eq('student_id', studentId)
         .eq('term_id', termId);
 
       if (error) throw error;
       
-           return (data || []).map(fee => ({
+      // Then get term name separately
+      const { data: termData } = await supabase
+        .from('calendar_terms')
+        .select('name')
+        .eq('id', termId)
+        .single();
+
+      return (data || []).map(fee => ({
         id: fee.id,
         type: fee.fee_types?.name || 'Unknown',
         amount: fee.fee_types?.amount || 0,
         paid: fee.paid || 0,
         dueDate: fee.fee_types?.due_date || fee.due_date,
         status: fee.status || 'unpaid',
-        term: fee.calendar_terms?.name || 'Unknown Term',
+        term: termData?.name || 'Unknown Term',
         term_id: fee.term_id,
         paymentDate: fee.created_at,
         admin_id: fee.admin_id,
