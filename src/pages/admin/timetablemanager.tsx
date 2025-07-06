@@ -97,6 +97,7 @@ interface CalendarTerm {
   end_date: string;
   is_break: boolean;
   term_type: 'semester' | 'quarter' | 'trimester' | 'term' | 'break' | 'holiday';
+  is_current?: boolean;
 }
 
 interface Holiday {
@@ -854,9 +855,40 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       const calendarStart = dayjs(calendar.start_date);
       const calendarEnd = dayjs(calendar.end_date);
 
+      // Validate term is within calendar dates
       if (termStart.isBefore(calendarStart) || termEnd.isAfter(calendarEnd)) {
         message.error(`Term must be within calendar dates (${calendarStart.format('MMM D, YYYY')} - ${calendarEnd.format('MMM D, YYYY')})`);
         return;
+      }
+
+      // Check for overlapping terms (only for non-break terms)
+      if (!values.is_break) {
+        const { data: existingTerms } = await supabase
+          .from('calendar_terms')
+          .select('*')
+          .eq('calendar_id', selectedCalendar)
+          .neq('is_break', true);
+
+        if (existingTerms) {
+          const overlappingTerm = existingTerms.find(term => {
+            if (editingTerm && term.id === editingTerm.id) return false; // Skip current term when editing
+            
+            const existingStart = dayjs(term.start_date);
+            const existingEnd = dayjs(term.end_date);
+            
+            return (
+              (termStart.isAfter(existingStart) && termStart.isBefore(existingEnd)) ||
+              (termEnd.isAfter(existingStart) && termEnd.isBefore(existingEnd)) ||
+              (termStart.isBefore(existingStart) && termEnd.isAfter(existingEnd)) ||
+              termStart.isSame(existingStart) || termEnd.isSame(existingEnd)
+            );
+          });
+
+          if (overlappingTerm) {
+            message.error(`This term overlaps with "${overlappingTerm.name}" (${dayjs(overlappingTerm.start_date).format('MMM D')} - ${dayjs(overlappingTerm.end_date).format('MMM D')})`);
+            return;
+          }
+        }
       }
 
       const termData = {
@@ -866,8 +898,17 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
         end_date: termEnd.format('YYYY-MM-DD'),
         is_break: values.is_break,
         term_type: values.term_type,
-        calendar_id: selectedCalendar
+        calendar_id: selectedCalendar,
+        is_current: values.is_current
       };
+
+      // If this term is being set as current, first unset any other current terms
+      if (values.is_current) {
+        await supabase
+          .from('calendar_terms')
+          .update({ is_current: false })
+          .eq('calendar_id', selectedCalendar);
+      }
 
       if (editingTerm) {
         // Update existing term
@@ -897,6 +938,39 @@ const TimetableManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     } catch (error) {
       console.error('Error saving term:', error);
       message.error('Failed to save term');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setCurrentTerm = async (termId: number) => {
+    try {
+      setLoading(true);
+      
+      if (!selectedCalendar) {
+        message.error('No calendar selected');
+        return;
+      }
+
+      // First unset any other current terms
+      await supabase
+        .from('calendar_terms')
+        .update({ is_current: false })
+        .eq('calendar_id', selectedCalendar);
+
+      // Then set the selected term as current
+      const { error } = await supabase
+        .from('calendar_terms')
+        .update({ is_current: true })
+        .eq('id', termId);
+
+      if (error) throw error;
+      
+      message.success('Current term updated successfully');
+      fetchCalendarTerms(selectedCalendar);
+    } catch (error) {
+      console.error('Error setting current term:', error);
+      message.error('Failed to set current term');
     } finally {
       setLoading(false);
     }
@@ -2213,6 +2287,7 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
                             <Space>
                               <Text>{text}</Text>
                               {record.is_break && <Tag color="orange">Break</Tag>}
+                              {record.is_current && <Tag color="green">Current</Tag>}
                             </Space>
                           )
                         },
@@ -2240,6 +2315,15 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
                           key: 'actions',
                           render: (_: any, record: CalendarTerm) => (
                             <Space>
+                              {!record.is_current && !record.is_break && (
+                                <Button 
+                                  type="link"
+                                  onClick={() => setCurrentTerm(record.id)}
+                                  size="small"
+                                >
+                                  Set Current
+                                </Button>
+                              )}
                               <Button 
                                 icon={<EditOutlined />} 
                                 onClick={() => showTermModal(record)}
@@ -2921,108 +3005,124 @@ const responsiveColumns: ColumnType<TimetableEntry>[] = [
         footer={null}
         width={700}
       >
-        <Form form={termForm} layout="vertical" onFinish={handleTermSubmit}>
-          <Form.Item
-            name="name"
-            label="Term Name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input placeholder="e.g., Fall Semester, Winter Break, Spring Term" />
-          </Form.Item>
+      <Form form={termForm} layout="vertical" onFinish={handleTermSubmit}>
+        <Form.Item
+          name="name"
+          label="Term Name"
+          rules={[{ required: true, message: 'Please enter a name' }]}
+        >
+          <Input placeholder="e.g., Fall Semester, Winter Break, Spring Term" />
+        </Form.Item>
 
-          <Form.Item
-            name="term_type"
-            label="Term Type"
-            rules={[{ required: true, message: 'Please select a term type' }]}
-            initialValue="term"
-          >
-            <Select>
-              <Option value="semester">Semester</Option>
-              <Option value="quarter">Quarter</Option>
-              <Option value="trimester">Trimester</Option>
-              <Option value="term">Term</Option>
-              <Option value="break">Break</Option>
-              <Option value="holiday">Holiday</Option>
-            </Select>
-          </Form.Item>
+        <Form.Item
+          name="term_type"
+          label="Term Type"
+          rules={[{ required: true, message: 'Please select a term type' }]}
+          initialValue="term"
+        >
+          <Select>
+            <Option value="semester">Semester</Option>
+            <Option value="quarter">Quarter</Option>
+            <Option value="trimester">Trimester</Option>
+            <Option value="term">Term</Option>
+            <Option value="break">Break</Option>
+            <Option value="holiday">Holiday</Option>
+          </Select>
+        </Form.Item>
 
-          <Form.Item
-            name="description"
-            label="Description (Optional)"
-          >
-            <TextArea rows={3} placeholder="Enter term description..." />
-          </Form.Item>
+        <Form.Item
+          name="description"
+          label="Description (Optional)"
+        >
+          <TextArea rows={3} placeholder="Enter term description..." />
+        </Form.Item>
 
-          <Form.Item
-            name="date_range"
-            label="Date Range"
-            rules={[{ 
-              required: true, 
-              message: 'Please select a date range',
-              validator: (_, value) => {
-                if (!selectedCalendar) {
-                  return Promise.reject('Please select a calendar first');
-                }
-                const calendar = schoolCalendars.find(c => c.id === selectedCalendar);
-                if (!calendar) {
-                  return Promise.reject('Selected calendar not found');
-                }
-                if (!value || value.length < 2) {
-                  return Promise.reject('Please select a valid date range');
-                }
-                
-                const termStart = value[0];
-                const termEnd = value[1];
-                const calendarStart = dayjs(calendar.start_date);
-                const calendarEnd = dayjs(calendar.end_date);
-
-                if (termStart.isBefore(calendarStart)) {
-                  return Promise.reject(`Start date cannot be before calendar start (${calendarStart.format('MMM D, YYYY')})`);
-                }
-                if (termEnd.isAfter(calendarEnd)) {
-                  return Promise.reject(`End date cannot be after calendar end (${calendarEnd.format('MMM D, YYYY')})`);
-                }
-                return Promise.resolve();
+        <Form.Item
+          name="date_range"
+          label="Date Range"
+          rules={[{ 
+            required: true, 
+            message: 'Please select a date range',
+            validator: (_, value) => {
+              if (!selectedCalendar) {
+                return Promise.reject('Please select a calendar first');
               }
-            }]}
-          >
-            <DatePicker.RangePicker 
-              style={{ width: '100%' }} 
-              disabledDate={current => {
-                if (!selectedCalendar) return true;
-                const calendar = schoolCalendars.find(c => c.id === selectedCalendar);
-                if (!calendar) return true;
-                
-                const calendarStart = dayjs(calendar.start_date);
-                const calendarEnd = dayjs(calendar.end_date);
-                return current && (
-                  current.isBefore(calendarStart.startOf('day')) || 
-                  current.isAfter(calendarEnd.endOf('day'))
-                );
-              }}
-            />
-          </Form.Item>
+              const calendar = schoolCalendars.find(c => c.id === selectedCalendar);
+              if (!calendar) {
+                return Promise.reject('Selected calendar not found');
+              }
+              if (!value || value.length < 2) {
+                return Promise.reject('Please select a valid date range');
+              }
+              
+              const termStart = value[0];
+              const termEnd = value[1];
+              const calendarStart = dayjs(calendar.start_date);
+              const calendarEnd = dayjs(calendar.end_date);
 
-          <Form.Item
-            name="is_break"
-            label="Is Break?"
-            valuePropName="checked"
-            help="Mark this if the term represents a break period (holidays, vacations, etc.)"
-          >
-            <Switch />
-          </Form.Item>
+              if (termStart.isBefore(calendarStart)) {
+                return Promise.reject(`Start date cannot be before calendar start (${calendarStart.format('MMM D, YYYY')})`);
+              }
+              if (termEnd.isAfter(calendarEnd)) {
+                return Promise.reject(`End date cannot be after calendar end (${calendarEnd.format('MMM D, YYYY')})`);
+              }
+              return Promise.resolve();
+            }
+          }]}
+        >
+          <DatePicker.RangePicker 
+            style={{ width: '100%' }} 
+            disabledDate={current => {
+              if (!selectedCalendar) return true;
+              const calendar = schoolCalendars.find(c => c.id === selectedCalendar);
+              if (!calendar) return true;
+              
+              const calendarStart = dayjs(calendar.start_date);
+              const calendarEnd = dayjs(calendar.end_date);
+              return current && (
+                current.isBefore(calendarStart.startOf('day')) || 
+                current.isAfter(calendarEnd.endOf('day'))
+              );
+            }}
+          />
+        </Form.Item>
 
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                {editingTerm ? 'Update Term' : 'Create Term'}
-              </Button>
-              <Button onClick={() => termForm.resetFields()}>
-                Reset
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+        <Form.Item
+          name="is_break"
+          label="Is Break?"
+          valuePropName="checked"
+          help="Mark this if the term represents a break period (holidays, vacations, etc.)"
+        >
+          <Switch />
+        </Form.Item>
+
+        <Form.Item
+          noStyle
+          shouldUpdate={(prevValues, currentValues) => prevValues.is_break !== currentValues.is_break}
+        >
+          {({ getFieldValue }) => !getFieldValue('is_break') && (
+            <Form.Item
+              name="is_current"
+              label="Set as Current Term?"
+              valuePropName="checked"
+              help="Only one term can be current at a time. This will unset any other current term."
+            >
+              <Switch />
+            </Form.Item>
+          )}
+        </Form.Item>
+
+        <Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              {editingTerm ? 'Update Term' : 'Create Term'}
+            </Button>
+            <Button onClick={() => termForm.resetFields()}>
+              Reset
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
       </Modal>
 
       <Modal

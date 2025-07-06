@@ -30,7 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
   school: { id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null, address: null, contact: null },
-  currentTerm: null, // Add default value
+  currentTerm: null,
   loading: true,
   error: null,
   signIn: async () => {},
@@ -292,7 +292,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         userRole,
         school,
-        currentTerm, // Add currentTerm to the context
+        currentTerm,
         loading,
         error,
         signIn,
