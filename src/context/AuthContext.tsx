@@ -18,7 +18,7 @@ interface AuthContextType {
   user: any;
   userRole: string | null;
   school: SchoolInfo;
-  currentTerm: { id: number; name: string } | null; // Add currentTerm to the context
+  currentTerm: { id: number; name: string } | null;
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string, role: string) => Promise<void>;
@@ -86,23 +86,69 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchCurrentTerm = async (schoolId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('calendar_terms')
-        .select('id, name')
+      // 1. First try to get the active calendar for this school
+      const { data: activeCalendar, error: calendarError } = await supabase
+        .from('school_calendar')
+        .select('id')
         .eq('school_id', schoolId)
-        .lte('start_date', new Date().toISOString())
-        .gte('end_date', new Date().toISOString())
+        .eq('is_active', true)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (calendarError) throw calendarError;
+
+      // If no active calendar found, fallback to most recent calendar
+      let calendarId = activeCalendar?.id;
+      if (!calendarId) {
+        const { data: recentCalendar } = await supabase
+          .from('school_calendar')
+          .select('id')
+          .eq('school_id', schoolId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!recentCalendar?.id) {
+          console.log('No calendars found for school:', schoolId);
+          return null;
+        }
+        calendarId = recentCalendar.id;
+      }
+
+      // 2. Try to get the current term for this calendar
+      const { data: currentTerm, error: termError } = await supabase
+        .from('calendar_terms')
+        .select('id, name')
+        .eq('calendar_id', calendarId)
+        .eq('is_current', true)
+        .single();
+
+      if (termError) throw termError;
+
+      // If no current term found, fallback to most recent term
+      if (!currentTerm) {
+        const { data: recentTerm } = await supabase
+          .from('calendar_terms')
+          .select('id, name')
+          .eq('calendar_id', calendarId)
+          .lte('start_date', new Date().toISOString())
+          .order('start_date', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!recentTerm) {
+          console.log('No terms found for calendar:', calendarId);
+          return null;
+        }
+        return recentTerm;
+      }
+
+      return currentTerm;
     } catch (err) {
       console.error('Error fetching current term:', err);
       return null;
     }
   };
 
-  // In your initialization useEffect:
   useEffect(() => {
     const initializeAuth = async () => {
       try {
