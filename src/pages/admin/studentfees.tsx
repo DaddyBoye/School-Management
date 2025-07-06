@@ -152,8 +152,8 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
         const { data, error } = await supabase
           .from('calendar_terms')
           .select('id, name')
-          .eq('school_id', schoolId)
-          .order('start_date', { ascending: false }); // Most recent first
+          .eq('school_calendar.school_id', schoolId)
+          .order('start_date', { ascending: false });
 
         if (error) throw error;
         setAvailableTerms(data || []);
@@ -355,7 +355,7 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
           *,
           fee_types(name, amount, due_date),
           administrators!admin_id(first_name, last_name),
-          calendar_terms!term_id(name)
+          calendar_terms(name)
         `)
         .eq('student_id', studentId)
         .eq('term_id', termId);
