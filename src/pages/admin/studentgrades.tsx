@@ -8,12 +8,13 @@ import {
 } from '@ant-design/icons';
 import { Document, Page, PDFViewer, Text as PdfText, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
 import moment from 'moment';
 import { supabase } from '../../supabase';
 import { useAuth } from '@/context/AuthContext';
 
 // Initialize pdfjs worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -2172,7 +2173,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
           <Select
             className="w-full"
             placeholder="Select Term"
-            value={selectedTerm?.id || 'current'}
+            value={selectedTerm?.name || 'current'}
             onChange={(value) => {
               if (value === 'current') {
                 setSelectedTerm(currentTerm || null);
