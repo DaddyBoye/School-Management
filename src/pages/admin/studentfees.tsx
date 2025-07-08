@@ -362,27 +362,34 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
     }
   };
   
-  const fetchStudentFees = async (studentId: number, termId: number) => {
+  const fetchStudentFees = async (studentId: number, termId: number | null) => {
     try {
-      // First get the fees data
-      const { data, error } = await supabase
+      let query = supabase
         .from('student_fees')
         .select(`
           *,
           fee_types(name, amount, due_date),
           administrators!admin_id(first_name, last_name)
         `)
-        .eq('student_id', studentId)
-        .eq('term_id', termId);
+        .eq('student_id', studentId);
+
+      // Only add term filter if a specific term is selected
+      if (termId) {
+        query = query.eq('term_id', termId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
-      // Then get term name separately
-      const { data: termData } = await supabase
+      // Get term names for all fetched fees
+      const termIds = [...new Set(data?.map(fee => fee.term_id) || [])];
+      const { data: termsData } = await supabase
         .from('calendar_terms')
-        .select('name')
-        .eq('id', termId)
-        .single();
+        .select('id, name')
+        .in('id', termIds);
+
+      const termNameMap = new Map(termsData?.map(term => [term.id, term.name]) || new Map());
 
       return (data || []).map(fee => ({
         id: fee.id,
@@ -391,7 +398,7 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
         paid: fee.paid || 0,
         dueDate: fee.fee_types?.due_date || fee.due_date,
         status: fee.status || 'unpaid',
-        term: termData?.name || 'Unknown Term',
+        term: termNameMap.get(fee.term_id) || 'Unknown Term',
         term_id: fee.term_id,
         paymentDate: fee.created_at,
         admin_id: fee.admin_id,
@@ -1549,7 +1556,7 @@ const handlePaymentSubmit = async () => {
             <Select 
               style={{ width: 200 }} 
               placeholder="Filter by term"
-              value={selectedTerm?.id || 'all'}
+              value={selectedTerm?.name || 'all'}
               onChange={(value) => {
                 if (value === 'all') {
                   setSelectedTerm(null);
