@@ -89,12 +89,35 @@ interface DailyStats {
   Excused: number;
 }
 
+interface SchoolCalendar {
+  id: number;
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
+
+interface CalendarTerm {
+  id: number;
+  calendar_id: number;
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  is_break: boolean;
+  term_type: 'semester' | 'quarter' | 'trimester' | 'term' | 'break' | 'holiday';
+  is_current?: boolean;
+}
+
 const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
   // State
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [schoolCalendars, setSchoolCalendars] = useState<SchoolCalendar[]>([]);
+  const [calendarTerms, setCalendarTerms] = useState<CalendarTerm[]>([]);
   const [loading, setLoading] = useState({
     initial: true,
     data: false,
@@ -111,6 +134,8 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
   const [selectedStatus] = useState<AttendanceStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'detailed' | 'summary'>('summary');
+  const [selectedCalendar, setSelectedCalendar] = useState<number | null>(null);
+  const [filterTerm, setFilterTerm] = useState<number | null>(null);
 
   // Check connection and fetch initial data
   const checkConnectionAndFetchData = async () => {
@@ -142,16 +167,23 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
       setError(null);
 
       // Fetch all data in parallel
-      const [classesRes, teachersRes, studentsRes] = await Promise.all([
+      const [
+        classesRes, 
+        teachersRes, 
+        studentsRes,
+        calendarsRes
+      ] = await Promise.all([
         supabase.from('classes').select('*').eq('school_id', schoolId),
         supabase.from('teachers').select('user_id, first_name, last_name').eq('school_id', schoolId),
-        supabase.from('students').select('user_id, first_name, last_name, roll_no').eq('school_id', schoolId)
+        supabase.from('students').select('user_id, first_name, last_name, roll_no').eq('school_id', schoolId),
+        supabase.from('school_calendar').select('*').eq('school_id', schoolId).order('start_date', { ascending: true })
       ]);
 
       const errors = [
         classesRes.error && 'Failed to fetch classes',
         teachersRes.error && 'Failed to fetch teachers',
-        studentsRes.error && 'Failed to fetch students'
+        studentsRes.error && 'Failed to fetch students',
+        calendarsRes.error && 'Failed to fetch calendars'
       ].filter(Boolean);
 
       if (errors.length > 0) {
@@ -161,6 +193,13 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
       setClasses(classesRes.data || []);
       setTeachers(teachersRes.data || []);
       setStudents(studentsRes.data || []);
+      setSchoolCalendars(calendarsRes.data || []);
+
+      // Set the first active calendar as selected by default
+      const activeCalendar = calendarsRes.data?.find(c => c.is_active);
+      if (activeCalendar) {
+        setSelectedCalendar(activeCalendar.id);
+      }
 
       await fetchAttendanceRecords();
     } catch (err) {
@@ -174,6 +213,31 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
       setLoading(prev => ({ ...prev, initial: false }));
     }
   };
+
+  // Fetch calendar terms when calendar is selected
+  const fetchCalendarTerms = async (calendarId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('calendar_terms')
+        .select('*')
+        .eq('calendar_id', calendarId)
+        .order('start_date', { ascending: true });
+
+      if (error) throw error;
+      setCalendarTerms(data || []);
+    } catch (err) {
+      console.error('Error fetching calendar terms:', err);
+      setError('Failed to load calendar terms');
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCalendar) {
+      fetchCalendarTerms(selectedCalendar);
+    } else {
+      setCalendarTerms([]);
+    }
+  }, [selectedCalendar]);
 
   // Fetch attendance records
   const fetchAttendanceRecords = async () => {
@@ -219,14 +283,6 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
     }
   };
 
-  // Apply filters when they change
-  useEffect(() => {
-    if (!loading.initial) {
-      fetchAttendanceRecords();
-    }
-  }, [dateRange, selectedClass, selectedTeacher]);
-
-  // Handle date range button clicks
   const handleDateRangeButtonClick = (range: 'today' | 'week' | 'month') => {
     switch (range) {
       case 'today':
@@ -241,13 +297,34 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
       default:
         setDateRange(null);
     }
-  };
+};
+
+  // Apply filters when they change
+  useEffect(() => {
+    if (!loading.initial) {
+      fetchAttendanceRecords();
+    }
+  }, [dateRange, selectedClass, selectedTeacher]);
 
   // Filter data based on current filters and search
   const filteredData = useMemo(() => {
     return attendanceData.filter(record => {
       // Status filter
       if (selectedStatus && record.status !== selectedStatus) return false;
+      
+      // Term filter
+      if (filterTerm) {
+        const term = calendarTerms.find(t => t.id === filterTerm);
+        if (term) {
+          const recordDate = dayjs(record.date);
+          const termStart = dayjs(term.start_date);
+          const termEnd = dayjs(term.end_date);
+          
+          if (!recordDate.isBetween(termStart, termEnd, 'day', '[]')) {
+            return false;
+          }
+        }
+      }
       
       // Search filter
       if (searchQuery) {
@@ -264,7 +341,7 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
       
       return true;
     });
-  }, [attendanceData, selectedStatus, searchQuery, students]);
+  }, [attendanceData, selectedStatus, searchQuery, students, filterTerm, calendarTerms]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -520,6 +597,13 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
         yPosition += 6;
       } else {
         doc.text('Teacher: All teachers', 20, yPosition);
+        yPosition += 6;
+      }
+      
+      // Term filter
+      if (filterTerm) {
+        const term = calendarTerms.find(t => t.id === filterTerm);
+        doc.text(`Term: ${term ? term.name : filterTerm}`, 20, yPosition);
         yPosition += 6;
       }
       
@@ -923,6 +1007,46 @@ const AdminAttendanceViewer = ({ schoolId }: { schoolId: string }) => {
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={loading.data}
               allowClear
+            />
+          </div>
+        </div>
+
+        {/* Calendar and Term Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium mb-1">Academic Calendar</label>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Select Calendar"
+              allowClear
+              value={selectedCalendar}
+              onChange={(value) => {
+                setSelectedCalendar(value);
+                setFilterTerm(null); // Reset term when calendar changes
+              }}
+              loading={loading.initial}
+              disabled={loading.data}
+              options={schoolCalendars.map(calendar => ({
+                value: calendar.id,
+                label: `${calendar.name} (${dayjs(calendar.start_date).format('YYYY')})`
+              }))}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Term</label>
+            <Select
+              style={{ width: '100%' }}
+              placeholder={selectedCalendar ? "Select Term" : "Select a calendar first"}
+              allowClear
+              value={filterTerm}
+              onChange={setFilterTerm}
+              loading={loading.initial}
+              disabled={loading.data || !selectedCalendar}
+              options={calendarTerms.map(term => ({
+                value: term.id,
+                label: `${term.name} (${dayjs(term.start_date).format('MMM DD')} - ${dayjs(term.end_date).format('MMM DD')})`
+              }))}
             />
           </div>
         </div>
