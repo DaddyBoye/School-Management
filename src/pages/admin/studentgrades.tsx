@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
 
 interface StudentGradesProps {
   schoolId: string;
-  currentSemester?: string;
+  currentTerm: { id: number; name: string } | null; 
 }
 
 interface Class {
@@ -835,7 +835,7 @@ interface Holiday {
   date: string;
 }
 
-const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester }) => {
+const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) => {
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -843,7 +843,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [gradeScale, setGradeScale] = useState<GradeScale | null>(null);
-  const [selectedSemester, setSelectedSemester] = useState(currentSemester || moment().format('YYYY [Spring]'));
+  const [selectedTerm, setSelectedTerm] = useState(currentTerm || null);
   const [studentSubjectGrades, setStudentSubjectGrades] = useState<Record<string, Record<string, { score: number | null; letterGrade: string; subject: string; subjectCode: string }>>>({});
   const [comprehensiveStats, setComprehensiveStats] = useState<ComprehensiveStats | null>(null);
   const [classRankings, setClassRankings] = useState<{ student: Student; overallScore: number | null; overallLetterGrade: string; subjectCount: number; rank: number }[]>([]);
@@ -897,7 +897,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
     if (selectedClass) {
       fetchStudentsWithGrades();
     }
-  }, [selectedClass, selectedSubject, selectedSemester]);
+  }, [selectedClass, selectedSubject, selectedTerm]);
 
   const fetchSchoolCalendars = async () => {
     const { data, error } = await supabase
@@ -1026,7 +1026,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
         .from('grades')
         .select('*')
         .in('student_id', studentsData.map(s => s.user_id))
-        .eq('semester', selectedSemester);
+        .eq('semester', selectedTerm?.id);
   
       if (selectedSubject) {
         gradesQuery = gradesQuery.eq('subject_id', selectedSubject.id);
@@ -1138,7 +1138,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           .select('*')
           .in('student_id', studentsData.map(s => s.user_id))
           .eq('subject_id', subject.id)
-          .eq('semester', selectedSemester);
+          .eq('semester', selectedTerm?.id);
   
         studentsData.forEach(student => {
           const grades = subjectGrades?.filter(g => g.student_id === student.user_id) || [];
@@ -1520,20 +1520,21 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const StudentReportPdf = ({ 
     student, 
     selectedClass, 
+    selectedTerm,
     studentOverall, 
     subjectGrades,
     studentImageUrl  
   }: {
     student: any;
     selectedClass: any;
-    selectedSemester: string;
+    selectedTerm: { id: number; name: string } | null;
     studentOverall: any;
     subjectGrades: any;
     studentImageUrl: string | null;
     calendarTerms: CalendarTerm[];
     holidays: Holiday[];
   }) => {
-    const { currentTerm, vacationDate, reopenDate } = getCurrentTermAndVacationDates();
+    const { vacationDate, reopenDate } = getCurrentTermAndVacationDates();
     const { daysOpen, daysPresent } = calculateSchoolDays();
     const classSize = students.filter(s => s.class_id === student.class_id).length;
 
@@ -1611,7 +1612,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
               <View style={styles.studentInfoRight}>
                 <View style={styles.infoItem}>
                   <PdfText style={styles.infoLabel}>TERM:</PdfText>
-                  <PdfText style={styles.infoValue}>{currentTerm}</PdfText>
+                  <PdfText style={styles.infoValue}>{selectedTerm?.name || 'N/A'}</PdfText>
                 </View>
                 <View style={styles.infoItem}>
                   <PdfText style={styles.infoLabel}>GENDER:</PdfText>
@@ -1814,12 +1815,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
   const SubjectReportPdf = ({
     selectedClass,
     selectedSubject,
-    selectedSemester,
+    selectedTerm,
     students
   }: {
     selectedClass: Class | null;
     selectedSubject: Subject | null;
-    selectedSemester: string;
+    selectedTerm: { id: number; name: string } | null;
     students: Student[];
   }) => {
     const subjectAverage = students.reduce((sum, student) => sum + (student.totalScore || 0), 0) / 
@@ -1835,7 +1836,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
               {selectedClass?.name || 'N/A'} - {selectedSubject?.name || 'N/A'}
             </PdfText>
             <PdfText style={styles.subtitle}>
-              {selectedSemester}
+              {selectedTerm?.name}
             </PdfText>
             <PdfText style={styles.subtitle}>
               Generated on: {moment().format('MMMM Do YYYY')}
@@ -1923,12 +1924,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
 
   const ClassReportPdf = ({
     selectedClass,
-    selectedSemester,
+    selectedTerm,
     comprehensiveStats,
     classRankings
   }: {
     selectedClass: Class | null;
-    selectedSemester: string;
+    selectedTerm: { id: number; name: string } | null;
     comprehensiveStats: ComprehensiveStats | null;
     classRankings: { student: Student; overallScore: number | null; overallLetterGrade: string; subjectCount: number; rank: number }[];
   }) => {
@@ -1961,7 +1962,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           <View style={styles.header}>
             <PdfText style={styles.title}>Comprehensive Class Report</PdfText>
             <PdfText style={styles.subtitle}>
-              {selectedClass?.name} - {selectedSemester}
+              {selectedClass?.name} - {selectedTerm?.name || 'N/A'}
             </PdfText>
             <PdfText style={styles.subtitle}>
               Generated on: {moment().format('MMMM Do YYYY')}
@@ -2108,12 +2109,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 document={
                   <ClassReportPdf
                     selectedClass={selectedClass}
-                    selectedSemester={selectedSemester}
+                    selectedTerm={selectedTerm}
                     comprehensiveStats={comprehensiveStats}
                     classRankings={classRankings}
                   />
                 } 
-                fileName={`Class_Report_${selectedClass?.name}_${selectedSemester}.pdf`}
+                fileName={`Class_Report_${selectedClass?.name}_${selectedTerm?.name.replace(/\s+/g,'_')}.pdf`}
               >
                 {({ loading }) => (
                   <Button 
@@ -2168,20 +2169,28 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             </Select>
           </Col>
           <Col xs={24} sm={12} md={8} lg={6}>
-            <Select
-              className="w-full"
-              placeholder="Select Semester"
-              value={selectedSemester}
-              onChange={(value) => {
-                setSelectedSemester(value);
-                setStudents([]);
-              }}
-            >
-              <Option value={`${moment().year()} Spring`}>Spring {moment().year()}</Option>
-              <Option value={`${moment().year()} Fall`}>Fall {moment().year()}</Option>
-              <Option value={`${moment().year() - 1} Spring`}>Spring {moment().year() - 1}</Option>
-              <Option value={`${moment().year() - 1} Fall`}>Fall {moment().year() - 1}</Option>
-            </Select>
+          <Select
+            className="w-full"
+            placeholder="Select Term"
+            value={selectedTerm?.id || 'current'}
+            onChange={(value) => {
+              if (value === 'current') {
+                setSelectedTerm(currentTerm || null);
+              } else {
+                const term = calendarTerms.find(t => t.id.toString() === value);
+                if (term) setSelectedTerm(term);
+              }
+            }}
+          >
+            <Option key="current" value="current">
+              Current Term
+            </Option>
+            {calendarTerms.map(term => (
+              <Option key={term.id} value={term.id.toString()}>
+                {term.name}
+              </Option>
+            ))}
+          </Select>
           </Col>
           <Col xs={24} sm={12} md={8} lg={6}>
             {selectedSubject ? (
@@ -2190,11 +2199,11 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                   <SubjectReportPdf
                     selectedClass={selectedClass}
                     selectedSubject={selectedSubject}
-                    selectedSemester={selectedSemester}
+                    selectedTerm={selectedTerm}
                     students={students}
                   />
                 } 
-                fileName={`Subject_Report_${selectedClass?.name}_${selectedSubject?.code}_${selectedSemester}.pdf`}
+                fileName={`Subject_Report_${selectedClass?.name}_${selectedSubject?.code}_${selectedTerm?.name}.pdf`}
               >
                 {({ loading }) => (
                   <Button 
@@ -2212,12 +2221,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 document={
                   <ClassReportPdf
                     selectedClass={selectedClass}
-                    selectedSemester={selectedSemester}
+                    selectedTerm={selectedTerm}
                     comprehensiveStats={comprehensiveStats}
                     classRankings={classRankings}
                   />
                 } 
-                fileName={`Class_Report_${selectedClass?.name}_${selectedSemester}.pdf`}
+                fileName={`Class_Report_${selectedClass?.name}_${selectedTerm?.name}.pdf`}
               >
                 {({ loading }) => (
                   <Button 
@@ -2268,7 +2277,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
           <PDFViewer width="100%" height="100%">
             <ClassReportPdf
               selectedClass={selectedClass}
-              selectedSemester={selectedSemester}
+              selectedTerm={selectedTerm}
               comprehensiveStats={comprehensiveStats}
               classRankings={classRankings}
             />
@@ -2279,12 +2288,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
               document={
                 <ClassReportPdf
                   selectedClass={selectedClass}
-                  selectedSemester={selectedSemester}
+                  selectedTerm={selectedTerm}
                   comprehensiveStats={comprehensiveStats}
                   classRankings={classRankings}
                 />
               } 
-              fileName={`Class_Report_${selectedClass?.name}_${selectedSemester}.pdf`}
+              fileName={`Class_Report_${selectedClass?.name}_${selectedTerm?.name}.pdf`}
             >
               {({ loading }) => (
                 <Button 
@@ -2313,7 +2322,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
             <SubjectReportPdf
               selectedClass={selectedClass}
               selectedSubject={selectedSubject}
-              selectedSemester={selectedSemester}
+              selectedTerm={selectedTerm}
               students={students}
             />
           </PDFViewer>
@@ -2324,11 +2333,11 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 <SubjectReportPdf
                   selectedClass={selectedClass}
                   selectedSubject={selectedSubject}
-                  selectedSemester={selectedSemester}
+                  selectedTerm={selectedTerm}
                   students={students}
                 />
               } 
-              fileName={`Subject_Report_${selectedClass?.name}_${selectedSubject?.code || 'All'}_${selectedSemester}.pdf`}
+              fileName={`Subject_Report_${selectedClass?.name}_${selectedSubject?.code || 'All'}_${selectedTerm?.name}.pdf`}
             >
               {({ loading }) => (
                 <Button 
@@ -2359,7 +2368,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                 <StudentReportPdf 
                   student={selectedStudent}
                   selectedClass={selectedClass}
-                  selectedSemester={selectedSemester}
+                  selectedTerm={selectedTerm}
                   studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
                   subjectGrades={studentSubjectGrades[selectedStudent.id] || {}}
                   studentImageUrl={selectedStudent.image_url}
@@ -2374,7 +2383,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                     <StudentReportPdf 
                       student={selectedStudent}
                       selectedClass={selectedClass}
-                      selectedSemester={selectedSemester}
+                      selectedTerm={selectedTerm}
                       studentOverall={comprehensiveStats?.studentOverallScores[selectedStudent.id] || {}}
                       subjectGrades={studentSubjectGrades[selectedStudent.id] || {}} 
                       studentImageUrl={selectedStudent.image_url}
@@ -2382,7 +2391,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentSemester
                       holidays={holidays}              
                     />
                   } 
-                  fileName={`Student_Report_${selectedStudent.first_name}_${selectedStudent.last_name}_${selectedSemester}.pdf`}
+                  fileName={`Student_Report_${selectedStudent.first_name}_${selectedStudent.last_name}_${selectedTerm?.name}.pdf`}
                 >
                   {({ loading }) => (
                     <Button 
