@@ -151,12 +151,27 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
       try {
         const { data, error } = await supabase
           .from('calendar_terms')
-          .select('id, name, school_calendar!inner(school_id)')
+          .select(`
+            id,
+            name,
+            start_date,
+            end_date,
+            is_current,
+            school_calendar!calendar_terms_calendar_id_fkey(school_id)
+          `)
           .eq('school_calendar.school_id', schoolId)
           .order('start_date', { ascending: false });
 
         if (error) throw error;
-        setAvailableTerms(data || []);
+        
+        // Map the data to include only the fields we need
+        const terms = (data || []).map(term => ({
+          id: term.id,
+          name: term.name,
+        }));
+        
+        setAvailableTerms(terms);
+
       } catch (error) {
         console.error('Error fetching available terms:', error);
         message.error('Failed to fetch available terms');
