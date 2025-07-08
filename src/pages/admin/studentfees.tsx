@@ -151,7 +151,7 @@ const StudentFeeManagementPage: React.FC<StudentFeeManagementPageProps> = ({ sch
       try {
         const { data, error } = await supabase
           .from('calendar_terms')
-          .select('id, name')
+          .select('id, name, school_calendar!inner(school_id)')
           .eq('school_calendar.school_id', schoolId)
           .order('start_date', { ascending: false });
 
