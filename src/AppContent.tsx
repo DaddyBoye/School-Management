@@ -208,7 +208,7 @@ const AppContent = () => {
                 path="/feemanager"
                 element={
                   <ProtectedRoute roles={['admin']}>
-                    <FeeManager schoolId={schoolId}/>
+                    <FeeManager schoolId={schoolId} currentTerm={currentTerm}/>
                   </ProtectedRoute>
                 }
                 />

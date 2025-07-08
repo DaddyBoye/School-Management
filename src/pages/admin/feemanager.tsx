@@ -47,7 +47,7 @@ interface FeeType {
       class_id: string;
       amount: number;
     }[];
-    applicable_classes?: string[]; // Changed to string array
+    applicable_classes?: string[];
     is_class_specific: boolean;
     school_id: string;
 }
@@ -59,12 +59,10 @@ interface Collector {
   email?: string;
 }
 
-interface Semester {
-  id: number;
-  name: string;
-  start_date: string;
-  end_date: string;
-  is_current: boolean;
+interface Class {
+    id: string;
+    name: string;
+    grade: string;
 }
 
 interface FeeCollectionStat {
@@ -76,33 +74,20 @@ interface FeeCollectionStat {
   };
 }
 
-interface Class {
-    id: string;
-    name: string;
-    grade: string;
-}
-
 type SupabaseError = {
     message: string;
     code: string;
     details?: string;
   };
   
-  function isSupabaseError(error: unknown): error is SupabaseError {
-    return typeof error === 'object' && error !== null && 'message' in error;
-  }
+function isSupabaseError(error: unknown): error is SupabaseError {
+  return typeof error === 'object' && error !== null && 'message' in error;
+}
 
-const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) => {
+const FeeManagementController: React.FC<{ schoolId: string; currentTerm: { id: number; name: string; } | null; }> = ({ schoolId, currentTerm }) => {
   // State management
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
   const [collectors, setCollectors] = useState<Collector[]>([]);
-  const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [currentSemester, setCurrentSemester] = useState<Semester | null>(null);
-  const [isFeeModalVisible, setIsFeeModalVisible] = useState(false);
-  const [isSemesterModalVisible, setIsSemesterModalVisible] = useState(false);
-  const [currentFee, setCurrentFee] = useState<FeeType | null>(null);
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
-  const [classPrices, setClassPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>([]);
   const [collectionStats, setCollectionStats] = useState<FeeCollectionStat[]>([]);
@@ -113,7 +98,10 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
 
   // Form states
   const [feeForm] = Form.useForm();
-  const [semesterForm] = Form.useForm();
+  const [isFeeModalVisible, setIsFeeModalVisible] = useState(false);
+  const [currentFee, setCurrentFee] = useState<FeeType | null>(null);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [classPrices, setClassPrices] = useState<Record<string, number>>({});
 
   // Add to initial data fetch
   useEffect(() => {
@@ -123,8 +111,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
         await Promise.all([
           fetchFeeTypes(),
           fetchCollectors(),
-          fetchSemesters(),
-          fetchClasses() // Add this
+          fetchClasses()
         ]);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -136,22 +123,13 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
     fetchData();
   }, [schoolId]);
 
-  // Set current semester when semesters load
-  useEffect(() => {
-    if (semesters.length > 0) {
-      const current = semesters.find(s => s.is_current) || semesters[0];
-      setCurrentSemester(current);
-    }
-  }, [semesters]);
-
-
   useEffect(() => {
     if (currentFee) {
       const classes = currentFee.applicable_classes || [];
       const prices = (currentFee.class_specific_pricing || []).reduce((acc, item) => {
-        acc[Number(item.class_id)] = item.amount;
+        acc[item.class_id] = item.amount;
         return acc;
-      }, {} as Record<number, number>);
+      }, {} as Record<string, number>);
       setSelectedClasses(classes);
       setClassPrices(prices);
     }
@@ -189,7 +167,7 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
             class_specific_pricing: pricing || []
           };
         })
-    );
+      );
   
       setFeeTypes(feesWithPricing);
     } catch (error) {
@@ -250,23 +228,6 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
     } catch (error) {
       console.error('Error fetching collectors:', error);
       message.error('Failed to fetch collectors');
-    }
-  };
-
-  // Fetch semesters
-  const fetchSemesters = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('semesters')
-        .select('*')
-        .eq('school_id', schoolId)
-        .order('start_date', { ascending: false });
-
-      if (error) throw error;
-      setSemesters(data || []);
-    } catch (error) {
-      console.error('Error fetching semesters:', error);
-      message.error('Failed to fetch semesters');
     }
   };
 
@@ -448,65 +409,6 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
     setIsFeeModalVisible(true);
   };
 
-  const handleSemesterSubmit = async () => {
-    try {
-      const values = await semesterForm.validateFields();
-      values.start_date = values.date_range[0].format('YYYY-MM-DD');
-      values.end_date = values.date_range[1].format('YYYY-MM-DD');
-      delete values.date_range;
-
-      if (values.is_current) {
-        // First unset current flag from all other semesters
-        await supabase
-          .from('semesters')
-          .update({ is_current: false })
-          .eq('school_id', schoolId);
-      }
-
-      const { data, error } = await supabase
-        .from('semesters')
-        .insert([{ ...values, school_id: schoolId }])
-        .select();
-
-      if (error) throw error;
-      message.success('Semester created successfully');
-      setSemesters([data[0], ...semesters]);
-      setIsSemesterModalVisible(false);
-      semesterForm.resetFields();
-    } catch (error) {
-      console.error('Error creating semester:', error);
-      message.error('Failed to create semester');
-    }
-  };
-
-  // Set current semester
-  const setAsCurrentSemester = async (semesterId: number) => {
-    try {
-      // First unset current flag from all semesters
-      await supabase
-        .from('semesters')
-        .update({ is_current: false })
-        .eq('school_id', schoolId);
-
-      // Then set the selected semester as current
-      const { data, error } = await supabase
-        .from('semesters')
-        .update({ is_current: true })
-        .eq('id', semesterId)
-        .select();
-
-      if (error) throw error;
-      message.success('Current semester updated');
-      setSemesters(semesters.map(s => 
-        s.id === semesterId ? { ...s, is_current: true } : { ...s, is_current: false }
-      ));
-      setCurrentSemester(data[0]);
-    } catch (error) {
-      console.error('Error updating current semester:', error);
-      message.error('Failed to update current semester');
-    }
-  };
-
   // Toggle fee active status
   const toggleFeeStatus = async (feeId: string, currentStatus: boolean) => {
     try {
@@ -577,7 +479,6 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
       fetchCollectionStats(dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD'));
     }
   };
-
 
   // Columns for fee types table
   const feeColumns = [
@@ -703,54 +604,6 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
     }
   ];
 
-  // Columns for semesters table
-  const semesterColumns = [
-    {
-      title: 'Semester Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: Semester) => (
-        <div>
-          <Text strong>{text}</Text>
-          {record.is_current && (
-            <Tag color="green" style={{ marginLeft: 8 }}>Current</Tag>
-          )}
-        </div>
-      )
-    },
-    {
-      title: 'Date Range',
-      key: 'date_range',
-      render: (_: any, record: Semester) => (
-        <Text>
-          {dayjs(record.start_date).format('MMM DD, YYYY')} - {dayjs(record.end_date).format('MMM DD, YYYY')}
-        </Text>
-      )
-    },
-    {
-      title: 'Duration',
-      key: 'duration',
-      render: (_: any, record: Semester) => (
-        <Text>
-          {dayjs(record.end_date).diff(dayjs(record.start_date), 'days')} days
-        </Text>
-      )
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: Semester) => (
-        <Button 
-          type="primary" 
-          disabled={record.is_current}
-          onClick={() => setAsCurrentSemester(record.id)}
-        >
-          Set as Current
-        </Button>
-      )
-    }
-  ];
-
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -785,29 +638,6 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
               columns={feeColumns} 
               rowKey="id"
               pagination={{ pageSize: 10 }}
-            />
-          </Card>
-        </TabPane>
-
-        <TabPane tab="Semesters" key="semesters">
-          <Card
-            title="Manage Academic Semesters"
-            extra={
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                onClick={() => setIsSemesterModalVisible(true)}
-              >
-                Add Semester
-              </Button>
-            }
-            className="mb-4"
-          >
-            <Table 
-              dataSource={semesters} 
-              columns={semesterColumns} 
-              rowKey="id"
-              pagination={{ pageSize: 5 }}
             />
           </Card>
         </TabPane>
@@ -855,8 +685,8 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
               <Col xs={24} sm={12} md={6}>
                 <Card>
                   <Statistic
-                    title="Current Semester"
-                    value={currentSemester?.name || 'None'}
+                    title="Current Term"
+                    value={currentTerm?.name || 'None'}
                   />
                 </Card>
               </Col>
@@ -1013,44 +843,6 @@ const FeeManagementController: React.FC<{ schoolId: string }> = ({ schoolId }) =
             )
             }
         </Form.Item>  
-        </Form>
-      </Modal>
-
-      {/* Semester Modal */}
-      <Modal
-        title="Create New Semester"
-        visible={isSemesterModalVisible}
-        onCancel={() => setIsSemesterModalVisible(false)}
-        onOk={handleSemesterSubmit}
-        width={600}
-      >
-        <Form form={semesterForm} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Semester Name"
-            rules={[{ required: true, message: 'Please enter semester name' }]}
-          >
-            <Input placeholder="e.g. Fall 2023, Spring 2024" />
-          </Form.Item>
-
-          <Form.Item
-            name="date_range"
-            label="Date Range"
-            rules={[{ required: true, message: 'Please select date range' }]}
-          >
-            <RangePicker style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item
-            name="is_current"
-            label="Set as Current Semester?"
-            valuePropName="checked"
-          >
-            <Select>
-              <Option value={true}>Yes</Option>
-              <Option value={false}>No</Option>
-            </Select>
-          </Form.Item>
         </Form>
       </Modal>
     </div>
