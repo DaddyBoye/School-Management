@@ -1764,7 +1764,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                     {viewMode === 'myClass' && (
                       <button 
                         onClick={() => setExpandedSubjects(!expandedSubjects)}
-                        className="text-sm flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                        className="text-sm flex items-center gap-1 bg-transparent text-blue-600 hover:text-blue-800"
                       >
                         {expandedSubjects ? (
                           <>
@@ -1938,7 +1938,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                                     setSelectedStudentForReport(student);
                                     setShowStudentReportModal(true);
                                   }}
-                                  className="text-blue-500 hover:text-blue-700 flex items-center gap-1 text-sm ml-auto"
+                                  className="text-blue-500 bg-transparent hover:text-blue-700 flex items-center gap-1 text-sm ml-auto"
                                 >
                                   <FileText className="w-4 h-4" />
                                   Report
