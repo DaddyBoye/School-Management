@@ -833,57 +833,45 @@ const categoriesForSelectedSubject = gradeCategories.filter(
         {/* Control panel */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
-          {/* Modern Term Selector with Badge */}
-          <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Academic Term
-            </label>
+        {/* Compact Term Selector */}
+        <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
+          <label className="block text-sm font-medium text-gray-600 mb-1">Term</label>
+          <div className="relative">
+            <select
+              className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
+                        border border-gray-300 hover:border-gray-400 
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                        transition-colors duration-200 text-sm
+                        disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              value={selectedTerm || ''}
+              onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
+              disabled={availableTerms.length === 0}
+            >
+              <option value="">Select Term</option>
+              {availableTerms.map(term => (
+                <option key={term.id} value={term.id}>
+                  {term.name} • {dayjs(term.start_date).format('MMM D')}-{dayjs(term.end_date).format('MMM D')}
+                  {term.is_current && ' ✓'}
+                </option>
+              ))}
+            </select>
             
-            <div className="relative group">
-              <select
-                className="w-full appearance-none bg-gradient-to-r from-white to-gray-50 
-                          rounded-xl px-4 py-3.5 pr-12 border-2 border-gray-200 
-                          hover:border-blue-300 hover:shadow-md focus:outline-none 
-                          focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-                          focus:bg-white transition-all duration-300 cursor-pointer
-                          disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50
-                          text-gray-700 font-medium shadow-sm"
-                value={selectedTerm || ''}
-                onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
-                disabled={availableTerms.length === 0}
-              >
-                <option value="" className="text-gray-400">Choose your term...</option>
-                {availableTerms.map(term => (
-                  <option key={term.id} value={term.id} className="py-2 font-medium">
-                    {term.name} • {dayjs(term.start_date).format('MMM D')} - {dayjs(term.end_date).format('MMM D')}
-                    {term.is_current && ' ✓'}
-                  </option>
-                ))}
-              </select>
-              
-              {/* Animated dropdown arrow */}
-              <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" 
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+            {/* Compact dropdown arrow */}
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
-            
-            {/* Current term badge */}
-            {selectedTerm && availableTerms.find(t => t.id === selectedTerm)?.is_current && (
-              <div className="mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold 
-                              bg-green-100 text-green-800 border border-green-200">
-                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                Active Term
-              </div>
-            )}
-            
-            {/* Empty state helper */}
-            {availableTerms.length === 0 && (
-              <p className="mt-2 text-sm text-gray-500 italic">No terms available</p>
-            )}
           </div>
+          
+          {/* Subtle current term indicator */}
+          {selectedTerm && availableTerms.find(t => t.id === selectedTerm)?.is_current && (
+            <div className="mt-1 text-xs text-green-600 flex items-center">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
+              Current
+            </div>
+          )}
+        </div>
 
             {/* Class Selector (only for Subjects Taught view) */}
             {viewMode === 'subjectsTaught' && (
