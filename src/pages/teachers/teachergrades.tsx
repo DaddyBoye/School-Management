@@ -841,7 +841,7 @@ const categoriesForSelectedSubject = gradeCategories.filter(
               className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
                         border border-gray-300 hover:border-gray-400 
                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                        transition-colors duration-200 text-sm
+                        transition-colors duration-200
                         disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               value={selectedTerm || ''}
               onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
@@ -864,13 +864,16 @@ const categoriesForSelectedSubject = gradeCategories.filter(
             </div>
           </div>
           
-          {/* Subtle current term indicator */}
-          {selectedTerm && availableTerms.find(t => t.id === selectedTerm)?.is_current && (
-            <div className="mt-1 text-xs text-green-600 flex items-center">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
-              Current
-            </div>
-          )}
+          {/* Current term indicator on same line */}
+          <div className="flex items-center justify-between mt-1">
+            <div></div>
+            {selectedTerm && availableTerms.find(t => t.id === selectedTerm)?.is_current && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
+                Current Term
+              </span>
+            )}
+          </div>
         </div>
 
             {/* Class Selector (only for Subjects Taught view) */}
