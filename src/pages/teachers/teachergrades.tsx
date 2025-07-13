@@ -18,6 +18,7 @@ import {
   X,
   MessageSquare
 } from 'lucide-react';
+import dayjs from 'dayjs';
 
 interface Grade {
   id?: string;
@@ -27,7 +28,7 @@ interface Grade {
   max_score: number;
   category_id: string;
   teacher_id: string;
-  semester: string;
+  term_id: number;
   comments?: string;
   date_given: string;
 }
@@ -64,13 +65,13 @@ interface Class {
 interface TeacherGradesManagementProps {
   teacherId: string;
   schoolId: string;
-  currentSemester?: string;
+  currentTerm: { id: number; name: string } | null;
 }
 
 const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({ 
   teacherId, 
   schoolId,
-  currentSemester = new Date().getFullYear() + ' Spring'
+  currentTerm
 }) => {
   // View state
   const [viewMode, setViewMode] = useState<'myClass' | 'subjectsTaught'>('myClass');
@@ -87,7 +88,8 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   // Selection state
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>('');
-  const [selectedSemester, setSelectedSemester] = useState(currentSemester);
+  const [selectedTerm, setSelectedTerm] = useState(currentTerm?.id || null);
+  const [availableTerms, setAvailableTerms] = useState<Array<{ id: number; name: string; is_current: boolean; start_date: string; end_date: string; }>>([]);
   
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -202,6 +204,51 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
       fetchTeacherData();
     }
   }, [teacherId, schoolId, viewMode]);
+
+  useEffect(() => {
+    const fetchAvailableTerms = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('calendar_terms')
+          .select(`
+            id,
+            name,
+            start_date,
+            end_date,
+            is_current,
+            school_calendar!calendar_terms_calendar_id_fkey(school_id)
+          `)
+          .eq('school_calendar.school_id', schoolId)
+          .order('start_date', { ascending: false });
+
+        if (error) throw error;
+        
+        const terms = (data || []).map(term => ({
+          id: term.id,
+          name: term.name,
+          start_date: term.start_date,
+          end_date: term.end_date,
+          is_current: term.is_current
+        }));
+        
+        setAvailableTerms(terms);
+
+        // Set current term if available
+        const currentTerm = terms.find(t => t.is_current);
+        if (currentTerm) {
+          setSelectedTerm(currentTerm.id);
+        }
+
+      } catch (error) {
+        console.error('Error fetching available terms:', error);
+        showNotification('Failed to fetch available terms', 'error');
+      }
+    };
+
+    if (schoolId) {
+      fetchAvailableTerms();
+    }
+  }, [schoolId]);
 
   const fetchAllClassSubjects = async (classId: string) => {
     try {
@@ -339,7 +386,7 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
           .from('grades')
           .select('*')
           .in('subject_id', subjectIds)
-          .eq('semester', selectedSemester)
+          .eq('term_id', selectedTerm)
           .eq('teacher_id', teacherId);
 
         if (gradesError) throw gradesError;
@@ -354,7 +401,7 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     };
 
     fetchGrades();
-  }, [viewMode, assignedClass, selectedSubject, selectedSemester, teacherSubjects, teacherId]);
+  }, [viewMode, assignedClass, selectedSubject, selectedTerm, teacherSubjects, teacherId]);
 
   // Helper functions
   const toggleSubject = (subjectId: string) => {
@@ -571,16 +618,16 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     
     // Find the category to get its weight
     const category = gradeCategories.find(cat => cat.id === categoryId);
-    const categoryWeight = category?.weight || 100; // Fallback to 100 if weight not found
+    const categoryWeight = category?.weight || 100;
     
     setNewGrade({
       student_id: studentId,
       subject_id: selectedSubject,
       category_id: categoryId,
       teacher_id: teacherId,
-      semester: selectedSemester,
-      score: 0,  // Start with 0 score
-      max_score: categoryWeight,  // Use category weight as max_score
+      term_id: selectedTerm ?? undefined,
+      score: 0,
+      max_score: categoryWeight,
       date_given: new Date().toISOString()
     });
   };
@@ -636,7 +683,8 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
             ...newGrade,
             score: newGrade.score || 0,
             max_score: newGrade.max_score || 100,
-            date_given: newGrade.date_given || new Date().toISOString()
+            date_given: newGrade.date_given || new Date().toISOString(),
+            term_id: selectedTerm
           })
           .select();
 
@@ -788,19 +836,23 @@ const categoriesForSelectedSubject = gradeCategories.filter(
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
             {/* Semester Selector */}
-            <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-500 mb-1">Semester</label>
-              <select
-                className="w-full bg-white rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={selectedSemester}
-                onChange={(e) => setSelectedSemester(e.target.value)}
-              >
-                <option value={`${new Date().getFullYear()} Spring`}>Spring {new Date().getFullYear()}</option>
-                <option value={`${new Date().getFullYear()} Fall`}>Fall {new Date().getFullYear()}</option>
-                <option value={`${new Date().getFullYear() - 1} Spring`}>Spring {new Date().getFullYear() - 1}</option>
-                <option value={`${new Date().getFullYear() - 1} Fall`}>Fall {new Date().getFullYear() - 1}</option>
-              </select>
-            </div>
+              <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
+                <label className="block text-sm font-medium text-gray-500 mb-1">Term</label>
+                <select
+                  className="w-full bg-white rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedTerm || ''}
+                  onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
+                  disabled={availableTerms.length === 0}
+                >
+                  <option value="">Select Term</option>
+                  {availableTerms.map(term => (
+                    <option key={term.id} value={term.id}>
+                      {term.name} ({dayjs(term.start_date).format('MMM D')} - {dayjs(term.end_date).format('MMM D')})
+                      {term.is_current && ' (Current)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
             {/* Class Selector (only for Subjects Taught view) */}
             {viewMode === 'subjectsTaught' && (

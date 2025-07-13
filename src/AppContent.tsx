@@ -254,6 +254,7 @@ const AppContent = () => {
                     <TeacherGrades 
                       teacherId={user?.id || ''} 
                       schoolId={schoolId}
+                      currentTerm={currentTerm}
                     />
                   </ProtectedRoute>
                 }
