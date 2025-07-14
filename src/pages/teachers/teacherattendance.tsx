@@ -1517,17 +1517,23 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* Calendar and Term Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Calendar</label>
+              {/* Academic Calendar Selector */}
+              <div className="space-y-2">
+                <label htmlFor="academic-calendar" className="block text-sm font-medium text-gray-700">Academic Calendar</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                   <select
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="academic-calendar"
+                    className="w-full bg-white rounded-lg pl-10 pr-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
                     value={selectedCalendar || ''}
                     onChange={(e) => {
                       const value = e.target.value ? parseInt(e.target.value) : null;
                       setSelectedCalendar(value);
-                      setFilterTerm(null); // Reset term when calendar changes
+                      setFilterTerm(null);
                     }}
                     disabled={loading.attendance}
                   >
@@ -1538,12 +1544,26 @@ useEffect(() => {
                       </option>
                     ))}
                   </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
+              </div>
+
+              {/* Term Selector */}
+              <div className="space-y-2">
+                <label htmlFor="term-selector" className="block text-sm font-medium text-gray-700">Term</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                   <select
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="term-selector"
+                    className="w-full bg-white rounded-lg pl-10 pr-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
                     value={filterTerm || ''}
                     onChange={(e) => setFilterTerm(e.target.value ? parseInt(e.target.value) : null)}
                     disabled={loading.attendance || !selectedCalendar}
@@ -1555,9 +1575,13 @@ useEffect(() => {
                       </option>
                     ))}
                   </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-
               {/* Time Range Selector */}
               <div className="space-y-2">
                 <label htmlFor="time-range" className="block text-sm font-medium text-gray-700">View Range</label>
