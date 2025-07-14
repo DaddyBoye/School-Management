@@ -465,7 +465,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         // Set current term if available
         const currentTerm = terms.find(t => t.is_current);
         if (currentTerm) {
-          setSelectedTerm(currentTerm.id);
+          setSelectedTerm(currentTerm);
         }
 
       } catch (error) {
