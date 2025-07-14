@@ -1305,18 +1305,13 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
     return { currentTerm, vacationDate, reopenDate };
   };
 
-  const calculateSchoolDays = () => {
-    if (!calendarTerms.length || !holidays.length) return { daysOpen: 0, daysPresent: 0 };
+  const calculateSchoolDays = (term: CalendarTerm | undefined) => {
+    if (!term) return { daysOpen: 0, daysElapsed: 0 };
     
-    const { currentTerm } = getCurrentTermAndVacationDates();
-    const term = calendarTerms.find(t => t.name === currentTerm && !t.is_break);
-    
-    if (!term) return { daysOpen: 0, daysPresent: 0 };
-    
+    const now = moment();
     const startDate = moment(term.start_date);
-    const endDate = moment(term.end_date);
+    const endDate = moment.min(moment(term.end_date), now); // Use current date or term end date, whichever is earlier
     
-    // Calculate total days in term (excluding weekends)
     let totalDays = 0;
     let currentDate = startDate.clone();
     
@@ -1327,7 +1322,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       currentDate.add(1, 'day');
     }
     
-    // Subtract holidays
+    // Subtract holidays that fall on weekdays
     const termHolidays = holidays.filter(h => 
       moment(h.date).isSameOrAfter(startDate) && 
       moment(h.date).isSameOrBefore(endDate) &&
@@ -1335,12 +1330,28 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       moment(h.date).day() !== 6
     );
     
-    const daysOpen = totalDays - termHolidays.length;
-    
-    // For demo purposes, assume 95% attendance
-    const daysPresent = Math.round(daysOpen * 0.95);
-    
-    return { daysOpen, daysPresent };
+    return {
+      daysOpen: totalDays - termHolidays.length,
+      daysElapsed: totalDays - termHolidays.length // Since we're using current date as end date
+    };
+  };
+
+  const fetchAttendanceRecords = async (studentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('school_id', schoolId)
+        .eq('status', 'present') // Only count present days
+        .order('date', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      return [];
+    }
   };
 
   const logoUrl = school?.logo_url || null;
@@ -1553,8 +1564,30 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
     calendarTerms: CalendarTerm[];
     holidays: Holiday[];
   }) => {
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+
+    useEffect(() => {
+      const loadAttendance = async () => {
+        const records = await fetchAttendanceRecords(student.user_id);
+        setAttendanceRecords(records);
+      };
+      loadAttendance();
+    }, [student.user_id]);
+
+    const currentTerm = calendarTerms.find(term => 
+      moment(term.start_date).isSameOrBefore(moment()) && 
+      moment(term.end_date).isSameOrAfter(moment()) &&
+      !term.is_break
+    );
+
+    const { daysElapsed } = calculateSchoolDays(currentTerm);
+    const daysPresent = attendanceRecords.filter(record => 
+      moment(record.date).isSameOrAfter(currentTerm?.start_date) &&
+      moment(record.date).isSameOrBefore(currentTerm?.end_date)
+    ).length;
+
+
     const { vacationDate, reopenDate } = getCurrentTermAndVacationDates();
-    const { daysOpen, daysPresent } = calculateSchoolDays();
     const classSize = students.filter(s => s.class_id === student.class_id).length;
 
     return (
@@ -1656,7 +1689,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                 <PdfText style={styles.attendanceHeaderText}>NO. DAYS OPEN</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText style={styles.attendanceHeaderText}>ATTENDANCE</PdfText>
+                <PdfText style={styles.attendanceHeaderText}>DAYS PRESENT</PdfText>
               </View>
               <View style={styles.attendanceCell}>
                 <PdfText style={styles.attendanceHeaderText}>LEARNER AVERAGE</PdfText>
@@ -1673,7 +1706,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
             </View>
             <View style={styles.attendanceDataRow}>
               <View style={styles.attendanceCell}>
-                <PdfText style={styles.attendanceValue}>{daysOpen}</PdfText>
+                <PdfText style={styles.attendanceValue}>{daysElapsed}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
                 <PdfText style={styles.attendanceValue}>{daysPresent}</PdfText>
@@ -1688,7 +1721,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                 <PdfText style={styles.attendanceValue}>{vacationDate}</PdfText>
               </View>
               <View style={styles.attendanceCellLast}>
-                <PdfText style={styles.attendanceValue}>{reopenDate}</PdfText>
+                <PdfText style={styles.attendanceValue}>{reopenDate }</PdfText>
               </View>
             </View>
           </View>
