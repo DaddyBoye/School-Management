@@ -1027,7 +1027,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
         .from('grades')
         .select('*')
         .in('student_id', studentsData.map(s => s.user_id))
-        .eq('semester', selectedTerm?.id);
+        .eq('term_id', selectedTerm?.id);
   
       if (selectedSubject) {
         gradesQuery = gradesQuery.eq('subject_id', selectedSubject.id);
@@ -1139,7 +1139,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
           .select('*')
           .in('student_id', studentsData.map(s => s.user_id))
           .eq('subject_id', subject.id)
-          .eq('semester', selectedTerm?.id);
+          .eq('term_id', selectedTerm?.id);
   
         studentsData.forEach(student => {
           const grades = subjectGrades?.filter(g => g.student_id === student.user_id) || [];
