@@ -33,6 +33,27 @@ interface Class {
   name: string;
 }
 
+interface SchoolCalendar {
+  id: number;
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
+
+interface CalendarTerm {
+  id: number;
+  calendar_id: number;
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  is_break: boolean;
+  term_type: 'semester' | 'quarter' | 'trimester' | 'term' | 'break' | 'holiday';
+  is_current?: boolean;
+}
+
 // Predefined notes/tags for quick selection
 const PREDEFINED_NOTES = [
   { label: 'Sick', value: 'Sick', applicableStatuses: ['Absent', 'Late', 'Excused'] },
@@ -757,6 +778,10 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
   const [connectionError, setConnectionError] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Present' | 'Absent' | 'Late' | 'Excused' | 'Not Marked'>('All');
+  const [schoolCalendars, setSchoolCalendars] = useState<SchoolCalendar[]>([]);
+  const [calendarTerms, setCalendarTerms] = useState<CalendarTerm[]>([]);
+  const [selectedCalendar, setSelectedCalendar] = useState<number | null>(null);
+  const [filterTerm, setFilterTerm] = useState<number | null>(null);
 
   // Notification state
   const [notifications, setNotifications] = useState<Array<{
@@ -815,6 +840,7 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
         .limit(1);
       
       if (error) throw error;
+      await fetchSchoolCalendars();
       await fetchTeacherClassAndStudents();
     } catch (error) {
       console.error('Connection check failed:', error);
@@ -905,16 +931,31 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
       } else if (timeRange === 'month') {
         startDate.setDate(now.getDate() - 30);
       }
-  
-      const { data: attendanceData, error: attendanceError } = await supabase
+
+      let query = supabase
         .from('attendance_records')
         .select('*')
         .eq('class_id', classId)
-        .eq('school_id', schoolId) // Add school filter
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', now.toISOString().split('T')[0])
+        .eq('school_id', schoolId)
         .order('date', { ascending: false });
-  
+
+      // Apply term filter if selected
+      if (filterTerm) {
+        const term = calendarTerms.find(t => t.id === filterTerm);
+        if (term) {
+          query = query
+            .gte('date', term.start_date)
+            .lte('date', term.end_date);
+        }
+      } else {
+        // Apply regular time range filter
+        query = query
+          .gte('date', startDate.toISOString().split('T')[0])
+          .lte('date', now.toISOString().split('T')[0]);
+      }
+
+      const { data: attendanceData, error: attendanceError } = await query;
+
       if (attendanceError) throw attendanceError;
       setAttendanceRecords(attendanceData || []);
     } catch (error) {
@@ -924,6 +965,44 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
       }
     } finally {
       setLoading(prev => ({ ...prev, attendance: false }));
+    }
+  };
+
+  const fetchSchoolCalendars = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('school_calendar')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('start_date', { ascending: true });
+
+      if (error) throw error;
+      setSchoolCalendars(data || []);
+      
+      // Set the first active calendar as selected by default
+      const activeCalendar = data?.find(c => c.is_active);
+      if (activeCalendar) {
+        setSelectedCalendar(activeCalendar.id);
+      }
+    } catch (error) {
+      console.error('Error fetching school calendars:', error);
+      showNotification('Failed to load school calendars', 'error');
+    }
+  };
+
+  const fetchCalendarTerms = async (calendarId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('calendar_terms')
+        .select('*')
+        .eq('calendar_id', calendarId)
+        .order('start_date', { ascending: true });
+
+      if (error) throw error;
+      setCalendarTerms(data || []);
+    } catch (error) {
+      console.error('Error fetching calendar terms:', error);
+      showNotification('Failed to load calendar terms', 'error');
     }
   };
 
@@ -1235,11 +1314,19 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
     checkConnectionAndFetchData();
   }, [teacherId]);
 
-  useEffect(() => {
-    if (assignedClass) {
-      fetchAttendanceRecords(assignedClass.id);
-    }
-  }, [selectedDate, timeRange]);
+useEffect(() => {
+  if (selectedCalendar) {
+    fetchCalendarTerms(selectedCalendar);
+  } else {
+    setCalendarTerms([]);
+  }
+}, [selectedCalendar]);
+
+useEffect(() => {
+  if (assignedClass) {
+    fetchAttendanceRecords(assignedClass.id);
+  }
+}, [selectedDate, timeRange, filterTerm]);
 
   const stats = calculateStats();
   const chartData = getAttendanceChartData();
@@ -1429,6 +1516,48 @@ const TeacherAttendance: React.FC<TeacherAttendanceProps> = ({ teacherId, school
                   </div>
                 </div>
               </div>
+
+              {/* Calendar and Term Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Calendar</label>
+                  <select
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedCalendar || ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? parseInt(e.target.value) : null;
+                      setSelectedCalendar(value);
+                      setFilterTerm(null); // Reset term when calendar changes
+                    }}
+                    disabled={loading.attendance}
+                  >
+                    <option value="">Select Calendar</option>
+                    {schoolCalendars.map(calendar => (
+                      <option key={calendar.id} value={calendar.id}>
+                        {calendar.name} ({new Date(calendar.start_date).getFullYear()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
+                  <select
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={filterTerm || ''}
+                    onChange={(e) => setFilterTerm(e.target.value ? parseInt(e.target.value) : null)}
+                    disabled={loading.attendance || !selectedCalendar}
+                  >
+                    <option value="">All Terms</option>
+                    {calendarTerms.map(term => (
+                      <option key={term.id} value={term.id}>
+                        {term.name} ({new Date(term.start_date).toLocaleDateString()} - {new Date(term.end_date).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Time Range Selector */}
               <div className="space-y-2">
                 <label htmlFor="time-range" className="block text-sm font-medium text-gray-700">View Range</label>
