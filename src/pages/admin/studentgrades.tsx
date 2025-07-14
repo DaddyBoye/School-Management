@@ -781,6 +781,7 @@ interface Student {
   totalScore: number | null;
   letterGrade: string;
   gender: string;
+  date_of_birth?: string;
   grades?: Grade[];
   rank?: number;
 }
@@ -1014,7 +1015,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
     try {
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, user_id, first_name, last_name, roll_no, class_id, image_url, gender')
+        .select('id, user_id, first_name, last_name, roll_no, class_id, image_url, gender, date_of_birth')
         .eq('class_id', selectedClass.id);
   
       if (studentsError) throw studentsError;
@@ -1073,6 +1074,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
   
         return {
           ...student,
+          age: calculateAge(student.date_of_birth),
           grades: studentGrades,
           totalScore,
           letterGrade: getLetterGrade(totalScore ?? 0) ?? 'N/A'
@@ -1252,6 +1254,22 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       if (score >= 50) return 'C-';
       return 'F';
     }
+  };
+
+  const calculateAge = (dateOfBirth: string | undefined): number | null => {
+    if (!dateOfBirth) return null;
+    
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
   };
 
   const getCurrentTermAndVacationDates = () => {
@@ -1621,7 +1639,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                 </View>
                 <View style={styles.infoItem}>
                   <PdfText style={styles.infoLabel}>AGE:</PdfText>
-                  <PdfText style={styles.infoValue}>{student.age || 'N/A'}</PdfText>
+                  <PdfText style={styles.infoValue}>{calculateAge(student.date_of_birth) || 'N/A'}</PdfText>
                 </View>
                 <View style={styles.infoItem}>
                   <PdfText style={styles.infoLabel}>NUMBER ON ROLL:</PdfText>
@@ -1674,7 +1692,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
               </View>
             </View>
           </View>
-          
+
           {/* Subject Performance Table */}
           <View style={styles.performanceSection}>
             <View style={styles.performanceHeader}>
