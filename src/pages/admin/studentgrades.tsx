@@ -1101,7 +1101,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
         .from('subjects')
         .select('*')
         .eq('school_id', schoolId);
-  
+
       const studentSubjectScores: Record<string, Record<string, {
         score: number | null;
         letterGrade: string;
@@ -1116,7 +1116,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
         subjectCount: number;
         rank: number;
       }> = {};
-  
+
       studentsData.forEach(student => {
         studentSubjectScores[student.id] = {};
         studentOverallScores[student.id] = {
@@ -1127,29 +1127,29 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
           rank: 0
         };
       });
-  
+
       if (!allSubjects) return;
       await Promise.all(allSubjects.map(async subject => {
         const { data: subjectCategories } = await supabase
           .from('grade_categories')
           .select('*')
           .eq('subject_id', subject.id);
-  
+
         if (!subjectCategories || subjectCategories.length === 0) return;
-  
+
         const { data: subjectGrades } = await supabase
           .from('grades')
           .select('*')
           .in('student_id', studentsData.map(s => s.user_id))
           .eq('subject_id', subject.id)
           .eq('term_id', selectedTerm?.id);
-  
+
         studentsData.forEach(student => {
           const grades = subjectGrades?.filter(g => g.student_id === student.user_id) || [];
           const score = grades.length > 0 ? 
             calculateTotalScore(grades, subjectCategories) : 
             null;
-  
+
           studentSubjectScores[student.id][subject.id] = {
             score,
             letterGrade: score ? getLetterGrade(score) ?? 'N/A' : 'N/A',
@@ -1158,16 +1158,17 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
           };
         });
       }));
-  
+
+      // Calculate overall scores for each student
       studentsData.forEach(student => {
         const subjectScores = Object.values(studentSubjectScores[student.id] || {})
           .map(subject => subject.score)
           .filter(score => score !== null) as number[];
-  
+
         const overallScore = subjectScores.length > 0 ? 
           subjectScores.reduce((sum, score) => sum + score, 0) / subjectScores.length : 
           null;
-  
+
         studentOverallScores[student.id] = {
           student,
           overallScore,
@@ -1176,7 +1177,8 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
           rank: 0
         };
       });
-  
+
+      // Rank students based on overallScore (highest to lowest)
       const rankedStudents = Object.values(studentOverallScores)
         .filter(s => s.overallScore !== null)
         .sort((a, b) => (b.overallScore || 0) - (a.overallScore || 0))
@@ -1184,11 +1186,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
           ...student,
           rank: index + 1
         }));
-  
+
+      // Update the rankings in studentOverallScores
       rankedStudents.forEach(student => {
         studentOverallScores[student.student.id].rank = student.rank;
       });
-  
+
       setStudentSubjectGrades(studentSubjectScores);
       setComprehensiveStats({
         studentOverallScores,
@@ -1201,7 +1204,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
         studentCount: studentsData.length,
         gradedStudentCount: rankedStudents.length
       });
-  
+
       setClassRankings(rankedStudents);
     } catch (error) {
       console.error('Error in fetchComprehensiveGrades:', error);
@@ -1480,7 +1483,15 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       title: 'Rank',
       dataIndex: 'rank',
       key: 'rank',
-      sorter: (a: Student, b: Student) => (a.rank || 0) - (b.rank || 0)
+      render: (_: unknown, record: Student) => {
+        const studentData = comprehensiveStats?.studentOverallScores[record.id];
+        return studentData?.rank || 'N/A';
+      },
+      sorter: (a: Student, b: Student) => {
+        const aRank = comprehensiveStats?.studentOverallScores[a.id]?.rank || 0;
+        const bRank = comprehensiveStats?.studentOverallScores[b.id]?.rank || 0;
+        return aRank - bRank;
+      }
     },
     {
       title: 'Roll No',
@@ -1735,7 +1746,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                 <PdfText style={styles.attendanceValue}>{studentOverall.overallScore ? studentOverall.overallScore.toFixed(1) : 'N/A'}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
-                <PdfText style={styles.attendanceValue}>{studentOverall.position || 'N/A'}</PdfText>
+                <PdfText style={styles.attendanceValue}>{studentOverall.rank || 'N/A'}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
                 <PdfText style={styles.attendanceValue}>{vacationDate}</PdfText>
@@ -2137,6 +2148,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
             {/* Table Rows */}
             {classRankings.map((student, index) => (
               <View style={styles.pdfTableRow} key={student.student.id}>
+                <View style={styles.tableCol}>
+                  <PdfText style={styles.cellText}>{student.rank}</PdfText>
+                </View>
                 <View style={styles.tableCol}>
                   <PdfText style={styles.cellText}>{index + 1}</PdfText>
                 </View>
