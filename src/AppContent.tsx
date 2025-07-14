@@ -128,17 +128,19 @@ const AppContent = () => {
           <>
             <button
               className={`md:hidden fixed top-4 left-4 p-2 bg-blue-500 z-40
-                ${isNavOpen ? 'hidden' : 'block'} text-white rounded-lg`}
+                ${isNavOpen ? 'hidden' : 'block'} text-white rounded-lg transition-opacity duration-300`}
               onClick={() => setIsNavOpen(!isNavOpen)}
             >
               <Menu size={24} />
             </button>
             <div
-              className={`
-                fixed top-0 left-0 h-screen w-64 md:w-56 bg-blue-500 z-40 transition-transform duration-200 ease-in-out
-                ${isNavOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+            className={`
+              fixed top-0 left-0 h-screen w-64 md:w-56 bg-blue-500 z-40 
+              transition-all duration-300 ease-in-out
+              ${isNavOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 md:translate-x-0 md:opacity-100'}
+            `}
             >
-              <LeftNav userRole={userRole ?? undefined} accessibleRoutes={accessibleRoutes} />
+              <LeftNav userRole={userRole ?? undefined} accessibleRoutes={accessibleRoutes} onClose={() => setIsNavOpen(false)}/>
             </div>
           </>
         )}
@@ -335,7 +337,7 @@ const AppContent = () => {
         </div>
         {isNavOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden transition-opacity duration-300"
             onClick={() => setIsNavOpen(false)}
           />
         )}

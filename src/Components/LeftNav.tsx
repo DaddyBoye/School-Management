@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, GraduationCap, Users, BookOpen, DollarSign, Clock, Award, UserCheck } from 'lucide-react';
 import NavImage from '../images/school 1.png';
@@ -6,11 +7,13 @@ import { useAuth } from '../context/AuthContext';
 interface LeftNavProps {
   userRole: string | undefined;
   accessibleRoutes: Record<string, string[]>;
+  onClose?: () => void;
 }
 
-const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
+const LeftNav = ({ userRole, accessibleRoutes, onClose }: LeftNavProps) => {
   const location = useLocation();
   const { school, loading } = useAuth();
+  const [tooltipVisible, setTooltipVisible] = useState(false);
 
   // Role-based styling configurations
   const roleStyles = {
@@ -89,6 +92,19 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
     ? `${schoolName.substring(0, 22)}...` 
     : schoolName;
 
+  const handleLinkClick = () => {
+    if (window.innerWidth < 768 && onClose) {
+      // Add a small delay for visual feedback
+      setTimeout(() => {
+        onClose();
+      }, 150); // 150ms delay
+    }
+  };
+
+  const toggleTooltip = () => {
+    setTooltipVisible(!tooltipVisible);
+  };
+
   // Show loading state if data is still being fetched
   if (loading) {
     return (
@@ -136,28 +152,25 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
             </div>
           </div>
           
-          {/* School Name and Role Container */}
+          {/* School Name and Role */}
           <div className="flex flex-col min-w-0 flex-1">
-            {/* School Name with Tooltip for Long Names */}
-            <div className="group relative">
+            <div className="relative">
               <span 
-                className="font-bold text-base leading-tight block truncate cursor-default"
+                className="font-bold text-base leading-tight block truncate cursor-pointer"
+                onClick={toggleTooltip}
+                onMouseEnter={() => setTooltipVisible(true)}
+                onMouseLeave={() => setTooltipVisible(false)}
               >
                 {displaySchoolName}
               </span>
-                {/* Enhanced Tooltip */}
-                {schoolName && schoolName.length > 25 && (
-                <div
-                  className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap border border-gray-600 transform translate-y-1"
-                  style={{ transition: 'opacity 0.3s ease 0.2s' }}
-                >
+              {schoolName && schoolName.length > 25 && tooltipVisible && (
+                <div className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-50 whitespace-nowrap border border-gray-600">
                   {schoolName}
                   <div className="absolute bottom-full left-3 w-2 h-2 bg-gray-800 border-l border-t border-gray-600 transform rotate-45 translate-y-1/2"></div>
                 </div>
-                )}
+              )}
             </div>
             
-            {/* Role Badge */}
             <span className={`text-xs px-2 py-1 rounded-full ${currentStyle.roleBadge} font-medium inline-block w-fit mt-1`}>
               {currentStyle.roleLabel}
             </span>
@@ -165,12 +178,13 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
         </div>
       </div>
 
-      {/* Navigation Links with Custom Scrollbar */}
+      {/* Navigation Links */}
       <nav className="space-y-1 px-2 flex-grow min-h-0 overflow-y-auto py-4 scrollbar scrollbar-track-transparent scrollbar-thumb-white/60 hover:scrollbar-thumb-white/30">
         {filteredLinks.map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
             to={path}
+            onClick={handleLinkClick}
             className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 transform ${
               isActive(path)
                 ? `${currentStyle.activeItemBg} ${currentStyle.activeItemText} shadow-lg scale-105 border-l-4 border-opacity-50`
@@ -186,10 +200,8 @@ const LeftNav = ({ userRole, accessibleRoutes }: LeftNavProps) => {
         ))}
       </nav>
 
-      {/* Role-specific decorative element */}
+      {/* Footer */}
       <div className={`mx-4 mb-4 h-1 rounded-full ${currentStyle.accent} opacity-30 flex-shrink-0`} />
-
-      {/* Bottom Image */}
       <div className="px-4 pb-4 flex-shrink-0">
         <div className="bg-white bg-opacity-10 rounded-xl p-3 backdrop-blur-sm">
           <img 

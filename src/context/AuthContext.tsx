@@ -20,6 +20,7 @@ interface AuthContextType {
   school: SchoolInfo;
   currentTerm: { id: number; name: string } | null;
   loading: boolean;
+  signingOut: boolean;
   error: string | null;
   signIn: (email: string, password: string, role: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -33,9 +34,10 @@ const AuthContext = createContext<AuthContextType>({
   currentTerm: null,
   loading: true,
   error: null,
-  signIn: async () => {},
-  signOut: async () => {},
-  setUserRole: () => {},
+  signIn: async () => { },
+  signOut: async () => { },
+  setUserRole: () => { },
+  signingOut: false
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [school, setSchool] = useState<SchoolInfo>({ id: null, name: null, logo_url: null, slogan: null, established: null, theme_color: null, secondary_color: null, address: null, contact: null });
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentTerm, setCurrentTerm] = useState<{ id: number; name: string } | null>(null);
   const navigate = useNavigate();
@@ -295,11 +298,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Sign out handler
   const signOut = async () => {
     try {
-      // 1. Immediate UI update
+      setSigningOut(true); // Show loading state
+      
+      // 1. Server-side sign out first
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // 2. Clear local state
       setUser(null);
       setUserRole(null);
       
-      // 2. Targeted removal of auth-related items only
+      // 3. Clear storage items
       const authKeys = [
         'user',
         'userRole',
@@ -314,21 +323,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem(key);
         sessionStorage.removeItem(key);
       });
-
-      // 3. Server-side sign out
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
       
-      // 4. Add cross-tab sync
+      // 4. Trigger storage sync event
       window.dispatchEvent(new Event('storage'));
       
-      // 5. Redirect without full reload (SPA-friendly)
-      window.location.href = '/welcome';
-      
+      // 5. Redirect after all cleanup is done
+      navigate('/welcome');
     } catch (err) {
       console.error('Sign out failed:', err);
-      // Fallback with full reload if SPA redirect fails
+      // Fallback with full reload if needed
       window.location.href = '/welcome';
+    } finally {
+      setSigningOut(false);
     }
   };
 
@@ -340,6 +346,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         school,
         currentTerm,
         loading,
+        signingOut,
         error,
         signIn,
         signOut,

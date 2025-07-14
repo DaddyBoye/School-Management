@@ -1,5 +1,4 @@
-// ProfileDropdown.tsx
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,8 +23,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   isLoadingUser,
   avatarBg
 }) => {
-  const { signOut } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signOut, signingOut } = useAuth(); // Get signingOut from auth context
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Role-based styling configurations
@@ -68,14 +66,12 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   }, [onClose]);
 
   const handleLogout = async () => {
-    setIsLoading(true);
     try {
       await signOut();
-      onClose();
+      // Don't call onClose here - the auth state change will handle the UI
     } catch (err) {
       console.error('Logout error:', err);
-    } finally {
-      setIsLoading(false);
+      onClose(); // Only close dropdown if error occurs
     }
   };
 
@@ -93,7 +89,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
               alt="Profile" 
               className="w-12 h-12 rounded-full object-cover shadow-lg ring-2 ring-white"
               onError={(e) => {
-                // Fallback to initials if image fails to load
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
@@ -137,15 +132,15 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
         <div className="pt-4 mt-4 border-t border-gray-100">
           <button
             onClick={handleLogout}
-            disabled={isLoading}
+            disabled={signingOut} // Use signingOut from context
             className={`w-full py-2.5 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2 text-sm ${currentStyle.logoutButton} disabled:opacity-50`}
           >
-            {isLoading ? (
+            {signingOut ? (
               <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
             ) : (
               <LogOut className="w-4 h-4" />
             )}
-            {isLoading ? 'Signing out...' : 'Sign Out'}
+            {signingOut ? 'Signing out...' : 'Sign Out'}
           </button>
         </div>
       </div>

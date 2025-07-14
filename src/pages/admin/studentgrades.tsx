@@ -1644,6 +1644,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                 <PdfText style={styles.attendanceHeaderText}>LEARNER AVERAGE</PdfText>
               </View>
               <View style={styles.attendanceCell}>
+                <PdfText style={styles.attendanceHeaderText}>POSITION</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
                 <PdfText style={styles.attendanceHeaderText}>VACATION DATE</PdfText>
               </View>
               <View style={styles.attendanceCellLast}>
@@ -1661,6 +1664,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                 <PdfText style={styles.attendanceValue}>{studentOverall.overallScore ? studentOverall.overallScore.toFixed(1) : 'N/A'}</PdfText>
               </View>
               <View style={styles.attendanceCell}>
+                <PdfText style={styles.attendanceValue}>{studentOverall.position || 'N/A'}</PdfText>
+              </View>
+              <View style={styles.attendanceCell}>
                 <PdfText style={styles.attendanceValue}>{vacationDate}</PdfText>
               </View>
               <View style={styles.attendanceCellLast}>
@@ -1668,7 +1674,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
               </View>
             </View>
           </View>
-
+          
           {/* Subject Performance Table */}
           <View style={styles.performanceSection}>
             <View style={styles.performanceHeader}>
