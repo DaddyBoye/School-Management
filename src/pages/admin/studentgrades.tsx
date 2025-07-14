@@ -1275,24 +1275,23 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
 
   const getCurrentTermAndVacationDates = () => {
     if (!selectedTerm) return { 
-      currentTerm: 'N/A', 
-      vacationDate: 'N/A', 
-      reopenDate: 'N/A' 
+      currentTerm: 'Not Available', 
+      vacationDate: 'Not Available', 
+      reopenDate: 'Not Available' 
     };
+
+    const vacationDate = moment(selectedTerm.end_date).format('DD/MM/YYYY');
     
-    let vacationDate = moment(selectedTerm.end_date).format('DD/MM/YYYY');
-    let reopenDate = 'Not Available';
+    // Find the next chronological term (not a break term) that starts after current term ends
+    const nextTerm = calendarTerms
+      .filter(term => !term.is_break)
+      .sort((a, b) => moment(a.start_date).diff(moment(b.start_date))) // Sort terms chronologically
+      .find(term => moment(term.start_date).isAfter(selectedTerm.end_date));
     
-    // Find next term (reopen date)
-    const nextTerm = calendarTerms.find(term => 
-      moment(term.start_date).isAfter(selectedTerm.end_date) &&
-      !term.is_break
-    );
-    
-    if (nextTerm) {
-      reopenDate = moment(nextTerm.start_date).format('DD/MM/YYYY');
-    }
-    
+    const reopenDate = nextTerm 
+      ? moment(nextTerm.start_date).format('DD/MM/YYYY')
+      : 'Not Available';
+
     return { 
       currentTerm: selectedTerm.name, 
       vacationDate, 
@@ -1419,6 +1418,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
     },
     ...calendarTerms
       .filter(term => !term.is_break)
+      .sort((a, b) => moment(a.start_date).diff(moment(b.start_date)))
       .map(term => ({
         value: term.id.toString(),
         label: term.name,
