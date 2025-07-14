@@ -18,7 +18,7 @@ interface AuthContextType {
   user: any;
   userRole: string | null;
   school: SchoolInfo;
-  currentTerm: { id: number; name: string } | null;
+  currentTerm: { id: number; name: string, start_date: string, end_date: string, is_current: boolean } | null;
   loading: boolean;
   signingOut: boolean;
   error: string | null;
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentTerm, setCurrentTerm] = useState<{ id: number; name: string } | null>(null);
+  const [currentTerm, setCurrentTerm] = useState<{ id: number; name: string; start_date: string; end_date: string; is_current: boolean } | null>(null);
   const navigate = useNavigate();
 
   // Extract school ID from subdomain (e.g., stjoba.klaso.site → stjoba)
@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // 2. Try to get the current term for this calendar
       const { data: currentTerm, error: termError } = await supabase
         .from('calendar_terms')
-        .select('id, name')
+        .select('id, name, start_date, end_date, is_current')
         .eq('calendar_id', calendarId)
         .eq('is_current', true)
         .single();
@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!currentTerm) {
         const { data: recentTerm } = await supabase
           .from('calendar_terms')
-          .select('id, name')
+          .select('id, name, start_date, end_date, is_current')
           .eq('calendar_id', calendarId)
           .lte('start_date', new Date().toISOString())
           .order('start_date', { ascending: false })

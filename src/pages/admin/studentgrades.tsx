@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
 
 interface StudentGradesProps {
   schoolId: string;
-  currentTerm: { id: number; name: string } | null; 
+  currentTerm: { id: number; name: string, start_date: string, end_date: string, is_current: boolean } | null; 
 }
 
 interface Class {
@@ -828,6 +828,7 @@ interface CalendarTerm {
   start_date: string;
   end_date: string;
   is_break: boolean;
+  is_current: boolean;
 }
 
 interface Holiday {
@@ -1273,66 +1274,70 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
   };
 
   const getCurrentTermAndVacationDates = () => {
-    if (!calendarTerms.length) return { currentTerm: 'N/A', vacationDate: 'N/A', reopenDate: 'N/A' };
+    if (!selectedTerm) return { 
+      currentTerm: 'N/A', 
+      vacationDate: 'N/A', 
+      reopenDate: 'N/A' 
+    };
     
-    const now = moment();
-    let currentTerm = 'N/A';
-    let vacationDate = 'N/A';
-    let reopenDate = 'N/A';
+    let vacationDate = moment(selectedTerm.end_date).format('DD/MM/YYYY');
+    let reopenDate = 'Not Available';
     
-    // Find current term
-    const currentTermObj = calendarTerms.find(term => 
-      moment(term.start_date).isSameOrBefore(now) && 
-      moment(term.end_date).isSameOrAfter(now) &&
+    // Find next term (reopen date)
+    const nextTerm = calendarTerms.find(term => 
+      moment(term.start_date).isAfter(selectedTerm.end_date) &&
       !term.is_break
     );
     
-    if (currentTermObj) {
-      currentTerm = currentTermObj.name;
-      vacationDate = moment(currentTermObj.end_date).format('DD/MM/YYYY');
-      
-      // Find next term (reopen date)
-      const nextTerm = calendarTerms.find(term => 
-        moment(term.start_date).isAfter(currentTermObj.end_date) &&
-        !term.is_break
-      );
-      
-      if (nextTerm) {
-        reopenDate = moment(nextTerm.start_date).format('DD/MM/YYYY');
-      }
+    if (nextTerm) {
+      reopenDate = moment(nextTerm.start_date).format('DD/MM/YYYY');
     }
     
-    return { currentTerm, vacationDate, reopenDate };
+    return { 
+      currentTerm: selectedTerm.name, 
+      vacationDate, 
+      reopenDate 
+    };
   };
 
-  const calculateSchoolDays = (term: CalendarTerm | undefined) => {
-    if (!term) return { daysOpen: 0, daysElapsed: 0 };
+  const calculateSchoolDays = () => {
+    if (!selectedTerm) return { daysOpen: 0, daysElapsed: 0 };
     
     const now = moment();
-    const startDate = moment(term.start_date);
-    const endDate = moment.min(moment(term.end_date), now); // Use current date or term end date, whichever is earlier
+    const startDate = moment(selectedTerm.start_date);
+    const endDate = moment.min(moment(selectedTerm.end_date), now);
     
     let totalDays = 0;
+    let elapsedDays = 0;
     let currentDate = startDate.clone();
     
-    while (currentDate.isSameOrBefore(endDate)) {
+    while (currentDate.isSameOrBefore(moment(selectedTerm.end_date))) {
       if (currentDate.day() !== 0 && currentDate.day() !== 6) { // Skip weekends
         totalDays++;
+        if (currentDate.isSameOrBefore(endDate)) {
+          elapsedDays++;
+        }
       }
       currentDate.add(1, 'day');
     }
     
-    // Subtract holidays that fall on weekdays
-    const termHolidays = holidays.filter(h => 
-      moment(h.date).isSameOrAfter(startDate) && 
-      moment(h.date).isSameOrBefore(endDate) &&
-      moment(h.date).day() !== 0 && 
-      moment(h.date).day() !== 6
-    );
+    // Subtract holidays that fall on weekdays and within the term dates
+    const termHolidays = holidays.filter(h => {
+      const holidayDate = moment(h.date);
+      return holidayDate.isSameOrAfter(startDate) && 
+            holidayDate.isSameOrBefore(moment(selectedTerm.end_date)) &&
+            holidayDate.day() !== 0 && 
+            holidayDate.day() !== 6;
+    });
+    
+    // Subtract elapsed holidays
+    const elapsedHolidays = termHolidays.filter(h => 
+      moment(h.date).isSameOrBefore(endDate)
+    ).length;
     
     return {
       daysOpen: totalDays - termHolidays.length,
-      daysElapsed: totalDays - termHolidays.length // Since we're using current date as end date
+      daysElapsed: elapsedDays - elapsedHolidays
     };
   };
 
@@ -1405,6 +1410,21 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
   const viewComprehensiveReport = () => {
     setClassReportVisible(true);
   };
+
+  const termOptions = [
+    {
+      value: 'current',
+      label: 'Current Term',
+      term: calendarTerms.find(term => term.is_current) || null
+    },
+    ...calendarTerms
+      .filter(term => !term.is_break)
+      .map(term => ({
+        value: term.id.toString(),
+        label: term.name,
+        term
+      }))
+  ];
 
   const subjectColumns = [
     {
@@ -1580,7 +1600,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       !term.is_break
     );
 
-    const { daysElapsed } = calculateSchoolDays(currentTerm);
+    const { daysElapsed } = calculateSchoolDays();
     const daysPresent = attendanceRecords.filter(record => 
       moment(record.date).isSameOrAfter(currentTerm?.start_date) &&
       moment(record.date).isSameOrBefore(currentTerm?.end_date)
@@ -2227,28 +2247,26 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
             </Select>
           </Col>
           <Col xs={24} sm={12} md={8} lg={6}>
-          <Select
-            className="w-full"
-            placeholder="Select Term"
-            value={selectedTerm?.name || 'current'}
-            onChange={(value) => {
-              if (value === 'current') {
-                setSelectedTerm(currentTerm || null);
-              } else {
-                const term = calendarTerms.find(t => t.id.toString() === value);
-                if (term) setSelectedTerm(term);
-              }
-            }}
-          >
-            <Option key="current" value="current">
-              Current Term
-            </Option>
-            {calendarTerms.map(term => (
-              <Option key={term.id} value={term.id.toString()}>
-                {term.name}
-              </Option>
-            ))}
-          </Select>
+            <Select
+              className="w-full"
+              placeholder="Select Term"
+              value={selectedTerm?.id.toString() || 'current'}
+              onChange={(value) => {
+                if (value === 'current') {
+                  const current = calendarTerms.find(term => term.is_current);
+                  setSelectedTerm(current || null);
+                } else {
+                  const term = calendarTerms.find(t => t.id.toString() === value);
+                  setSelectedTerm(term || null);
+                }
+              }}
+            >
+              {termOptions.map(option => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
           </Col>
           <Col xs={24} sm={12} md={8} lg={6}>
             {selectedSubject ? (
