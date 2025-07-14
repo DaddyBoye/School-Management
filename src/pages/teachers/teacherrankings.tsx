@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import dayjs from 'dayjs';
 
 interface Grade {
   id?: string;
@@ -38,7 +39,7 @@ interface Grade {
   max_score: number;
   category_id: string;
   teacher_id: string;
-  semester: string;
+  term_id: number;
   comments?: string;
   date_given: string;
 }
@@ -90,14 +91,14 @@ interface Class {
 interface TeacherGradesReportsProps {
   teacherId: string;
   schoolId: string;
-  currentSemester?: string;
+  currentTerm: { id: number; name: string } | null;
   showReportButtons?: boolean;
 }
 
 const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({ 
   teacherId, 
   schoolId,
-  currentSemester = new Date().getFullYear() + ' Spring',
+  currentTerm,
   showReportButtons = true
 }) => {
   // View state
@@ -115,7 +116,8 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
   // Selection state
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>('');
-  const [selectedSemester, setSelectedSemester] = useState(currentSemester);
+  const [selectedTerm, setSelectedTerm] = useState(currentTerm || null);
+  const [availableTerms, setAvailableTerms] = useState<Array<{ id: number; name: string; is_current: boolean; start_date: string; end_date: string; }>>([]);
   const [selectedStudentForReport, setSelectedStudentForReport] = useState<Student | null>(null);
   const [showStudentReportModal, setShowStudentReportModal] = useState(false);
   
@@ -419,7 +421,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
         .from('grades')
         .select('*')
         .in('subject_id', subjectIds)
-        .eq('semester', selectedSemester)
+        .eq('term_id', selectedTerm?.id)
         .eq('teacher_id', teacherId);
 
       if (gradesError) throw gradesError;
@@ -431,6 +433,51 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       setLoadingStates(prev => ({ ...prev, grades: false }));
     }
   };
+
+  useEffect(() => {
+    const fetchAvailableTerms = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('calendar_terms')
+          .select(`
+            id,
+            name,
+            start_date,
+            end_date,
+            is_current,
+            school_calendar!calendar_terms_calendar_id_fkey(school_id)
+          `)
+          .eq('school_calendar.school_id', schoolId)
+          .order('start_date', { ascending: false });
+
+        if (error) throw error;
+        
+        const terms = (data || []).map(term => ({
+          id: term.id,
+          name: term.name,
+          start_date: term.start_date,
+          end_date: term.end_date,
+          is_current: term.is_current
+        }));
+        
+        setAvailableTerms(terms);
+
+        // Set current term if available
+        const currentTerm = terms.find(t => t.is_current);
+        if (currentTerm) {
+          setSelectedTerm(currentTerm.id);
+        }
+
+      } catch (error) {
+        console.error('Error fetching available terms:', error);
+        showNotification('Failed to fetch available terms', 'error');
+      }
+    };
+
+    if (schoolId) {
+      fetchAvailableTerms();
+    }
+  }, [schoolId]);
 
   useEffect(() => {
     if (teacherId && schoolId) {
@@ -448,7 +495,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
 
   useEffect(() => {
     fetchGrades();
-  }, [viewMode, assignedClass, selectedSubject, selectedSemester, teacherSubjects, teacherId]);
+  }, [viewMode, assignedClass, selectedSubject, selectedTerm, teacherSubjects, teacherId]);
 
   // Helper functions
   const getClassSubjects = () => {
@@ -643,7 +690,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
     doc.setTextColor(0, 0, 0);
     doc.text(`Class: ${classInfo.name}`, margin, 40);
     doc.text(`Subject: ${subjectInfo.subject_name} (${subjectInfo.subject_code})`, margin, 45);
-    doc.text(`Semester: ${selectedSemester}`, margin, 50);
+    doc.text(`Term: ${selectedTerm?.name}`, margin, 50);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, margin, 55);
 
     // Performance summary
@@ -761,7 +808,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
     doc.text(`Class: ${classInfo.name}`, margin, 40);
-    doc.text(`Semester: ${selectedSemester}`, margin, 45);
+    doc.text(`Term: ${selectedTerm?.name}`, margin, 45);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, margin, 50);
 
     // Class overview
@@ -918,7 +965,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       doc.text(`Student: ${student.first_name} ${student.last_name}`, 15, 45);
       doc.text(`Roll No: ${student.roll_no}`, 15, 50);
       doc.text(`Class: ${currentClass.name}`, 15, 55);
-      doc.text(`Semester: ${selectedSemester}`, 15, 60);
+      doc.text(`Term: ${selectedTerm?.name}`, 15, 60);
       doc.text(`Report Date: ${new Date().toLocaleDateString()}`, 15, 65);
   
       // Overall Performance
@@ -1118,7 +1165,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       }
   
       // Save the PDF
-      const fileName = `Student_Report_${student.first_name}_${student.last_name}_${selectedSemester.replace(' ', '_')}.pdf`;
+      const fileName = `Student_Report_${student.first_name}_${student.last_name}_${selectedTerm?.name.replace(' ', '_')}.pdf`;
       doc.save(fileName);
   
       showNotification('Student PDF report generated successfully!', 'success');
@@ -1161,7 +1208,7 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
       // Save the PDF
       const fileName = viewMode === 'subjectsTaught' 
         ? `Subject_Report_${currentClass.name}_${currentSubject?.subject_code}_${new Date().toISOString().split('T')[0]}.pdf`
-        : `Class_Report_${currentClass.name}_${selectedSemester.replace(' ', '_')}.pdf`;
+        : `Class_Report_${currentClass.name}_${selectedTerm?.name.replace(' ', '_')}.pdf`;
       
       doc.save(fileName);
       showNotification('PDF report generated successfully!', 'success');
@@ -1439,20 +1486,41 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
             {/* Control panel */}
             <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
               <div className="flex flex-wrap gap-4 items-center">
-                {/* Semester Selector */}
-                <div className="relative flex-grow sm:flex-grow-0 min-w-[200px]">
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Semester</label>
-                  <select
-                    className="w-full bg-white rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={selectedSemester}
-                    onChange={(e) => setSelectedSemester(e.target.value)}
-                    disabled={loadingStates.teacherData}
-                  >
-                    <option value={`${new Date().getFullYear()} Spring`}>Spring {new Date().getFullYear()}</option>
-                    <option value={`${new Date().getFullYear()} Fall`}>Fall {new Date().getFullYear()}</option>
-                    <option value={`${new Date().getFullYear() - 1} Spring`}>Spring {new Date().getFullYear() - 1}</option>
-                    <option value={`${new Date().getFullYear() - 1} Fall`}>Fall {new Date().getFullYear() - 1}</option>
-                  </select>
+                {/* Compact Term Selector */}
+                <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Term</label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
+                                border border-gray-300 hover:border-gray-400 
+                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                transition-colors duration-200
+                                disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60
+                                [&>option[data-current='true']]:text-green-600 [&>option[data-current='true']]:font-medium"
+                      value={selectedTerm?.id || ''}
+                      onChange={(e) => {
+                        const termId = Number(e.target.value);
+                        const selectedTerm = availableTerms.find(term => term.id === termId) || null;
+                        setSelectedTerm(selectedTerm);
+                      }}
+                      disabled={availableTerms.length === 0}
+                    >
+                      <option value="">Select Term</option>
+                      {availableTerms.map(term => (
+                        <option key={term.id} value={term.id} data-current={term.is_current}>
+                          {term.name} • {dayjs(term.start_date).format('MMM D')}-{dayjs(term.end_date).format('MMM D')}
+                          {term.is_current && ' • Current'}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {/* Compact dropdown arrow */}
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                   {loadingStates.teacherData && (
                     <div className="absolute right-3 top-9">
                       <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
@@ -2055,8 +2123,8 @@ const TeacherGradesReports: React.FC<TeacherGradesReportsProps> = ({
                           <span>{currentClass?.name || 'N/A'}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">Semester:</span>
-                          <span>{selectedSemester}</span>
+                          <span className="font-medium">Term:</span>
+                          <span>{selectedTerm?.name}</span>
                         </div>
                         {reportType === 'subject' && currentSubject && (
                           <div className="flex items-center gap-2">

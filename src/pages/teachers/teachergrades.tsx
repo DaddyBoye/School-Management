@@ -146,7 +146,7 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
           setAssignedClass(assignedClassData);
           if (viewMode === 'myClass') {
             setSelectedClass(assignedClassData.id);
-            fetchAllClassSubjects(assignedClassData.id); // Fetch all subjects for the class
+            fetchAllClassSubjects(assignedClassData.id);
           }
         }
 
@@ -833,48 +833,38 @@ const categoriesForSelectedSubject = gradeCategories.filter(
         {/* Control panel */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
-        {/* Compact Term Selector */}
-        <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-600 mb-1">Term</label>
-          <div className="relative">
-            <select
-              className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
-                        border border-gray-300 hover:border-gray-400 
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                        transition-colors duration-200
-                        disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-              value={selectedTerm || ''}
-              onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
-              disabled={availableTerms.length === 0}
-            >
-              <option value="">Select Term</option>
-              {availableTerms.map(term => (
-                <option key={term.id} value={term.id}>
-                  {term.name} • {dayjs(term.start_date).format('MMM D')}-{dayjs(term.end_date).format('MMM D')}
-                  {term.is_current && ' ✓'}
-                </option>
-              ))}
-            </select>
-            
-            {/* Compact dropdown arrow */}
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+          {/* Compact Term Selector */}
+          <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-600 mb-1">Term</label>
+            <div className="relative">
+              <select
+                className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
+                          border border-gray-300 hover:border-gray-400 
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                          transition-colors duration-200
+                          disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60
+                          [&>option[data-current='true']]:text-green-600 [&>option[data-current='true']]:font-medium"
+                value={selectedTerm || ''}
+                onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
+                disabled={availableTerms.length === 0}
+              >
+                <option value="">Select Term</option>
+                {availableTerms.map(term => (
+                  <option key={term.id} value={term.id} data-current={term.is_current}>
+                    {term.name} • {dayjs(term.start_date).format('MMM D')}-{dayjs(term.end_date).format('MMM D')}
+                    {term.is_current && ' • Current'}
+                  </option>
+                ))}
+              </select>
+              
+              {/* Compact dropdown arrow */}
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
-          
-          {/* Current term indicator on same line */}
-          <div className="flex items-center justify-between mt-1">
-            <div></div>
-            {selectedTerm && availableTerms.find(t => t.id === selectedTerm)?.is_current && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
-                Current Term
-              </span>
-            )}
-          </div>
-        </div>
 
             {/* Class Selector (only for Subjects Taught view) */}
             {viewMode === 'subjectsTaught' && (

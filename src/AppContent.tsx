@@ -267,6 +267,7 @@ const AppContent = () => {
                     <TeacherStudentRankings 
                       teacherId={user?.id || ''} 
                       schoolId={schoolId}
+                      currentTerm={currentTerm}
                     />
                   </ProtectedRoute>
                 }
