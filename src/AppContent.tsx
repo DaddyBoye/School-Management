@@ -27,6 +27,9 @@ import StudentGradesView from './pages/students/studentgradesview';
 import StudentFeeView from './pages/students/studentfeeview';
 import StudentTimetable from './pages/students/studenttimetable';
 import AdminAttendance from './pages/admin/adminattendance';
+import ClassManagementPage from './pages/admin/ClassManagementPage';
+import SubjectManagementPage from './pages/admin/SubjectManagementPage';
+import ClassSubjectsAssignmentPage from './pages/admin/ClassSubjectsAssignmentPage';
 
 const AppContent = () => {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
@@ -82,7 +85,7 @@ const AppContent = () => {
   }, [isNavOpen]);
 
   const accessibleRoutes = {
-    admin: ['/', '/staff', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager', '/adminattendance'],
+    admin: ['/', '/staff', '/students', '/studentfees', '/studentgrades', '/classsubjectmanager', '/subjectclassmanager', '/feemanager', '/timetablemanager', '/adminattendance', '/classmanagement', '/subjectmanagement', '/classsubjectsassignment'],
     teacher: ['/', '/teacherstudentview', '/teachergrades', '/teacherrankings', '/teacherattendance', '/teachertimetable'],
     student: ['/', '/studentgradesview', '/studentfeeview', '/studenttimetable'],
   };
@@ -108,6 +111,9 @@ const AppContent = () => {
       '/studentgradesview': 'My Grades',
       '/studentfeeview': 'My Fees',
       '/studenttimetable': 'My Timetable',
+      '/classmanagement': 'Class Management',
+      '/subjectmanagement': 'Subject Management',
+      '/classsubjectsassignment': 'Class Subjects Assignment',
     };
     return titles[path] || 'Dashboard';
   };
@@ -237,7 +243,35 @@ const AppContent = () => {
                     <AdminAttendance schoolId={schoolId}/>
                   </ProtectedRoute>
                 }
-              />          
+              />    
+
+              <Route
+                path="/classmanagement"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <ClassManagementPage schoolId={schoolId} />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/subjectmanagement"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <SubjectManagementPage schoolId={schoolId} />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/classsubjectsassignment"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <ClassSubjectsAssignmentPage schoolId={schoolId} />
+                  </ProtectedRoute>
+                } 
+              />
+
               <Route
                 path="/teacherstudentview"
                 element={

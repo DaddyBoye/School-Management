@@ -64,14 +64,17 @@ const LeftNav = ({ userRole, accessibleRoutes, onClose }: LeftNavProps) => {
     { path: '/feemanager', label: 'Fee Manager', icon: DollarSign },
     { path: '/teacherstudentview', label: 'My Students', icon: Users },
     { path: '/teachergrades', label: 'Student Grades', icon: Award },
-    { path: '/teacherrankings', label: 'Student Rankings', icon: Award },
-    { path: '/teacherattendance', label: 'Student Attendance', icon: UserCheck },
+    { path: '/teacherrankings', label: 'Student Rankings', icon: GraduationCap },
+    { path: '/teacherattendance', label: 'Student Attendance', icon: Clock },
     { path: '/timetablemanager', label: 'Timetables', icon: Clock },
-    { path: '/teachertimetable', label: 'My Timetables', icon: Clock },
+    { path: '/teachertimetable', label: 'My Timetables', icon: BookOpen },
     { path: '/studentgradesview', label: 'My Grades', icon: Award },
     { path: '/studentfeeview', label: 'My Fees', icon: DollarSign },
     { path: '/studenttimetable', label: 'My Timetables', icon: Clock },
     { path: '/adminattendance', label: 'Attendance', icon: UserCheck },
+    { path: '/classmanagement', label: 'Class Management', icon: Users },
+    { path: '/subjectmanagement', label: 'Subject Management', icon: BookOpen },
+    { path: '/classsubjectsassignment', label: 'Class Subjects Assignment', icon: UserCheck }
   ];
 
   // Filter navigation links based on the user's role
