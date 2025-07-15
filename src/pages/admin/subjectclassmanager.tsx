@@ -50,6 +50,14 @@ interface GradeScale {
   is_default: boolean;
 }
 
+interface GradeCategory {
+  id: number;
+  name: string;
+  weight: number;
+  subject_id: number;
+  school_id: string;
+}
+
 interface ClassSubject {
   id: number;
   class_id: string;
@@ -75,17 +83,20 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [gradeScales, setGradeScales] = useState<GradeScale[]>([]);
   const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+  const [gradeCategories, setGradeCategories] = useState<GradeCategory[]>([]);
   const [form] = Form.useForm();
   const [bulkForm] = Form.useForm();
   const [classForm] = Form.useForm();
   const [subjectForm] = Form.useForm();
   const [groupForm] = Form.useForm();
   const [gradeScaleForm] = Form.useForm();
+  const [gradeCategoryForm] = Form.useForm();
   const [isBulkModalVisible, setIsBulkModalVisible] = useState(false);
   const [isClassModalVisible, setIsClassModalVisible] = useState(false);
   const [isSubjectModalVisible, setIsSubjectModalVisible] = useState(false);
   const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
   const [isGradeScaleModalVisible, setIsGradeScaleModalVisible] = useState(false);
+  const [isGradeCategoryModalVisible, setIsGradeCategoryModalVisible] = useState(false);
   const [selectedClassRange, setSelectedClassRange] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('assignments');
@@ -96,6 +107,8 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editingGroup, setEditingGroup] = useState<ClassGroup | null>(null);
   const [editingGradeScale, setEditingGradeScale] = useState<GradeScale | null>(null);
+  const [editingGradeCategory, setEditingGradeCategory] = useState<GradeCategory | null>(null);
+  const [selectedSubjectForCategories, setSelectedSubjectForCategories] = useState<number | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -107,7 +120,8 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
           fetchClassGroups(),
           fetchSubjects(),
           fetchGradeScales(),
-          fetchClassSubjects()
+          fetchClassSubjects(),
+          fetchGradeCategories()
         ]);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -174,6 +188,22 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
 
     if (error) throw error;
     setClassSubjects(data || []);
+  };
+
+  const fetchGradeCategories = async (subjectId?: number) => {
+    let query = supabase
+      .from('grade_categories')
+      .select('*')
+      .eq('school_id', schoolId);
+
+    if (subjectId) {
+      query = query.eq('subject_id', subjectId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    setGradeCategories(data || []);
   };
 
   // Handle form submission for single assignment
@@ -262,10 +292,8 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
 
       if (!existingCategories || existingCategories.length === 0) {
         const defaultCategories = [
-          { subject_id: subjectId, name: 'Exams', weight: 40 },
-          { subject_id: subjectId, name: 'Quizzes', weight: 30 },
-          { subject_id: subjectId, name: 'Homework', weight: 20 },
-          { subject_id: subjectId, name: 'Participation', weight: 10 }
+          { subject_id: subjectId, name: 'Class', weight: 50 },
+          { subject_id: subjectId, name: 'Exams', weight: 50 },
         ];
 
         const { error: insertError } = await supabase
@@ -273,6 +301,7 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
           .insert(defaultCategories);
 
         if (insertError) throw insertError;
+        fetchGradeCategories(subjectId);
       }
     } catch (error) {
       console.error('Error ensuring grade categories:', error);
@@ -644,6 +673,76 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     }
   };
 
+  const handleGradeCategorySubmit = async (values: any) => {
+    try {
+      setLoading(true);
+      
+      if (!selectedSubjectForCategories) {
+        message.error('Please select a subject first');
+        return;
+      }
+
+      if (editingGradeCategory) {
+        // Update existing category
+        const { error } = await supabase
+          .from('grade_categories')
+          .update({
+            name: values.name,
+            weight: values.weight,
+            subject_id: selectedSubjectForCategories
+          })
+          .eq('id', editingGradeCategory.id);
+
+        if (error) throw error;
+        message.success('Grade category updated successfully');
+      } else {
+        // Create new category
+        const { error } = await supabase
+          .from('grade_categories')
+          .insert([{
+            name: values.name,
+            weight: values.weight,
+            subject_id: selectedSubjectForCategories,
+            school_id: schoolId
+          }]);
+
+        if (error) throw error;
+        message.success('Grade category created successfully');
+      }
+
+      fetchGradeCategories(selectedSubjectForCategories);
+      setIsGradeCategoryModalVisible(false);
+      gradeCategoryForm.resetFields();
+      setEditingGradeCategory(null);
+    } catch (error) {
+      console.error('Error saving grade category:', error);
+      message.error('Failed to save grade category');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteGradeCategory = async (id: number) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('grade_categories')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      message.success('Grade category deleted successfully');
+      fetchGradeCategories(selectedSubjectForCategories ?? undefined);
+    } catch (error) {
+      console.error('Error deleting grade category:', error);
+      message.error('Failed to delete grade category');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Open bulk assignment modal
   const showBulkModal = () => {
     setIsBulkModalVisible(true);
@@ -717,6 +816,23 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       });
     }
     setIsGradeScaleModalVisible(true);
+  };
+
+  const showGradeCategoryModal = (subjectId: number, categoryToEdit?: GradeCategory) => {
+    setSelectedSubjectForCategories(subjectId);
+    
+    if (categoryToEdit) {
+      setEditingGradeCategory(categoryToEdit);
+      gradeCategoryForm.setFieldsValue({
+        name: categoryToEdit.name,
+        weight: categoryToEdit.weight
+      });
+    } else {
+      setEditingGradeCategory(null);
+      gradeCategoryForm.resetFields();
+    }
+    
+    setIsGradeCategoryModalVisible(true);
   };
 
   // Handle class range selection for bulk operations
@@ -1302,6 +1418,15 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                             icon={<EditOutlined />} 
                             onClick={() => showSubjectModal(subject)}
                           />,
+                          <Button
+                            onClick={() => {
+                              setSelectedSubjectForCategories(subject.id);
+                              fetchGradeCategories(subject.id);
+                            }}
+                            icon={<ApartmentOutlined />}
+                          >
+                            Categories
+                          </Button>,
                           <Popconfirm
                             title="Are you sure you want to delete this subject?"
                             onConfirm={() => deleteSubject(subject.id)}
@@ -1332,6 +1457,91 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                     )}
                   />
                 </Card>
+
+                {/* NEW GRADE CATEGORIES PANEL */}
+                {selectedSubjectForCategories && (
+                  <Card 
+                    title={
+                      <Space>
+                        <ApartmentOutlined />
+                        <Text strong>
+                          Grade Categories for: {subjects.find(s => s.id === selectedSubjectForCategories)?.name}
+                        </Text>
+                        <Tag>{gradeCategories.filter(c => c.subject_id === selectedSubjectForCategories).length} categories</Tag>
+                      </Space>
+                    }
+                    style={{ marginTop: 24 }}
+                    extra={
+                      <Space>
+                        <Button 
+                          onClick={() => showGradeCategoryModal(selectedSubjectForCategories)}
+                          icon={<PlusOutlined />}
+                        >
+                          Add Category
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            setSelectedSubjectForCategories(null);
+                            setGradeCategories([]);
+                          }}
+                        >
+                          Close
+                        </Button>
+                      </Space>
+                    }
+                  >
+                    <Table
+                      dataSource={gradeCategories.filter(c => c.subject_id === selectedSubjectForCategories)}
+                      rowKey="id"
+                      pagination={false}
+                      columns={[
+                        {
+                          title: 'Category Name',
+                          dataIndex: 'name',
+                          key: 'name',
+                          render: (text) => <Text strong>{text}</Text>
+                        },
+                        {
+                          title: 'Weight',
+                          dataIndex: 'weight',
+                          key: 'weight',
+                          render: (weight) => (
+                            <Tag icon={<PercentageOutlined />} color="blue">
+                              {weight}%
+                            </Tag>
+                          )
+                        },
+                        {
+                          title: 'Actions',
+                          key: 'actions',
+                          render: (_, record) => (
+                            <Space>
+                              <Button 
+                                icon={<EditOutlined />}
+                                onClick={() => showGradeCategoryModal(selectedSubjectForCategories, record)}
+                              />
+                              <Popconfirm
+                                title="Are you sure? This will affect grade calculations!"
+                                onConfirm={() => deleteGradeCategory(record.id)}
+                              >
+                                <Button danger icon={<DeleteOutlined />} />
+                              </Popconfirm>
+                            </Space>
+                          )
+                        }
+                      ]}
+                      footer={() => (
+                        <div style={{ textAlign: 'right' }}>
+                          <Text strong>
+                            Total Weight: {gradeCategories
+                              .filter(c => c.subject_id === selectedSubjectForCategories)
+                              .reduce((sum, cat) => sum + cat.weight, 0)}%
+                          </Text>
+                        </div>
+                      )}
+                    />
+                  </Card>
+                )}
               </Col>
             </Row>
           </TabPane>
@@ -1785,6 +1995,61 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                 {editingGradeScale ? 'Update' : 'Create'}
               </Button>
               <Button onClick={() => setIsGradeScaleModalVisible(false)}>
+                Cancel
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Add/Edit Grade Category Modal */}
+      <Modal
+        title={
+          <Space>
+            <PercentageOutlined />
+            {editingGradeCategory ? 'Edit Grade Category' : 'Create New Grade Category'}
+          </Space>
+        }
+        visible={isGradeCategoryModalVisible}
+        onCancel={() => setIsGradeCategoryModalVisible(false)}
+        footer={null}
+      >
+        <Form
+          form={gradeCategoryForm}
+          layout="vertical"
+          onFinish={handleGradeCategorySubmit}
+        >
+          <Form.Item
+            name="name"
+            label="Category Name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
+            <Input placeholder="e.g., Exams, Homework, Participation" />
+          </Form.Item>
+
+          <Form.Item
+            name="weight"
+            label="Weight (%)"
+            rules={[
+              { required: true, message: 'Please enter weight percentage' },
+              { type: 'number', min: 1, max: 100, message: 'Must be between 1-100' }
+            ]}
+          >
+            <InputNumber 
+              placeholder="Weight percentage" 
+              min={1} 
+              max={100} 
+              style={{ width: '100%' }}
+              addonAfter="%"
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                {editingGradeCategory ? 'Update' : 'Create'}
+              </Button>
+              <Button onClick={() => setIsGradeCategoryModalVisible(false)}>
                 Cancel
               </Button>
             </Space>
