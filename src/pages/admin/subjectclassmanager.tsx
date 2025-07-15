@@ -3,13 +3,17 @@ import {
   Card, Form, Select, Button, Table, Modal, 
   message, Row, Col, Typography, Spin,
   Tabs, Tag, Badge, Space, Popconfirm, Empty,
-  Input, Divider, List, TreeSelect, Collapse
+  Input, Divider, List, TreeSelect, Collapse,
+  InputNumber,
+  Switch
 } from 'antd';
 import { 
   BookOutlined, TeamOutlined, PlusOutlined, 
   DeleteOutlined, FilterOutlined, InfoCircleOutlined, 
   SettingOutlined, EditOutlined, 
-  FolderOpenOutlined, ApartmentOutlined
+  FolderOpenOutlined, ApartmentOutlined,
+  PercentageOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../supabase';
 
@@ -76,10 +80,12 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [classForm] = Form.useForm();
   const [subjectForm] = Form.useForm();
   const [groupForm] = Form.useForm();
+  const [gradeScaleForm] = Form.useForm();
   const [isBulkModalVisible, setIsBulkModalVisible] = useState(false);
   const [isClassModalVisible, setIsClassModalVisible] = useState(false);
   const [isSubjectModalVisible, setIsSubjectModalVisible] = useState(false);
   const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
+  const [isGradeScaleModalVisible, setIsGradeScaleModalVisible] = useState(false);
   const [selectedClassRange, setSelectedClassRange] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('assignments');
@@ -89,6 +95,7 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editingGroup, setEditingGroup] = useState<ClassGroup | null>(null);
+  const [editingGradeScale, setEditingGradeScale] = useState<GradeScale | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -520,6 +527,123 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     }
   };
 
+  const handleGradeScaleSubmit = async (values: any) => {
+    try {
+      setLoading(true);
+      
+      // Format the scale object
+      const scale: Record<string, number> = {};
+      values.grades.forEach((grade: any) => {
+        scale[grade.letter] = grade.threshold;
+      });
+
+      if (editingGradeScale) {
+        // Update existing grade scale
+        const { error } = await supabase
+          .from('grade_scales')
+          .update({
+            name: values.name,
+            scale,
+            is_default: values.is_default
+          })
+          .eq('id', editingGradeScale.id);
+
+        if (error) throw error;
+        message.success('Grade scale updated successfully');
+      } else {
+        // Create new grade scale
+        const { error } = await supabase
+          .from('grade_scales')
+          .insert([{
+            name: values.name,
+            scale,
+            is_default: values.is_default,
+            school_id: schoolId
+          }]);
+
+        if (error) throw error;
+        message.success('Grade scale created successfully');
+      }
+
+      // If this is being set as default, unset any other defaults
+      if (values.is_default) {
+        await supabase
+          .from('grade_scales')
+          .update({ is_default: false })
+          .neq('id', editingGradeScale?.id || 0)
+          .eq('school_id', schoolId);
+      }
+
+      fetchGradeScales();
+      setIsGradeScaleModalVisible(false);
+      gradeScaleForm.resetFields();
+      setEditingGradeScale(null);
+    } catch (error) {
+      console.error('Error saving grade scale:', error);
+      message.error('Failed to save grade scale');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteGradeScale = async (id: number) => {
+    try {
+      setLoading(true);
+      
+      // Check if this grade scale is in use
+      const { count } = await supabase
+        .from('class_subjects')
+        .select('*', { count: 'exact' })
+        .eq('grade_scale_id', id);
+
+      if (count && count > 0) {
+        message.error('Cannot delete grade scale that is in use');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('grade_scales')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      message.success('Grade scale deleted successfully');
+      fetchGradeScales();
+    } catch (error) {
+      console.error('Error deleting grade scale:', error);
+      message.error('Failed to delete grade scale');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setDefaultGradeScale = async (id: number) => {
+    try {
+      setLoading(true);
+      
+      await supabase
+        .from('grade_scales')
+        .update({ is_default: false })
+        .eq('school_id', schoolId);
+
+      const { error } = await supabase
+        .from('grade_scales')
+        .update({ is_default: true })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      message.success('Default grade scale updated');
+      fetchGradeScales();
+    } catch (error) {
+      console.error('Error setting default grade scale:', error);
+      message.error('Failed to set default grade scale');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Open bulk assignment modal
   const showBulkModal = () => {
     setIsBulkModalVisible(true);
@@ -569,6 +693,30 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       groupForm.resetFields();
     }
     setIsGroupModalVisible(true);
+  };
+
+  const showGradeScaleModal = (gradeScaleToEdit?: GradeScale) => {
+    if (gradeScaleToEdit) {
+      setEditingGradeScale(gradeScaleToEdit);
+      // Convert scale object to array for form
+      const grades = Object.entries(gradeScaleToEdit.scale).map(([letter, threshold]) => ({
+        letter,
+        threshold
+      }));
+      gradeScaleForm.setFieldsValue({
+        name: gradeScaleToEdit.name,
+        is_default: gradeScaleToEdit.is_default,
+        grades
+      });
+    } else {
+      setEditingGradeScale(null);
+      gradeScaleForm.resetFields();
+      // Add one default grade row
+      gradeScaleForm.setFieldsValue({
+        grades: [{ letter: 'A', threshold: 90 }]
+      });
+    }
+    setIsGradeScaleModalVisible(true);
   };
 
   // Handle class range selection for bulk operations
@@ -1199,12 +1347,23 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
           >
             <Row gutter={[16, 16]}>
               <Col span={24}>
-                <Card title="Available Grade Scales" bordered={false}>
+                <Card 
+                  title="Grade Scales" 
+                  bordered={false}
+                  extra={
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />}
+                      onClick={() => showGradeScaleModal()}
+                    >
+                      Add Grade Scale
+                    </Button>
+                  }
+                >
                   {gradeScales.length > 0 ? (
                     <Table
                       dataSource={gradeScales}
                       rowKey="id"
-                      pagination={false}
                       columns={[
                         {
                           title: 'Name',
@@ -1223,18 +1382,56 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                           key: 'scale',
                           render: (scale: Record<string, number>) => (
                             <Space>
-                              {Object.entries(scale).map(([grade, threshold]) => (
-                                <Tag key={grade}>
-                                  {grade}: ≥{threshold}%
-                                </Tag>
-                              ))}
+                              {Object.entries(scale)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([grade, threshold]) => (
+                                  <Tag key={grade}>
+                                    {grade}: ≥{threshold}%
+                                  </Tag>
+                                ))}
+                            </Space>
+                          )
+                        },
+                        {
+                          title: 'Actions',
+                          key: 'actions',
+                          render: (_, record) => (
+                            <Space>
+                              <Button 
+                                icon={<EditOutlined />}
+                                onClick={() => showGradeScaleModal(record)}
+                              />
+                              {!record.is_default && (
+                                <>
+                                  <Button 
+                                    onClick={() => setDefaultGradeScale(record.id)}
+                                  >
+                                    Set Default
+                                  </Button>
+                                  <Popconfirm
+                                    title="Are you sure you want to delete this grade scale?"
+                                    onConfirm={() => deleteGradeScale(record.id)}
+                                    okText="Yes"
+                                    cancelText="No"
+                                  >
+                                    <Button danger icon={<DeleteOutlined />} />
+                                  </Popconfirm>
+                                </>
+                              )}
                             </Space>
                           )
                         }
                       ]}
                     />
                   ) : (
-                    <Empty description="No grade scales defined" />
+                    <Empty description="No grade scales defined">
+                      <Button 
+                        type="primary" 
+                        onClick={() => showGradeScaleModal()}
+                      >
+                        Create First Grade Scale
+                      </Button>
+                    </Empty>
                   )}
                 </Card>
               </Col>
@@ -1504,6 +1701,97 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Add/Edit Grade Scale Modal */}
+      <Modal
+        title={
+          <Space>
+            <PercentageOutlined />
+            {editingGradeScale ? 'Edit Grade Scale' : 'Create New Grade Scale'}
+          </Space>
+        }
+        visible={isGradeScaleModalVisible}
+        onCancel={() => setIsGradeScaleModalVisible(false)}
+        footer={null}
+        width={700}
+      >
+        <Form
+          form={gradeScaleForm}
+          layout="vertical"
+          onFinish={handleGradeScaleSubmit}
+        >
+          <Form.Item
+            name="name"
+            label="Grade Scale Name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
+            <Input placeholder="e.g., Standard Grading Scale" />
+          </Form.Item>
+
+          <Form.Item
+            name="is_default"
+            label="Default Scale"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="Yes" unCheckedChildren="No" />
+          </Form.Item>
+
+          <Form.List name="grades">
+            {(fields, { add, remove }) => (
+              <>
+                <Divider orientation="left">Grade Thresholds</Divider>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'letter']}
+                      rules={[{ required: true, message: 'Grade letter is required' }]}
+                    >
+                      <Input placeholder="Letter (e.g., A)" style={{ width: 100 }} />
+                    </Form.Item>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'threshold']}
+                      rules={[{ required: true, message: 'Threshold is required' }]}
+                    >
+                      <InputNumber 
+                        placeholder="Threshold %" 
+                        min={0} 
+                        max={100} 
+                        style={{ width: 120 }}
+                        addonAfter="%"
+                      />
+                    </Form.Item>
+                    <MinusCircleOutlined onClick={() => remove(name)} />
+                  </Space>
+                ))}
+                <Form.Item>
+                  <Button 
+                    type="dashed" 
+                    onClick={() => add()} 
+                    block 
+                    icon={<PlusOutlined />}
+                  >
+                    Add Grade
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                {editingGradeScale ? 'Update' : 'Create'}
+              </Button>
+              <Button onClick={() => setIsGradeScaleModalVisible(false)}>
+                Cancel
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
     </div>
   );
 };
