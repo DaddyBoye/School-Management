@@ -3,12 +3,13 @@ import {
   Card, Form, Select, Button, Table, Modal, 
   message, Row, Col, Typography, Spin,
   Tabs, Tag, Badge, Space, Popconfirm, Empty,
-  Input, Divider, List
+  Input, Divider, List, TreeSelect, Collapse
 } from 'antd';
 import { 
   BookOutlined, TeamOutlined, PlusOutlined, 
   DeleteOutlined, FilterOutlined, InfoCircleOutlined, 
-  SettingOutlined, EditOutlined 
+  SettingOutlined, EditOutlined, 
+  FolderOpenOutlined, ApartmentOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../supabase';
 
@@ -16,11 +17,19 @@ const { Option } = Select;
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { TextArea } = Input;
+const { Panel } = Collapse;
 
 interface Class {
   id: string;
   name: string;
   grade: string;
+}
+
+interface ClassGroup {
+  id: string;
+  name: string;
+  class_ids: string[];
+  school_id: string;
 }
 
 interface Subject {
@@ -58,6 +67,7 @@ const formatGrade = (grade: string) => {
 const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [gradeScales, setGradeScales] = useState<GradeScale[]>([]);
   const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
@@ -65,16 +75,20 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [bulkForm] = Form.useForm();
   const [classForm] = Form.useForm();
   const [subjectForm] = Form.useForm();
+  const [groupForm] = Form.useForm();
   const [isBulkModalVisible, setIsBulkModalVisible] = useState(false);
   const [isClassModalVisible, setIsClassModalVisible] = useState(false);
   const [isSubjectModalVisible, setIsSubjectModalVisible] = useState(false);
+  const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
   const [selectedClassRange, setSelectedClassRange] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('assignments');
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ClassGroup | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -83,6 +97,7 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       try {
         await Promise.all([
           fetchClasses(),
+          fetchClassGroups(),
           fetchSubjects(),
           fetchGradeScales(),
           fetchClassSubjects()
@@ -109,6 +124,17 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
 
     if (error) throw error;
     setClasses(data || []);
+  };
+
+  const fetchClassGroups = async () => {
+    const { data, error } = await supabase
+      .from('class_groups')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    setClassGroups(data || []);
   };
 
   const fetchSubjects = async () => {
@@ -168,6 +194,50 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     } catch (error) {
       console.error('Error assigning subject:', error);
       message.error('Failed to assign subject');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle group submission
+  const handleGroupSubmit = async (values: any) => {
+    try {
+      setLoading(true);
+      
+      if (editingGroup) {
+        // Update existing group
+        const { error } = await supabase
+          .from('class_groups')
+          .update({
+            name: values.name,
+            class_ids: values.class_ids
+          })
+          .eq('id', editingGroup.id);
+
+        if (error) throw error;
+        message.success('Group updated successfully');
+      } else {
+        // Create new group
+        const { error } = await supabase
+          .from('class_groups')
+          .insert([{
+            name: values.name,
+            class_ids: values.class_ids,
+            school_id: schoolId
+          }])
+          .select();
+
+        if (error) throw error;
+        message.success('Group created successfully');
+      }
+      
+      fetchClassGroups();
+      setIsGroupModalVisible(false);
+      groupForm.resetFields();
+      setEditingGroup(null);
+    } catch (error) {
+      console.error('Error saving group:', error);
+      message.error('Failed to save group');
     } finally {
       setLoading(false);
     }
@@ -367,6 +437,16 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
         return;
       }
 
+      // Remove class from any groups
+      const affectedGroups = classGroups.filter(group => group.class_ids.includes(classId));
+      for (const group of affectedGroups) {
+        const updatedClassIds = group.class_ids.filter(id => id !== classId);
+        await supabase
+          .from('class_groups')
+          .update({ class_ids: updatedClassIds })
+          .eq('id', group.id);
+      }
+
       const { error } = await supabase
         .from('classes')
         .delete()
@@ -376,6 +456,7 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
       
       message.success('Class deleted successfully');
       fetchClasses();
+      fetchClassGroups();
     } catch (error) {
       console.error('Error deleting class:', error);
       message.error('Failed to delete class');
@@ -417,6 +498,28 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     }
   };
 
+  // Delete group
+  const deleteGroup = async (groupId: string) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('class_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) throw error;
+      
+      message.success('Group deleted successfully');
+      fetchClassGroups();
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      message.error('Failed to delete group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Open bulk assignment modal
   const showBulkModal = () => {
     setIsBulkModalVisible(true);
@@ -453,6 +556,21 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     setIsSubjectModalVisible(true);
   };
 
+  // Open group creation modal
+  const showGroupModal = (groupToEdit?: ClassGroup) => {
+    if (groupToEdit) {
+      setEditingGroup(groupToEdit);
+      groupForm.setFieldsValue({
+        name: groupToEdit.name,
+        class_ids: groupToEdit.class_ids
+      });
+    } else {
+      setEditingGroup(null);
+      groupForm.resetFields();
+    }
+    setIsGroupModalVisible(true);
+  };
+
   // Handle class range selection for bulk operations
   const handleClassRangeChange = (selectedGrades: string[]) => {
     const selectedClasses = classes
@@ -475,9 +593,25 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     return scale ? scale.name : 'Default';
   };
 
+  // Get classes in a group
+  const getClassesInGroup = (group: ClassGroup) => {
+    return classes.filter(cls => group.class_ids.includes(cls.id));
+  };
+
   // Filter assignments based on search and filters
   const getFilteredAssignments = () => {
-    return classSubjects.filter(assignment => {
+    let filtered = classSubjects;
+    
+    if (selectedGroup) {
+      const group = classGroups.find(g => g.id === selectedGroup);
+      if (group) {
+        filtered = filtered.filter(assignment => 
+          group.class_ids.includes(assignment.class_id)
+        );
+      }
+    }
+    
+    return filtered.filter(assignment => {
       const className = classes.find(c => c.id === assignment.class_id)?.name.toLowerCase() || '';
       const subjectName = getSubjectName(assignment.subject_id).toLowerCase();
       
@@ -498,6 +632,7 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
     setSearchText('');
     setSelectedClass(null);
     setSelectedSubject(null);
+    setSelectedGroup(null);
   };
 
   // Table columns for assignments
@@ -609,6 +744,19 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                   <Space>
                     <Select 
+                      placeholder="Filter by group" 
+                      style={{ width: 180 }} 
+                      allowClear
+                      value={selectedGroup}
+                      onChange={setSelectedGroup}
+                    >
+                      {classGroups.map(group => (
+                        <Option key={group.id} value={group.id}>
+                          <ApartmentOutlined /> {group.name}
+                        </Option>
+                      ))}
+                    </Select>
+                    <Select 
                       placeholder="Filter by class" 
                       style={{ width: 180 }} 
                       allowClear
@@ -668,7 +816,7 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                   <Empty 
                     description={
                       <span>
-                        {searchText || selectedClass || selectedSubject ? 
+                        {searchText || selectedClass || selectedSubject || selectedGroup ? 
                           "No assignments match your filters" : 
                           "No assignments found. Add your first assignment!"}
                       </span>
@@ -872,6 +1020,101 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                       </List.Item>
                     )}
                   />
+                </Card>
+              </Col>
+            </Row>
+          </TabPane>
+          
+          {/* Class Groups Management Tab */}
+          <TabPane 
+            tab={
+              <span>
+                <ApartmentOutlined /> Class Groups
+              </span>
+            } 
+            key="groups"
+          >
+            <Row gutter={[16, 16]}>
+              <Col span={24}>
+                <Card 
+                  title="Class Groups" 
+                  bordered={false}
+                  extra={
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />}
+                      onClick={() => showGroupModal()}
+                    >
+                      Add Group
+                    </Button>
+                  }
+                >
+                  {classGroups.length > 0 ? (
+                    <Collapse accordion>
+                      {classGroups.map(group => (
+                        <Panel 
+                          header={
+                            <Space>
+                              <FolderOpenOutlined />
+                              <Text strong>{group.name}</Text>
+                              <Tag>{group.class_ids.length} classes</Tag>
+                            </Space>
+                          } 
+                          key={group.id}
+                          extra={
+                            <Space>
+                              <Button 
+                                size="small" 
+                                icon={<EditOutlined />} 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  showGroupModal(group);
+                                }}
+                              />
+                              <Popconfirm
+                                title="Are you sure you want to delete this group?"
+                                onConfirm={() => deleteGroup(group.id)}
+                                okText="Yes"
+                                cancelText="No"
+                              >
+                                <Button 
+                                  size="small" 
+                                  danger 
+                                  icon={<DeleteOutlined />} 
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </Popconfirm>
+                            </Space>
+                          }
+                        >
+                          <List
+                            dataSource={getClassesInGroup(group)}
+                            renderItem={cls => (
+                              <List.Item>
+                                <List.Item.Meta
+                                  title={cls.name}
+                                  description={`Grade ${cls.grade}`}
+                                />
+                                <div>
+                                  <Badge 
+                                    count={classSubjects.filter(cs => cs.class_id === cls.id).length} 
+                                    style={{ backgroundColor: '#1890ff' }} 
+                                  />
+                                  <Text type="secondary" style={{ marginLeft: 8 }}>assigned subjects</Text>
+                                </div>
+                              </List.Item>
+                            )}
+                          />
+                        </Panel>
+                      ))}
+                    </Collapse>
+                  ) : (
+                    <Empty description="No class groups created yet">
+                      <Button type="primary" onClick={() => showGroupModal()}>
+                        Create First Group
+                      </Button>
+                    </Empty>
+                  )}
                 </Card>
               </Col>
             </Row>
@@ -1198,6 +1441,63 @@ const SubjectClassManager: React.FC<{ schoolId: string }> = ({ schoolId }) => {
                 {editingClass ? 'Update Class' : 'Create Class'}
               </Button>
               <Button onClick={() => classForm.resetFields()}>
+                Reset
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Add/Edit Group Modal */}
+      <Modal
+        title={<>
+          <ApartmentOutlined /> {editingGroup ? 'Edit Class Group' : 'Add New Class Group'}
+        </>}
+        visible={isGroupModalVisible}
+        onCancel={() => setIsGroupModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Form form={groupForm} layout="vertical" onFinish={handleGroupSubmit}>
+          <Form.Item
+            name="name"
+            label="Group Name"
+            rules={[{ required: true, message: 'Please enter a group name' }]}
+          >
+            <Input placeholder="e.g., Primary Classes" />
+          </Form.Item>
+
+          <Form.Item
+            name="class_ids"
+            label="Classes in Group"
+            rules={[{ required: true, message: 'Please select at least one class' }]}
+          >
+            <TreeSelect
+              treeData={[
+                {
+                  title: 'All Classes',
+                  value: 'all',
+                  key: 'all',
+                  children: classes.map(cls => ({
+                    title: `${cls.name} (Grade ${cls.grade})`,
+                    value: cls.id,
+                    key: cls.id
+                  }))
+                }
+              ]}
+              treeCheckable={true}
+              showCheckedStrategy="SHOW_PARENT"
+              placeholder="Select classes to include in this group"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                {editingGroup ? 'Update Group' : 'Create Group'}
+              </Button>
+              <Button onClick={() => groupForm.resetFields()}>
                 Reset
               </Button>
             </Space>
