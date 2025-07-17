@@ -394,7 +394,8 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
         password,
         'https://stjoba.klaso.site',
         'no-reply@school.com',
-        'School Admin'
+        'School Admin',
+        'Staff Member'
       );
 
       await fetchData();

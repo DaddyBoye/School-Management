@@ -322,7 +322,8 @@ const handleAddStudent = async (values: any) => {
       password,
       'https://stjoba.klaso.site',
       'no-reply@school.com',
-      'School Admin'
+      'School Admin',
+      'Student'
     );
 
     // 5. Refresh and reset

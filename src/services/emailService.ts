@@ -11,7 +11,8 @@ export const sendEmail = async (
     password: string,
     loginUrl: string,
     supportEmail: string,
-    fromName: string
+    fromName: string,
+    role: string,
   ) => {
   
     try {
@@ -27,6 +28,7 @@ export const sendEmail = async (
           supportEmail: supportEmail,
           from_name: fromName,
           currentYear: new Date().getFullYear().toString(),
+          role: role,
         },
         PUBLIC_KEY
       );
