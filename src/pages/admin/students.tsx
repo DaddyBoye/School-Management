@@ -271,67 +271,77 @@ const StudentManagement = ({ schoolId, schoolName }: { schoolId: string; schoolN
     return matchesSearch && matchesClass && matchesStatus;
   });
 
-  const handleAddStudent = async (values: any) => {
-    setIsSubmitting(true);
-    
-    try {
-      const password = generatePassword();
-      const { count } = await supabase
-        .from('students')
-        .select('*', { count: 'exact', head: true })
-        .eq('school_id', schoolId);
+const handleAddStudent = async (values: any) => {
+  setIsSubmitting(true);
+  
+  try {
+    // 1. Generate student code
+    const { count } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true })
+      .eq('school_id', schoolId);
 
-      const studentCode = `STU-${schoolId}-${(count || 0) + 1}`;
-      
-      const { data: { user }, error: authError } = await supabase.auth.signUp({
-        email: values.email,
-        password: password,
-        options: { 
-          data: { 
-            role: 'student' 
-          } 
-        },
-      });
-  
-      if (authError) throw authError;
-      if (!user) throw new Error("Failed to create user");
-  
-      const { error: studentError } = await supabase
-        .from("students")
-        .insert([{ 
-          ...values,
-          student_code: studentCode,
-          user_id: user.id,
-          join_date: values.join_date.format('YYYY-MM-DD'),
-          date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
-          enrollment_status: 'active'
-        }])
-        .select()
-        .single();
-  
-      if (studentError) throw studentError;
-  
-      await sendEmail(
-        values.email,
-        `${values.first_name} ${values.last_name}`,
-        schoolName,
-        password,
-        'https://stjoba.klaso.site',
-        'no-reply@school.com',
-        'School Admin'
-      );
-  
-      await fetchData();
-      setIsModalVisible(false);
-      form.resetFields();
-      message.success('Student added successfully');
-    } catch (error) {
-      console.error('Error adding student:', error);
-      message.error(error instanceof Error ? error.message : "Failed to add student");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    const studentCode = `STU-${schoolId}-${(count || 0) + 1}`;
+    const password = generatePassword();
+    
+    // 2. Create user with admin API
+    const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
+      email: values.email,
+      password: password,
+      user_metadata: { 
+        role: 'student',
+        school_id: schoolId
+      },
+      email_confirm: true // Skip email confirmation
+    });
+
+    if (authError) throw authError;
+    if (!user) throw new Error("Failed to create user");
+
+    // 3. Create student record
+    const { error: studentError } = await supabase
+      .from("students")
+      .insert([{ 
+        ...values,
+        student_code: studentCode,
+        user_id: user.id,
+        join_date: values.join_date.format('YYYY-MM-DD'),
+        date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
+        enrollment_status: 'active',
+        school_id: schoolId
+      }])
+      .select()
+      .single();
+
+    if (studentError) throw studentError;
+
+    // 4. Send welcome email
+    await sendEmail(
+      values.email,
+      `${values.first_name} ${values.last_name}`,
+      schoolName,
+      password,
+      'https://stjoba.klaso.site',
+      'no-reply@school.com',
+      'School Admin'
+    );
+
+    // 5. Refresh and reset
+    await fetchData();
+    setIsModalVisible(false);
+    form.resetFields();
+    message.success('Student added successfully');
+  } catch (error) {
+    console.error('Error adding student:', error);
+    message.error(
+      error instanceof Error ? 
+      error.message : 
+      "Failed to add student. Please try again."
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleEditStudent = async (values: any) => {
     if (!selectedStudent) return;
