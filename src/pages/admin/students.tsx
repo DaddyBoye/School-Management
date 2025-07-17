@@ -77,7 +77,6 @@ interface Student {
   created_at: string;
   updated_at: string;
   image_url?: string;
-  image_path?: string;
   student_code?: string;
 }
 
@@ -380,16 +379,16 @@ const handleAddStudent = async (values: any) => {
       
       const { data: studentData, error: fetchError } = await supabase
         .from("students")
-        .select("user_id, image_path")
+        .select("user_id, image_url")
         .eq("id", studentId)
         .single();
       
       if (fetchError) throw fetchError;
       
-      if (studentData.image_path) {
+      if (studentData.image_url) {
         const { error: deleteImageError } = await supabase.storage
           .from('student-photos')
-          .remove([studentData.image_path]);
+          .remove([studentData.image_url]);
         
         if (deleteImageError) console.error('Error deleting image:', deleteImageError);
       }
@@ -796,10 +795,9 @@ const handleAddStudent = async (values: any) => {
               <div className="flex justify-center mb-6">
                 <Form.Item label="Profile Photo" name="image_url">
                   <ImageUploader 
-                    onUpload={(url, path) => {
+                    onUpload={(url) => {
                       form.setFieldsValue({
                         image_url: url,
-                        image_path: path
                       });
                     }}
                     currentImage={selectedStudent?.image_url}

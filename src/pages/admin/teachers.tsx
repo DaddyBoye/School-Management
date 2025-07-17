@@ -75,7 +75,6 @@ interface StaffMember {
   created_at: string;
   updated_at: string;
   image_url: string;
-  image_path?: string;
   staff_code: string;
   employment_type: string;
   position: string;
@@ -486,16 +485,16 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
       
       const { data: staffData, error: fetchError } = await supabase
         .from("teachers")
-        .select("user_id, image_path")
+        .select("user_id, image_url")
         .eq("id", staffId)
         .single();
       
       if (fetchError) throw fetchError;
       
-      if (staffData.image_path) {
+      if (staffData.image_url) {
         const { error: deleteImageError } = await supabase.storage
           .from('staff-photos')
-          .remove([staffData.image_path]);
+          .remove([staffData.image_url]);
         
         if (deleteImageError) console.error('Error deleting image:', deleteImageError);
       }
@@ -1131,10 +1130,9 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
               <div className="flex justify-center mb-6">
                 <Form.Item label="Profile Photo" name="image_url">
                   <ImageUploader 
-                    onUpload={(url, path) => {
+                    onUpload={(url) => {
                       form.setFieldsValue({
                         image_url: url,
-                        image_path: path
                       });
                     }}
                     currentImage={selectedStaff?.image_url}
