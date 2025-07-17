@@ -13,10 +13,6 @@ export const sendEmail = async (
     supportEmail: string,
     fromName: string
   ) => {
-    console.log('Attempting to send email...');
-    console.log('Recipient:', toEmail);
-    console.log('School Name:', schoolName);
-    console.log('Support Email:', supportEmail);
   
     try {
       const response = await emailjs.send(

@@ -346,19 +346,20 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
 
       const staffCode = `${schoolId}-${(count || 0) + 1}`;
       
-      const { data: { user }, error: authError } = await supabase.auth.signUp({
+      // Create auth account but don't sign in
+      const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
         email: values.email,
         password: password,
-        options: { 
-          data: { 
-            role: values.is_teaching_staff ? 'teacher' : 'staff' 
-          } 
+        user_metadata: { 
+          role: values.is_teaching_staff ? 'teacher' : 'staff',
+          school_id: schoolId
         },
+        email_confirm: true // Skip email confirmation
       });
-  
+
       if (authError) throw authError;
       if (!user) throw new Error("Failed to create user");
-  
+
       const { data: staffData, error: staffError } = await supabase
         .from("teachers")
         .insert([{ 
@@ -367,35 +368,36 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
           user_id: user.id,
           joinDate: values.joinDate.format('YYYY-MM-DD'),
           date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
-          is_active: true
+          is_active: true,
+          school_id: schoolId
         }])
         .select()
         .single();
-  
+
       if (staffError) throw staffError;
-  
+
       const rolesToInsert = values.roles.map((role: any) => ({
         teacher_id: staffData.id,
         role_id: role,
         is_primary: role === values.primary_role_id
       }));
-  
+
       const { error: rolesError } = await supabase
         .from("teacher_roles")
         .insert(rolesToInsert);
-  
+
       if (rolesError) throw rolesError;
-  
+
       await sendEmail(
         values.email,
         `${values.first_name} ${values.last_name}`,
         schoolName,
         password,
-        'https://your-school-portal.com',
+        'https://stjoba.klaso.site',
         'no-reply@school.com',
         'School Admin'
       );
-  
+
       await fetchData();
       setIsModalVisible(false);
       form.resetFields();
