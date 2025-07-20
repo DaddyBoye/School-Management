@@ -838,9 +838,17 @@ interface Holiday {
   date: string;
 }
 
+interface ClassGroup {
+  id: string;
+  name: string;
+  class_ids: string[];
+  school_id: string;
+}
+
 const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) => {
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -868,6 +876,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       try {
         await fetchClasses();
         await fetchSchoolCalendars();
+        await fetchClassGroups();
         await Promise.all([
           fetchSubjects(),
           fetchGradeScale()
@@ -960,6 +969,21 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
 
     if (error) throw error;
     setSubjects(data || []);
+  };
+
+  const fetchClassGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('class_groups')
+        .select('*')
+        .eq('school_id', schoolId);
+
+      if (error) throw error;
+      setClassGroups(data || []);
+    } catch (error) {
+      console.error('Error fetching class groups:', error);
+      message.error('Failed to load class groups');
+    }
   };
 
   const fetchGradeScale = async () => {
@@ -1584,7 +1608,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
     selectedTerm,
     studentOverall, 
     subjectGrades,
-    studentImageUrl  
+    studentImageUrl,
+    calendarTerms,
+    classGroups 
   }: {
     student: any;
     selectedClass: any;
@@ -1594,6 +1620,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
     studentImageUrl: string | null;
     calendarTerms: CalendarTerm[];
     holidays: Holiday[];
+    classGroups: ClassGroup[];
   }) => {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
@@ -1617,6 +1644,9 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
       moment(record.date).isSameOrBefore(currentTerm?.end_date)
     ).length;
 
+    const studentGroup = classGroups.find(group => 
+      group.class_ids.includes(student.class_id)
+    );
 
     const { vacationDate, reopenDate } = getCurrentTermAndVacationDates();
     const classSize = students.filter(s => s.class_id === student.class_id).length;
@@ -1661,10 +1691,12 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
               </View>
             </View>
             
-            <View style={styles.department}>
-              <PdfText style={styles.departmentText}>PRIMARY DEPARTMENT</PdfText>
-            </View>
+          <View style={styles.department}>
+            <PdfText style={styles.departmentText}>
+              {studentGroup ? studentGroup.name.toUpperCase() : 'DEPARTMENT'} {/* Fallback to 'DEPARTMENT' if no group found */}
+            </PdfText>
           </View>
+        </View>
 
           {/* Student Progress Report Header */}
           <View style={styles.progressReportHeader}>
@@ -2464,6 +2496,7 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                   studentImageUrl={selectedStudent.image_url}
                   calendarTerms={calendarTerms}
                   holidays={holidays}
+                  classGroups={classGroups}
                 />
               </PDFViewer>
               
@@ -2478,7 +2511,8 @@ const StudentGrades: React.FC<StudentGradesProps> = ({ schoolId, currentTerm }) 
                       subjectGrades={studentSubjectGrades[selectedStudent.id] || {}} 
                       studentImageUrl={selectedStudent.image_url}
                       calendarTerms={calendarTerms}
-                      holidays={holidays}              
+                      holidays={holidays}
+                      classGroups={classGroups}              
                     />
                   } 
                   fileName={`Student_Report_${selectedStudent.first_name}_${selectedStudent.last_name}_${selectedTerm?.name}.pdf`}
