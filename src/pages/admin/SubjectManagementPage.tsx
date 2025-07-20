@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, Button, List, Modal, Form, Input, 
-  Table, Space, Tag, Badge, 
-  Typography, Popconfirm, Divider, InputNumber,
-  Switch, 
-  Col,
-  Empty,
-  message,
-  Row
+  Table, Space, Tag, Badge, Typography, 
+  Popconfirm, Divider, InputNumber, Switch, 
+  Empty, message, Tabs,
+  Row,
+  Col
 } from 'antd';
 import { 
   BookOutlined, PlusOutlined, DeleteOutlined, 
@@ -47,6 +45,7 @@ interface ClassSubject {
 }
 
 const { Text } = Typography;
+const { TabPane } = Tabs;
 
 const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [loading, setLoading] = useState(true);
@@ -65,7 +64,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
   const [editingGradeCategory, setEditingGradeCategory] = useState<GradeCategory | null>(null);
   const [selectedSubjectForCategories, setSelectedSubjectForCategories] = useState<number | null>(null);
 
-  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -87,7 +85,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     fetchData();
   }, [schoolId]);
 
-  // Data fetching functions
   const fetchSubjects = async () => {
     const { data, error } = await supabase
       .from('subjects')
@@ -136,13 +133,11 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     setClassSubjects(data || []);
   };
 
-  // Handle subject operations
   const handleSubjectSubmit = async (values: any) => {
     try {
       setLoading(true);
       
       if (editingSubject) {
-        // Update existing subject
         const { error } = await supabase
           .from('subjects')
           .update({
@@ -155,7 +150,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
         if (error) throw error;
         message.success('Subject updated successfully');
       } else {
-        // Create new subject
         const { error } = await supabase
           .from('subjects')
           .insert([{
@@ -186,7 +180,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     try {
       setLoading(true);
       
-      // First check if the subject has any assignments
       const { count } = await supabase
         .from('class_subjects')
         .select('*', { count: 'exact' })
@@ -214,19 +207,16 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     }
   };
 
-  // Handle grade scale operations
   const handleGradeScaleSubmit = async (values: any) => {
     try {
       setLoading(true);
       
-      // Format the scale object
       const scale: Record<string, number> = {};
       values.grades.forEach((grade: any) => {
         scale[grade.letter] = grade.threshold;
       });
 
       if (editingGradeScale) {
-        // Update existing grade scale
         const { error } = await supabase
           .from('grade_scales')
           .update({
@@ -239,7 +229,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
         if (error) throw error;
         message.success('Grade scale updated successfully');
       } else {
-        // Create new grade scale
         const { error } = await supabase
           .from('grade_scales')
           .insert([{
@@ -253,7 +242,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
         message.success('Grade scale created successfully');
       }
 
-      // If this is being set as default, unset any other defaults
       if (values.is_default) {
         await supabase
           .from('grade_scales')
@@ -278,7 +266,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     try {
       setLoading(true);
       
-      // Check if this grade scale is in use
       const { count } = await supabase
         .from('class_subjects')
         .select('*', { count: 'exact' })
@@ -332,7 +319,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     }
   };
 
-  // Handle grade category operations
   const handleGradeCategorySubmit = async (values: any) => {
     try {
       setLoading(true);
@@ -343,7 +329,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
       }
 
       if (editingGradeCategory) {
-        // Update existing category
         const { error } = await supabase
           .from('grade_categories')
           .update({
@@ -356,7 +341,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
         if (error) throw error;
         message.success('Grade category updated successfully');
       } else {
-        // Create new category
         const { error } = await supabase
           .from('grade_categories')
           .insert([{
@@ -403,12 +387,10 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     }
   };
 
-  // Get assignment count for a subject
   const getAssignmentCount = (subjectId: number) => {
     return classSubjects.filter(cs => cs.subject_id === subjectId).length;
   };
 
-  // Show modals
   const showSubjectModal = (subjectToEdit?: Subject) => {
     if (subjectToEdit) {
       setEditingSubject(subjectToEdit);
@@ -427,7 +409,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
   const showGradeScaleModal = (gradeScaleToEdit?: GradeScale) => {
     if (gradeScaleToEdit) {
       setEditingGradeScale(gradeScaleToEdit);
-      // Convert scale object to array for form
       const grades = Object.entries(gradeScaleToEdit.scale).map(([letter, threshold]) => ({
         letter,
         threshold
@@ -440,7 +421,6 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
     } else {
       setEditingGradeScale(null);
       gradeScaleForm.resetFields();
-      // Add one default grade row
       gradeScaleForm.setFieldsValue({
         grades: [{ letter: 'A', threshold: 90 }]
       });
@@ -467,11 +447,18 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
 
   return (
     <div className="min-h-screen">
-      <Row gutter={[16, 16]}>
-        {/* Subjects Section */}
-        <Col span={24}>
+      <Tabs defaultActiveKey="1">
+        {/* Subjects Tab */}
+        <TabPane
+          tab={
+            <span>
+              <BookOutlined />
+              Subjects
+            </span>
+          }
+          key="1"
+        >
           <Card 
-            title="All Subjects" 
             bordered={false}
             extra={
               <Button 
@@ -532,97 +519,19 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
               )}
             />
           </Card>
+        </TabPane>
 
-          {/* Grade Categories Panel */}
-          {selectedSubjectForCategories && (
-            <Card 
-              title={
-                <Space>
-                  <ApartmentOutlined />
-                  <Text strong>
-                    Grade Categories for: {subjects.find(s => s.id === selectedSubjectForCategories)?.name}
-                  </Text>
-                  <Tag>{gradeCategories.filter(c => c.subject_id === selectedSubjectForCategories).length} categories</Tag>
-                </Space>
-              }
-              style={{ marginTop: 24 }}
-              extra={
-                <Space>
-                  <Button 
-                    onClick={() => showGradeCategoryModal(selectedSubjectForCategories)}
-                    icon={<PlusOutlined />}
-                  >
-                    Add Category
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      setSelectedSubjectForCategories(null);
-                      setGradeCategories([]);
-                    }}
-                  >
-                    Close
-                  </Button>
-                </Space>
-              }
-            >
-              <Table
-                dataSource={gradeCategories.filter(c => c.subject_id === selectedSubjectForCategories)}
-                rowKey="id"
-                pagination={false}
-                columns={[
-                  {
-                    title: 'Category Name',
-                    dataIndex: 'name',
-                    key: 'name',
-                    render: (text) => <Text strong>{text}</Text>
-                  },
-                  {
-                    title: 'Weight',
-                    dataIndex: 'weight',
-                    key: 'weight',
-                    render: (weight) => (
-                      <Tag icon={<PercentageOutlined />} color="blue">
-                        {weight}%
-                      </Tag>
-                    )
-                  },
-                  {
-                    title: 'Actions',
-                    key: 'actions',
-                    render: (_, record) => (
-                      <Space>
-                        <Button 
-                          icon={<EditOutlined />}
-                          onClick={() => showGradeCategoryModal(selectedSubjectForCategories, record)}
-                        />
-                        <Popconfirm
-                          title="Are you sure? This will affect grade calculations!"
-                          onConfirm={() => deleteGradeCategory(record.id)}
-                        >
-                          <Button danger icon={<DeleteOutlined />} />
-                        </Popconfirm>
-                      </Space>
-                    )
-                  }
-                ]}
-                footer={() => (
-                  <div style={{ textAlign: 'right' }}>
-                    <Text strong>
-                      Total Weight: {gradeCategories
-                        .filter(c => c.subject_id === selectedSubjectForCategories)
-                        .reduce((sum, cat) => sum + cat.weight, 0)}%
-                    </Text>
-                  </div>
-                )}
-              />
-            </Card>
-          )}
-        </Col>
-
-        {/* Grade Scales Section */}
-        <Col span={24}>
+        {/* Grade Scales Tab */}
+        <TabPane
+          tab={
+            <span>
+              <PercentageOutlined />
+              Grade Scales
+            </span>
+          }
+          key="2"
+        >
           <Card 
-            title="Grade Scales" 
             bordered={false}
             extra={
               <Button 
@@ -708,8 +617,93 @@ const SubjectManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => 
               </Empty>
             )}
           </Card>
-        </Col>
-      </Row>
+        </TabPane>
+      </Tabs>
+
+      {/* Grade Categories Panel */}
+      {selectedSubjectForCategories && (
+        <Card 
+          title={
+            <Space>
+              <ApartmentOutlined />
+              <Text strong>
+                Grade Categories for: {subjects.find(s => s.id === selectedSubjectForCategories)?.name}
+              </Text>
+              <Tag>{gradeCategories.filter(c => c.subject_id === selectedSubjectForCategories).length} categories</Tag>
+            </Space>
+          }
+          style={{ marginTop: 24 }}
+          extra={
+            <Space>
+              <Button 
+                onClick={() => showGradeCategoryModal(selectedSubjectForCategories)}
+                icon={<PlusOutlined />}
+              >
+                Add Category
+              </Button>
+              <Button 
+                onClick={() => {
+                  setSelectedSubjectForCategories(null);
+                  setGradeCategories([]);
+                }}
+              >
+                Close
+              </Button>
+            </Space>
+          }
+        >
+          <Table
+            dataSource={gradeCategories.filter(c => c.subject_id === selectedSubjectForCategories)}
+            rowKey="id"
+            pagination={false}
+            columns={[
+              {
+                title: 'Category Name',
+                dataIndex: 'name',
+                key: 'name',
+                render: (text) => <Text strong>{text}</Text>
+              },
+              {
+                title: 'Weight',
+                dataIndex: 'weight',
+                key: 'weight',
+                render: (weight) => (
+                  <Tag icon={<PercentageOutlined />} color="blue">
+                    {weight}%
+                  </Tag>
+                )
+              },
+              {
+                title: 'Actions',
+                key: 'actions',
+                render: (_, record) => (
+                  <Space>
+                    <Button 
+                      icon={<EditOutlined />}
+                      onClick={() => showGradeCategoryModal(selectedSubjectForCategories, record)}
+                    />
+                    <Popconfirm
+                      title="Are you sure? This will affect grade calculations!"
+                      onConfirm={() => deleteGradeCategory(record.id)}
+                    >
+                      <Button danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </Space>
+                )
+              }
+            ]}
+            footer={() => (
+              <div style={{ textAlign: 'right' }}>
+                <Text strong>
+                  Total Weight: {gradeCategories
+                    .filter(c => c.subject_id === selectedSubjectForCategories)
+                    .reduce((sum, cat) => sum + cat.weight, 0)}%
+                </Text>
+              </div>
+            )}
+          />
+        </Card>
+      )}
 
       {/* Subject Modal */}
       <Modal

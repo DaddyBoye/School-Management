@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, Form, Select, Button, Table, Modal, 
-  message, Row, Col, Typography, 
-  Tag, Badge, Space, Popconfirm, Empty,
-  Input
+  message, Typography, Tag, Badge, Space, 
+  Popconfirm, Empty, Input, Tabs, Row, Col
 } from 'antd';
 import { 
   BookOutlined, TeamOutlined, PlusOutlined, 
   DeleteOutlined, FilterOutlined, InfoCircleOutlined,
-  ApartmentOutlined} from '@ant-design/icons';
+  ApartmentOutlined, PartitionOutlined
+} from '@ant-design/icons';
 import { supabase } from '../../supabase';
 
 interface Class {
@@ -28,13 +28,12 @@ interface Subject {
   id: number;
   name: string;
   code: string;
-  description: string;
+  description?: string;
 }
 
 interface GradeScale {
   id: number;
   name: string;
-  scale: Record<string, number>;
   is_default: boolean;
 }
 
@@ -46,8 +45,8 @@ interface ClassSubject {
   school_id: string;
 }
 
-const { Option } = Select;
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { TabPane } = Tabs;
 
 const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [loading, setLoading] = useState(true);
@@ -64,9 +63,9 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('1');
 
-  // Fetch data
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -88,7 +87,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     fetchData();
   }, [schoolId]);
 
-  // Data fetching functions
   const fetchClasses = async () => {
     const { data, error } = await supabase
       .from('classes')
@@ -144,7 +142,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     setClassSubjects(data || []);
   };
 
-  // Handle form submission
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true);
@@ -163,6 +160,7 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
       message.success('Subject assigned to class successfully');
       fetchClassSubjects();
       form.resetFields();
+      setActiveTab('1'); // Switch to assignments tab after creation
     } catch (error) {
       console.error('Error assigning subject:', error);
       message.error('Failed to assign subject');
@@ -171,7 +169,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     }
   };
 
-  // Handle bulk assignment
   const handleBulkSubmit = async (values: any) => {
     try {
       setLoading(true);
@@ -194,6 +191,7 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
       setIsBulkModalVisible(false);
       bulkForm.resetFields();
       setSelectedClassRange([]);
+      setActiveTab('1'); // Switch to assignments tab after bulk operation
     } catch (error) {
       console.error('Error in bulk assignment:', error);
       message.error('Failed to perform bulk assignment');
@@ -202,7 +200,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     }
   };
 
-  // Remove assignment
   const removeAssignment = async (classId: string, subjectId: number) => {
     try {
       setLoading(true);
@@ -225,7 +222,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     }
   };
 
-  // Handle class range selection for bulk operations
   const handleClassRangeChange = (selectedGrades: string[]) => {
     const selectedClasses = classes
       .filter(cls => selectedGrades.includes(cls.grade))
@@ -234,20 +230,17 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     setSelectedClassRange(selectedClasses);
   };
 
-  // Get subject name by ID
   const getSubjectName = (subjectId: number) => {
     const subject = subjects.find(s => s.id === subjectId);
     return subject ? `${subject.name} (${subject.code})` : subjectId.toString();
   };
 
-  // Get grade scale name by ID
   const getGradeScaleName = (gradeScaleId: number | null) => {
     if (!gradeScaleId) return 'Default';
     const scale = gradeScales.find(gs => gs.id === gradeScaleId);
     return scale ? scale.name : 'Default';
   };
 
-  // Filter assignments based on search and filters
   const getFilteredAssignments = () => {
     let filtered = classSubjects;
     
@@ -276,7 +269,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     });
   };
 
-  // Reset all filters
   const resetFilters = () => {
     setSearchText('');
     setSelectedClass(null);
@@ -284,7 +276,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
     setSelectedGroup(null);
   };
 
-  // Table columns for assignments
   const assignmentColumns = [
     {
       title: 'Class',
@@ -357,77 +348,75 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
 
   return (
     <div className="min-h-screen">
-      <Card>
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Space>
-                <Input 
-                  placeholder="Search assignments..." 
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  style={{ width: 250 }}
-                />
-                <Select 
-                  placeholder="Filter by group" 
-                  style={{ width: 180 }} 
-                  allowClear
-                  value={selectedGroup}
-                  onChange={setSelectedGroup}
-                >
-                  {classGroups.map(group => (
-                    <Option key={group.id} value={group.id}>
-                      <ApartmentOutlined /> {group.name}
-                    </Option>
-                  ))}
-                </Select>
-                <Select 
-                  placeholder="Filter by class" 
-                  style={{ width: 180 }} 
-                  allowClear
-                  value={selectedClass}
-                  onChange={setSelectedClass}
-                >
-                  {classes.map(cls => (
-                    <Option key={cls.id} value={cls.id}>
-                      {cls.name} (Grade {cls.grade})
-                    </Option>
-                  ))}
-                </Select>
-                <Select 
-                  placeholder="Filter by subject" 
-                  style={{ width: 180 }} 
-                  allowClear
-                  value={selectedSubject}
-                  onChange={setSelectedSubject}
-                >
-                  {subjects.map(subject => (
-                    <Option key={subject.id} value={subject.id}>
-                      {subject.name} ({subject.code})
-                    </Option>
-                  ))}
-                </Select>
-                <Button onClick={resetFilters} icon={<FilterOutlined />}>Reset Filters</Button>
-              </Space>
-              <Space>
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => form.resetFields()}
-                >
-                  New Assignment
-                </Button>
-                <Button 
-                  onClick={() => setIsBulkModalVisible(true)}
-                  icon={<PlusOutlined />}
-                >
-                  Bulk Assign
-                </Button>
-              </Space>
-            </div>
-          </Col>
-          
-          <Col span={24}>
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab}
+        tabBarExtraContent={
+          activeTab === '1' && (
+            <Space>
+              <Input 
+                placeholder="Search assignments..." 
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ width: 250 }}
+              />
+              <Select 
+                placeholder="Filter by group" 
+                style={{ width: 180 }} 
+                allowClear
+                value={selectedGroup}
+                onChange={setSelectedGroup}
+              >
+                {classGroups.map(group => (
+                  <Select.Option key={group.id} value={group.id}>
+                    <ApartmentOutlined /> {group.name}
+                  </Select.Option>
+                ))}
+              </Select>
+              <Select 
+                placeholder="Filter by class" 
+                style={{ width: 180 }} 
+                allowClear
+                value={selectedClass}
+                onChange={setSelectedClass}
+              >
+                {classes.map(cls => (
+                  <Select.Option key={cls.id} value={cls.id}>
+                    {cls.name} (Grade {cls.grade})
+                  </Select.Option>
+                ))}
+              </Select>
+              <Select 
+                placeholder="Filter by subject" 
+                style={{ width: 180 }} 
+                allowClear
+                value={selectedSubject}
+                onChange={setSelectedSubject}
+              >
+                {subjects.map(subject => (
+                  <Select.Option key={subject.id} value={subject.id}>
+                    {subject.name} ({subject.code})
+                  </Select.Option>
+                ))}
+              </Select>
+              <Button onClick={resetFilters} icon={<FilterOutlined />}>
+                Reset Filters
+              </Button>
+            </Space>
+          )
+        }
+      >
+        {/* Assignments Tab */}
+        <TabPane
+          tab={
+            <span>
+              <BookOutlined />
+              Assignments
+            </span>
+          }
+          key="1"
+        >
+          <Card bordered={false}>
             {getFilteredAssignments().length > 0 ? (
               <Table
                 columns={assignmentColumns}
@@ -448,87 +437,134 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
                 }
               />
             )}
-          </Col>
-        </Row>
-      </Card>
+          </Card>
+        </TabPane>
 
-      {/* Assignment Form */}
-      <Card style={{ marginTop: 16 }}>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Title level={4}>Assign Subject to Class</Title>
-          
-          <Form.Item
-            name="class_id"
-            label="Class"
-            rules={[{ required: true, message: 'Please select a class' }]}
-          >
-            <Select 
-              placeholder="Select class"
-              showSearch
-              optionFilterProp="children"
+        {/* New Assignment Tab */}
+        <TabPane
+          tab={
+            <span>
+              <PlusOutlined />
+              New Assignment
+            </span>
+          }
+          key="2"
+        >
+          <Card bordered={false}>
+            <Form form={form} layout="vertical" onFinish={handleSubmit}>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="class_id"
+                    label="Class"
+                    rules={[{ required: true, message: 'Please select a class' }]}
+                  >
+                    <Select 
+                      placeholder="Select class"
+                      showSearch
+                      optionFilterProp="children"
+                    >
+                      {classes.map(cls => (
+                        <Select.Option key={cls.id} value={cls.id}>
+                          {cls.name} (Grade {cls.grade})
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="subject_id"
+                    label="Subject"
+                    rules={[{ required: true, message: 'Please select a subject' }]}
+                  >
+                    <Select 
+                      placeholder="Select subject"
+                      showSearch
+                      optionFilterProp="children"
+                    >
+                      {subjects.map(sub => (
+                        <Select.Option key={sub.id} value={sub.id}>
+                          {sub.name} ({sub.code})
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item
+                name="grade_scale_id"
+                label="Grade Scale"
+              >
+                <Select 
+                  placeholder="Select grade scale (optional)"
+                  allowClear
+                >
+                  {gradeScales.map(scale => (
+                    <Select.Option key={scale.id} value={scale.id}>
+                      {scale.name} {scale.is_default && '(Default)'}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit" loading={loading}>
+                    Create Assignment
+                  </Button>
+                  <Button onClick={() => form.resetFields()}>
+                    Reset Form
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Card>
+        </TabPane>
+
+        {/* Bulk Assignment Tab */}
+        <TabPane
+          tab={
+            <span>
+              <PartitionOutlined />
+              Bulk Assign
+            </span>
+          }
+          key="3"
+        >
+          <Card bordered={false}>
+            <Button 
+              type="primary" 
+              onClick={() => setIsBulkModalVisible(true)}
+              icon={<PlusOutlined />}
+              size="large"
             >
-              {classes.map(cls => (
-                <Option key={cls.id} value={cls.id}>
-                  {cls.name} (Grade {cls.grade})
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="subject_id"
-            label="Subject"
-            rules={[{ required: true, message: 'Please select a subject' }]}
-          >
-            <Select 
-              placeholder="Select subject"
-              showSearch
-              optionFilterProp="children"
-            >
-              {subjects.map(sub => (
-                <Option key={sub.id} value={sub.id}>
-                  {sub.name} ({sub.code})
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="grade_scale_id"
-            label="Grade Scale"
-          >
-            <Select 
-              placeholder="Select grade scale (optional)"
-              allowClear
-            >
-              {gradeScales.map(scale => (
-                <Option key={scale.id} value={scale.id}>
-                  {scale.name} {scale.is_default && '(Default)'}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                Create Assignment
-              </Button>
-              <Button onClick={() => form.resetFields()}>
-                Reset Form
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+              Open Bulk Assignment Tool
+            </Button>
+            
+            <div style={{ marginTop: 24 }}>
+              <Text type="secondary">
+                Bulk assign allows you to assign the same subject to multiple classes at once.
+                Select grade levels to include all classes in those grades.
+              </Text>
+            </div>
+          </Card>
+        </TabPane>
+      </Tabs>
 
       {/* Bulk Assignment Modal */}
       <Modal
-        title={<><PlusOutlined /> Bulk Assign Subjects to Classes</>}
+        title={
+          <Space>
+            <PartitionOutlined />
+            Bulk Assign Subjects to Classes
+          </Space>
+        }
         visible={isBulkModalVisible}
         onCancel={() => setIsBulkModalVisible(false)}
         footer={null}
-        width={600}
+        width={700}
       >
         <Form form={bulkForm} layout="vertical" onFinish={handleBulkSubmit}>
           <Form.Item
@@ -542,9 +578,9 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
               optionFilterProp="children"
             >
               {subjects.map(sub => (
-                <Option key={sub.id} value={sub.id}>
+                <Select.Option key={sub.id} value={sub.id}>
                   {sub.name} ({sub.code})
-                </Option>
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -558,9 +594,9 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
               allowClear
             >
               {gradeScales.map(scale => (
-                <Option key={scale.id} value={scale.id}>
+                <Select.Option key={scale.id} value={scale.id}>
                   {scale.name} {scale.is_default && '(Default)'}
-                </Option>
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -576,9 +612,9 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
               onChange={handleClassRangeChange}
             >
               {Array.from(new Set(classes.map(cls => cls.grade))).sort().map(grade => (
-                <Option key={grade} value={grade}>
+                <Select.Option key={grade} value={grade}>
                   Grade {grade}
-                </Option>
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>

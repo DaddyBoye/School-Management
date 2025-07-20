@@ -3,9 +3,7 @@ import {
   Card, Button, List, Modal, Form, Input, 
   Select, TreeSelect, Space, Tag, Badge, 
   Typography, Popconfirm, Collapse, Empty,
-  message,
-  Row,
-  Col
+  message, Tabs
 } from 'antd';
 import { 
   TeamOutlined, PlusOutlined, DeleteOutlined, 
@@ -35,6 +33,7 @@ interface ClassSubject {
 
 const { Text } = Typography;
 const { Panel } = Collapse;
+const { TabPane } = Tabs;
 
 const ClassManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => {
   const [loading, setLoading] = useState(true);
@@ -309,11 +308,15 @@ const ClassManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => {
 
   return (
     <div className="min-h-screen">
-      <Row gutter={[16, 16]}>
-        {/* Classes Section */}
-        <Col span={24}>
+      <Tabs defaultActiveKey="1">
+        {/* Classes Tab */}
+        <TabPane tab={
+          <span>
+            <TeamOutlined />
+            Classes
+          </span>
+        } key="1">
           <Card 
-            title="All Classes" 
             bordered={false}
             extra={
               <Button 
@@ -360,12 +363,16 @@ const ClassManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => {
               )}
             />
           </Card>
-        </Col>
+        </TabPane>
 
-        {/* Class Groups Section */}
-        <Col span={24}>
+        {/* Class Groups Tab */}
+        <TabPane tab={
+          <span>
+            <FolderOpenOutlined />
+            Class Groups
+          </span>
+        } key="2">
           <Card 
-            title="Class Groups" 
             bordered={false}
             extra={
               <Button 
@@ -444,8 +451,8 @@ const ClassManagementPage: React.FC<{ schoolId: string }> = ({ schoolId }) => {
               </Empty>
             )}
           </Card>
-        </Col>
-      </Row>
+        </TabPane>
+      </Tabs>
 
       {/* Class Modal */}
       <Modal

@@ -60,7 +60,6 @@ const LeftNav = ({ userRole, accessibleRoutes, onClose }: LeftNavProps) => {
     { path: '/studentfees', label: 'Fees', icon: DollarSign },
     { path: '/studentgrades', label: 'Grades', icon: Award },
     { path: '/classsubjectmanager', label: 'Teacher Assignments', icon: UserCheck },
-    { path: '/subjectclassmanager', label: 'Subject Class Manager', icon: BookOpen },
     { path: '/feemanager', label: 'Fee Manager', icon: DollarSign },
     { path: '/teacherstudentview', label: 'My Students', icon: Users },
     { path: '/teachergrades', label: 'Student Grades', icon: Award },
@@ -77,7 +76,6 @@ const LeftNav = ({ userRole, accessibleRoutes, onClose }: LeftNavProps) => {
     { path: '/classsubjectsassignment', label: 'Class Subjects Assignment', icon: UserCheck }
   ];
 
-  // Filter navigation links based on the user's role
   const filteredLinks = userRole
     ? navigationLinks.filter(({ path }) => accessibleRoutes[userRole]?.includes(path))
     : [];
