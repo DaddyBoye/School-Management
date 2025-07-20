@@ -362,62 +362,60 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
           }
           key="1"
         >
-          <Card 
+            <Card 
             bordered={false}
-            extra={
-              <Button onClick={resetFilters} icon={<FilterOutlined />}>
-                Reset Filters
-              </Button>
-            }
-          >
-            <div style={{ marginBottom: 16 }}>
+            >
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space>
-                <Input 
-                  placeholder="Search assignments..." 
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  style={{ width: 250 }}
-                />
-                <Select 
-                  placeholder="Filter by group" 
-                  style={{ width: 180 }} 
-                  allowClear
-                  value={selectedGroup}
-                  onChange={setSelectedGroup}
-                >
-                  {classGroups.map(group => (
-                    <Select.Option key={group.id} value={group.id}>
-                      <ApartmentOutlined /> {group.name}
-                    </Select.Option>
-                  ))}
-                </Select>
-                <Select 
-                  placeholder="Filter by class" 
-                  style={{ width: 180 }} 
-                  allowClear
-                  value={selectedClass}
-                  onChange={setSelectedClass}
-                >
-                  {classes.map(cls => (
-                    <Select.Option key={cls.id} value={cls.id}>
-                      {cls.name} (Grade {cls.grade})
-                    </Select.Option>
-                  ))}
-                </Select>
-                <Select 
-                  placeholder="Filter by subject" 
-                  style={{ width: 180 }} 
-                  allowClear
-                  value={selectedSubject}
-                  onChange={setSelectedSubject}
-                >
-                  {subjects.map(subject => (
-                    <Select.Option key={subject.id} value={subject.id}>
-                      {subject.name} ({subject.code})
-                    </Select.Option>
-                  ))}
-                </Select>
+              <Input 
+                placeholder="Search assignments..." 
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ width: 250 }}
+              />
+              <Select 
+                placeholder="Filter by group" 
+                style={{ width: 180 }} 
+                allowClear
+                value={selectedGroup}
+                onChange={setSelectedGroup}
+              >
+                {classGroups.map(group => (
+                <Select.Option key={group.id} value={group.id}>
+                  <ApartmentOutlined /> {group.name}
+                </Select.Option>
+                ))}
+              </Select>
+              <Select 
+                placeholder="Filter by class" 
+                style={{ width: 180 }} 
+                allowClear
+                value={selectedClass}
+                onChange={setSelectedClass}
+              >
+                {classes.map(cls => (
+                <Select.Option key={cls.id} value={cls.id}>
+                  {cls.name} (Grade {cls.grade})
+                </Select.Option>
+                ))}
+              </Select>
+              <Select 
+                placeholder="Filter by subject" 
+                style={{ width: 180 }} 
+                allowClear
+                value={selectedSubject}
+                onChange={setSelectedSubject}
+              >
+                {subjects.map(subject => (
+                <Select.Option key={subject.id} value={subject.id}>
+                  {subject.name} ({subject.code})
+                </Select.Option>
+                ))}
+              </Select>
               </Space>
+              <Button onClick={resetFilters} icon={<FilterOutlined />}>
+              Reset Filters
+              </Button>
             </div>
 
             {getFilteredAssignments().length > 0 ? (
