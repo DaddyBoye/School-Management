@@ -270,93 +270,94 @@ const StudentManagement = ({ schoolId, schoolName }: { schoolId: string; schoolN
     return matchesSearch && matchesClass && matchesStatus;
   });
 
-const handleAddStudent = async (values: any) => {
-  setIsSubmitting(true);
-  let userId: string | null = null;
-  
-  try {
-    // 1. Generate student code
-    const { count } = await supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true })
-      .eq('school_id', schoolId);
-
-    const studentCode = `STU-${schoolId}-${(count || 0) + 1}`;
-    const password = generatePassword();
+  const handleAddStudent = async (values: any) => {
+    setIsSubmitting(true);
+    let userId: string | null = null;
     
-    // 2. Create user with admin API
-    const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
-      email: values.email,
-      password: password,
-      user_metadata: { 
-        role: 'student',
-        school_id: schoolId
-      },
-      email_confirm: true // Skip email confirmation
-    });
+    try {
+      // 1. Generate student code
+      const { count } = await supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .eq('school_id', schoolId);
 
-    if (authError) throw authError;
-    if (!user) throw new Error("Failed to create user");
-    
-    // Store the user ID for potential cleanup
-    userId = user.id;
+      const studentCode = `STU-${schoolId}-${(count || 0) + 1}`;
+      const password = generatePassword();
+      
+      // 2. Create user with admin API
+      const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
+        email: values.email,
+        password: password,
+        user_metadata: { 
+          role: 'student',
+          school_id: schoolId
+        },
+        email_confirm: true // Skip email confirmation
+      });
 
-    // 3. Create student record
-    const { error: studentError } = await supabase
-      .from("students")
-      .insert([{ 
-        ...values,
-        student_code: studentCode,
-        user_id: user.id,
-        join_date: values.join_date.format('YYYY-MM-DD'),
-        date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
-        enrollment_status: 'active',
-        school_id: schoolId
-      }])
-      .select()
-      .single();
+      if (authError) throw authError;
+      if (!user) throw new Error("Failed to create user");
+      
+      // Store the user ID for potential cleanup
+      userId = user.id;
 
-    if (studentError) throw studentError;
+      // 3. Create student record
+      const { error: studentError } = await supabase
+        .from("students")
+        .insert([{ 
+          ...values,
+          student_code: studentCode,
+          user_id: user.id,
+          join_date: values.join_date.format('YYYY-MM-DD'),
+          date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
+          enrollment_status: 'active',
+          school_id: schoolId
+        }])
+        .select()
+        .single();
 
-    // 4. Send welcome email
-    await sendEmail(
-      values.email,
-      `${values.first_name} ${values.last_name}`,
-      schoolName,
-      password,
-      'https://stjoba.klaso.site',
-      'no-reply@school.com',
-      'School Admin',
-      'Student'
-    );
+      if (studentError) throw studentError;
 
-    // 5. Refresh and reset
-    await fetchData();
-    setIsModalVisible(false);
-    form.resetFields();
-    message.success('Student added successfully');
-  } catch (error) {
-    console.error('Error adding student:', error);
-    
-    // Clean up auth user if student creation failed
-    if (userId) {
-      try {
-        await supabase.auth.admin.deleteUser(userId);
-        console.log('Deleted orphaned auth user');
-      } catch (deleteError) {
-        console.error('Error deleting orphaned auth user:', deleteError);
+      // 4. Send welcome email
+      await sendEmail(
+        values.email,
+        `${values.first_name} ${values.last_name}`,
+        schoolName,
+        password,
+        'https://stjoba.klaso.site',
+        'no-reply@school.com',
+        'School Admin',
+        'Student',
+        "With your account, you can now access our school's digital platform to access your grades, atttendance, and more. Please log in using the provided credentials."
+      );
+
+      // 5. Refresh and reset
+      await fetchData();
+      setIsModalVisible(false);
+      form.resetFields();
+      message.success('Student added successfully');
+    } catch (error) {
+      console.error('Error adding student:', error);
+      
+      // Clean up auth user if student creation failed
+      if (userId) {
+        try {
+          await supabase.auth.admin.deleteUser(userId);
+          console.log('Deleted orphaned auth user');
+        } catch (deleteError) {
+          console.error('Error deleting orphaned auth user:', deleteError);
+        }
       }
+      
+      message.error(
+        error instanceof Error ? 
+        error.message : 
+        "Failed to add student. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    message.error(
-      error instanceof Error ? 
-      error.message : 
-      "Failed to add student. Please try again."
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const handleEditStudent = async (values: any) => {
     if (!selectedStudent) return;

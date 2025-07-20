@@ -13,6 +13,7 @@ export const sendEmail = async (
     supportEmail: string,
     fromName: string,
     role: string,
+    message: string,
   ) => {
   
     try {
@@ -29,6 +30,7 @@ export const sendEmail = async (
           from_name: fromName,
           currentYear: new Date().getFullYear().toString(),
           role: role,
+          message: message
         },
         PUBLIC_KEY
       );

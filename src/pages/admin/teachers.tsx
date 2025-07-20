@@ -333,97 +333,98 @@ const StaffManagement = ({ schoolId, schoolName }: { schoolId: string; schoolNam
     return matchesSearch && matchesDepartment && matchesRole && matchesStatus && matchesStaffType;
   });
 
-const handleAddStaff = async (values: any) => {
-  setIsSubmitting(true);
-  let userId: string | null = null;
-  
-  try {
-    const password = generatePassword();
-    const { count } = await supabase
-      .from('teachers')
-      .select('*', { count: 'exact', head: true })
-      .eq('school_id', schoolId);
-
-    const staffCode = `${schoolId}-${(count || 0) + 1}`;
+  const handleAddStaff = async (values: any) => {
+    setIsSubmitting(true);
+    let userId: string | null = null;
     
-    // Create auth account but don't sign in
-    const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
-      email: values.email,
-      password: password,
-      user_metadata: { 
-        role: values.is_teaching_staff ? 'teacher' : 'staff',
-        school_id: schoolId
-      },
-      email_confirm: true // Skip email confirmation
-    });
+    try {
+      const password = generatePassword();
+      const { count } = await supabase
+        .from('teachers')
+        .select('*', { count: 'exact', head: true })
+        .eq('school_id', schoolId);
 
-    if (authError) throw authError;
-    if (!user) throw new Error("Failed to create user");
-    
-    // Store the user ID so we can delete it if something goes wrong
-    userId = user.id;
+      const staffCode = `${schoolId}-${(count || 0) + 1}`;
+      
+      // Create auth account but don't sign in
+      const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
+        email: values.email,
+        password: password,
+        user_metadata: { 
+          role: values.is_teaching_staff ? 'teacher' : 'staff',
+          school_id: schoolId
+        },
+        email_confirm: true // Skip email confirmation
+      });
 
-    const { data: staffData, error: staffError } = await supabase
-      .from("teachers")
-      .insert([{ 
-        ...values,
-        staff_code: staffCode,
-        user_id: user.id,
-        joinDate: values.joinDate.format('YYYY-MM-DD'),
-        date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
-        is_active: true,
-        school_id: schoolId
-      }])
-      .select()
-      .single();
+      if (authError) throw authError;
+      if (!user) throw new Error("Failed to create user");
+      
+      // Store the user ID so we can delete it if something goes wrong
+      userId = user.id;
 
-    if (staffError) throw staffError;
+      const { data: staffData, error: staffError } = await supabase
+        .from("teachers")
+        .insert([{ 
+          ...values,
+          staff_code: staffCode,
+          user_id: user.id,
+          joinDate: values.joinDate.format('YYYY-MM-DD'),
+          date_of_birth: values.date_of_birth?.format('YYYY-MM-DD'),
+          is_active: true,
+          school_id: schoolId
+        }])
+        .select()
+        .single();
 
-    const rolesToInsert = values.roles.map((role: any) => ({
-      teacher_id: staffData.id,
-      role_id: role,
-      is_primary: role === values.primary_role_id
-    }));
+      if (staffError) throw staffError;
 
-    const { error: rolesError } = await supabase
-      .from("teacher_roles")
-      .insert(rolesToInsert);
+      const rolesToInsert = values.roles.map((role: any) => ({
+        teacher_id: staffData.id,
+        role_id: role,
+        is_primary: role === values.primary_role_id
+      }));
 
-    if (rolesError) throw rolesError;
+      const { error: rolesError } = await supabase
+        .from("teacher_roles")
+        .insert(rolesToInsert);
 
-    await sendEmail(
-      values.email,
-      `${values.first_name} ${values.last_name}`,
-      schoolName,
-      password,
-      'https://stjoba.klaso.site',
-      'no-reply@school.com',
-      'School Admin',
-      'Staff Member'
-    );
+      if (rolesError) throw rolesError;
 
-    await fetchData();
-    setIsModalVisible(false);
-    form.resetFields();
-    message.success('Staff member added successfully');
-  } catch (error) {
-    console.error('Error adding staff member:', error);
-    
-    // If we created an auth user but failed to create the staff record, delete the auth user
-    if (userId) {
-      try {
-        await supabase.auth.admin.deleteUser(userId);
-        console.log('Deleted orphaned auth user');
-      } catch (deleteError) {
-        console.error('Error deleting orphaned auth user:', deleteError);
+      await sendEmail(
+        values.email,
+        `${values.first_name} ${values.last_name}`,
+        schoolName,
+        password,
+        'https://stjoba.klaso.site',
+        'no-reply@school.com',
+        'School Admin',
+        'Staff Member',
+        "With your account, you can now access our school's digital platform to manage your classes, grades, and more. Please log in using the provided credentials."
+      );
+
+      await fetchData();
+      setIsModalVisible(false);
+      form.resetFields();
+      message.success('Staff member added successfully');
+    } catch (error) {
+      console.error('Error adding staff member:', error);
+      
+      // If we created an auth user but failed to create the staff record, delete the auth user
+      if (userId) {
+        try {
+          await supabase.auth.admin.deleteUser(userId);
+          console.log('Deleted orphaned auth user');
+        } catch (deleteError) {
+          console.error('Error deleting orphaned auth user:', deleteError);
+        }
       }
+      
+      message.error(error instanceof Error ? error.message : "Failed to add staff member");
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    message.error(error instanceof Error ? error.message : "Failed to add staff member");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const handleEditStaff = async (values: any) => {
     if (!selectedStaff) return;
