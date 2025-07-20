@@ -351,60 +351,6 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
       <Tabs 
         activeKey={activeTab} 
         onChange={setActiveTab}
-        tabBarExtraContent={
-          activeTab === '1' && (
-            <Space>
-              <Input 
-                placeholder="Search assignments..." 
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: 250 }}
-              />
-              <Select 
-                placeholder="Filter by group" 
-                style={{ width: 180 }} 
-                allowClear
-                value={selectedGroup}
-                onChange={setSelectedGroup}
-              >
-                {classGroups.map(group => (
-                  <Select.Option key={group.id} value={group.id}>
-                    <ApartmentOutlined /> {group.name}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Select 
-                placeholder="Filter by class" 
-                style={{ width: 180 }} 
-                allowClear
-                value={selectedClass}
-                onChange={setSelectedClass}
-              >
-                {classes.map(cls => (
-                  <Select.Option key={cls.id} value={cls.id}>
-                    {cls.name} (Grade {cls.grade})
-                  </Select.Option>
-                ))}
-              </Select>
-              <Select 
-                placeholder="Filter by subject" 
-                style={{ width: 180 }} 
-                allowClear
-                value={selectedSubject}
-                onChange={setSelectedSubject}
-              >
-                {subjects.map(subject => (
-                  <Select.Option key={subject.id} value={subject.id}>
-                    {subject.name} ({subject.code})
-                  </Select.Option>
-                ))}
-              </Select>
-              <Button onClick={resetFilters} icon={<FilterOutlined />}>
-                Reset Filters
-              </Button>
-            </Space>
-          )
-        }
       >
         {/* Assignments Tab */}
         <TabPane
@@ -416,7 +362,64 @@ const ClassSubjectsAssignmentPage: React.FC<{ schoolId: string }> = ({ schoolId 
           }
           key="1"
         >
-          <Card bordered={false}>
+          <Card 
+            bordered={false}
+            extra={
+              <Button onClick={resetFilters} icon={<FilterOutlined />}>
+                Reset Filters
+              </Button>
+            }
+          >
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Input 
+                  placeholder="Search assignments..." 
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  style={{ width: 250 }}
+                />
+                <Select 
+                  placeholder="Filter by group" 
+                  style={{ width: 180 }} 
+                  allowClear
+                  value={selectedGroup}
+                  onChange={setSelectedGroup}
+                >
+                  {classGroups.map(group => (
+                    <Select.Option key={group.id} value={group.id}>
+                      <ApartmentOutlined /> {group.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+                <Select 
+                  placeholder="Filter by class" 
+                  style={{ width: 180 }} 
+                  allowClear
+                  value={selectedClass}
+                  onChange={setSelectedClass}
+                >
+                  {classes.map(cls => (
+                    <Select.Option key={cls.id} value={cls.id}>
+                      {cls.name} (Grade {cls.grade})
+                    </Select.Option>
+                  ))}
+                </Select>
+                <Select 
+                  placeholder="Filter by subject" 
+                  style={{ width: 180 }} 
+                  allowClear
+                  value={selectedSubject}
+                  onChange={setSelectedSubject}
+                >
+                  {subjects.map(subject => (
+                    <Select.Option key={subject.id} value={subject.id}>
+                      {subject.name} ({subject.code})
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Space>
+            </div>
+
             {getFilteredAssignments().length > 0 ? (
               <Table
                 columns={assignmentColumns}
