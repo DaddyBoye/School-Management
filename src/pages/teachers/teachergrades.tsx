@@ -26,18 +26,22 @@ interface Grade {
   subject_id: string;
   score: number;
   max_score: number;
-  category_id: string;
+  category_id: number;
   teacher_id: string;
   term_id: number;
   comments?: string;
   date_given: string;
+  is_final?: boolean;
 }
 
 interface GradeCategory {
-  id: string;
+  id: number;
   name: string;
   weight: number;
-  subject_id: string;
+  class_id: string;
+  parent_category_id: number | null;
+  is_main_category: boolean;
+  subcategories?: GradeCategory[];
 }
 
 interface TeacherSubject {
@@ -98,13 +102,13 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
   const [dataInitialized, setDataInitialized] = useState(false);
   
-    // Grade editing state (only for Subjects Taught view)
+  // Grade editing state
   const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
   const [newGrade, setNewGrade] = useState<Partial<Grade> | null>(null);
   const [gradeToDelete, setGradeToDelete] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    // Notification state to handle multiple notifications
+  // Notification state
   const [notifications, setNotifications] = useState<Array<{
     id: string;
     message: string;
@@ -115,16 +119,14 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
 
-  // Update your operation handlers to add notifications
   const showNotification = (message: string, type: 'success' | 'error') => {
-      const id = Math.random().toString(36).substring(2, 9);
-      setNotifications((prev) => [...prev, { id, message, type }]);
-      
-      // Auto-remove after 3 seconds
-      setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-      }, 3000);
-    };
+    const id = Math.random().toString(36).substring(2, 9);
+    setNotifications((prev) => [...prev, { id, message, type }]);
+    
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, 3000);
+  };
 
   // Fetch teacher data
   useEffect(() => {
@@ -159,37 +161,28 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
 
         if (subjectsError) throw subjectsError;
         
-        const formattedSubjects = (teacherSubjectsData || []).map(item => {
-            // Handle subjects (array or single object)
-            const subjectObj = Array.isArray(item.subjects) 
-              ? item.subjects[0]  // Take first if array
-              : item.subjects;    // Use directly if single object
-          
-            // Handle classes (array or single object)
-            const classObj = Array.isArray(item.classes)
-              ? item.classes[0]   // Take first if array
-              : item.classes;     // Use directly if single object
-          
-            return {
-              subject_id: item.subject_id,
-              class_id: item.class_id,
-              subject_name: subjectObj?.name || 'Unknown',  // Fallback if undefined
-              subject_code: subjectObj?.code || '',
-              class_name: classObj?.name || 'Unknown'
-            };
-          });
+        const formattedSubjects = (teacherSubjectsData || []).map(item => ({
+          subject_id: item.subject_id,
+          class_id: item.class_id,
+          subject_name: Array.isArray(item.subjects) 
+            ? ((item.subjects[0] as { name?: string })?.name ?? '') 
+            : ((item.subjects as { name?: string })?.name ?? ''),
+          subject_code: Array.isArray(item.subjects) 
+            ? ((item.subjects[0] as { code?: string })?.code ?? '') 
+            : ((item.subjects as { code?: string })?.code ?? ''),
+          class_name: Array.isArray(item.classes) 
+            ? ((item.classes[0] as { name?: string })?.name ?? '') 
+            : ((item.classes as { name?: string })?.name ?? '')
+        }));
 
         setTeacherSubjects(formattedSubjects);
 
         // Get unique classes from subjects taught
         const uniqueClasses = Array.from(new Set(formattedSubjects.map(s => s.class_id)))
-          .map(classId => {
-            const subject = formattedSubjects.find(s => s.class_id === classId);
-            return {
-              id: classId,
-              name: subject?.class_name || 'Unknown'
-            };
-          });
+          .map(classId => ({
+            id: classId,
+            name: formattedSubjects.find(s => s.class_id === classId)?.class_name || 'Unknown'
+          }));
 
         setClasses(uniqueClasses);
         setDataInitialized(true);
@@ -266,9 +259,15 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
       const formattedSubjects = (data || []).map(item => ({
         subject_id: item.subject_id,
         class_id: classId,
-        subject_name: Array.isArray(item.subjects) ? (item.subjects[0] as { name: string })?.name : (item.subjects as { name: string })?.name,
-        subject_code: Array.isArray(item.subjects) ? (item.subjects[0] as { code: string })?.code : (item.subjects as { code: string })?.code,
-        class_name: Array.isArray(item.classes) ? (item.classes[0] as { name: string })?.name : (item.classes as { name: string })?.name
+        subject_name: Array.isArray(item.subjects) 
+          ? ((item.subjects[0] as { name?: string })?.name ?? '') 
+          : ((item.subjects as { name?: string })?.name ?? ''),
+        subject_code: Array.isArray(item.subjects) 
+          ? ((item.subjects[0] as { code?: string })?.code ?? '') 
+          : ((item.subjects as { code?: string })?.code ?? ''),
+        class_name: Array.isArray(item.classes) 
+          ? ((item.classes[0] as { name?: string })?.name ?? '') 
+          : ((item.classes as { name?: string })?.name ?? '')
       }));
   
       setAllClassSubjects(formattedSubjects);
@@ -277,58 +276,32 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     }
   };
 
-  // Fetch grade categories
-  useEffect(() => {
-      const fetchGradeCategories = async () => {
-        try {
-          setIsLoading(true);
-          let subjectIds: string[] = [];
-    
-          if (viewMode === 'myClass' && assignedClass?.id) {
-            subjectIds = teacherSubjects
-              .filter(s => s.class_id === assignedClass.id)
-              .map(s => s.subject_id);
-          } else if (viewMode === 'subjectsTaught') {
-            // Always include selectedSubject if available
-            if (selectedSubject) {
-              subjectIds = [selectedSubject];
-            } else {
-              // If no subject selected but in subjectsTaught view, use all teacher subjects
-              subjectIds = teacherSubjects.map(s => s.subject_id);
-            }
-          }
-    
-          console.log('Fetching categories for:', subjectIds);
-          
-          if (subjectIds.length === 0) {
-            setGradeCategories([]);
-            return;
-          }
-    
-          const { data, error } = await supabase
-            .from('grade_categories')
-            .select('*')
-            .in('subject_id', subjectIds);
-    
-          if (error) throw error;
-    
-          console.log('Received categories:', data?.map(c => ({
-            id: c.id,
-            subject_id: c.subject_id,
-            name: c.name
-          })));
-    
-          setGradeCategories(data || []);
-    
-        } catch (error) {
-          console.error('Error fetching categories:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-    
-      fetchGradeCategories();
-    }, [viewMode, assignedClass, selectedSubject, teacherSubjects]);
+  // Fetch grade categories with hierarchical structure
+  const fetchGradeCategories = async (classId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('grade_categories')
+        .select('*')
+        .eq('class_id', classId)
+        .order('is_main_category', { ascending: false })
+        .order('parent_category_id', { ascending: true })
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      
+      // Transform into hierarchical structure
+      const mainCategories = (data || [])
+        .filter(c => c.is_main_category)
+        .map(mainCat => ({
+          ...mainCat,
+          subcategories: data.filter(sc => sc.parent_category_id === mainCat.id)
+        }));
+
+      setGradeCategories(mainCategories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   // Fetch students
   useEffect(() => {
@@ -351,6 +324,11 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
         if (studentsError) throw studentsError;
 
         setStudents(studentsData || []);
+
+        // Fetch categories for this class
+        if (viewMode === 'subjectsTaught') {
+          fetchGradeCategories(classId);
+        }
 
       } catch (error) {
         console.error('Error fetching students:', error);
@@ -422,7 +400,6 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     if (!sortConfig) return 0;
     
-    // Sort by name
     if (sortConfig.key === 'name') {
       const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
       const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
@@ -431,14 +408,12 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
         : nameB.localeCompare(nameA);
     }
     
-    // Sort by roll number
     if (sortConfig.key === 'rollNo') {
       return sortConfig.direction === 'ascending' 
         ? a.roll_no.localeCompare(b.roll_no) 
         : b.roll_no.localeCompare(a.roll_no);
     }
     
-    // Sort by performance (only in My Class view)
     if (sortConfig.key === 'performance' && viewMode === 'myClass') {
       const perfA = studentsWithPerformance.find(s => s.id === a.id)?.overallAvg || 0;
       const perfB = studentsWithPerformance.find(s => s.id === b.id)?.overallAvg || 0;
@@ -447,7 +422,6 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
         : (perfB || 0) - (perfA || 0);
     }
     
-    // Sort by subject performance (Subjects Taught view)
     if (sortConfig.key === 'subjectPerformance' && viewMode === 'subjectsTaught' && selectedSubject) {
       const perfA = calculateSubjectAverage(a.user_id, selectedSubject) || 0;
       const perfB = calculateSubjectAverage(b.user_id, selectedSubject) || 0;
@@ -470,7 +444,6 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   const getClassSubjects = () => {
     if (!assignedClass) return [];
     
-    // Combine teacher's subjects with all class subjects, removing duplicates
     const combinedSubjects = [...allClassSubjects];
     
     teacherSubjects.forEach(teacherSubject => {
@@ -491,16 +464,29 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
       .sort((a, b) => a.subject_name.localeCompare(b.subject_name));
   };
 
-  const getCategoryGrades = (studentId: string, categoryId: string) => {
+  const getCategoryGrades = (studentId: string, categoryId: number) => {
     return grades.filter(grade => 
       grade.student_id === studentId && 
       grade.category_id === categoryId
     );
   };
 
-  const calculateCategoryAverage = (studentId: string, categoryId: string) => {
-    const categoryGrades = getCategoryGrades(studentId, categoryId);
-    if (categoryGrades.length === 0) return 0; // Return 0 instead of null for no grades
+  const calculateCategoryAverage = (studentId: string, categoryId: number) => {
+    const category = gradeCategories
+      .flatMap(c => [c, ...(c.subcategories || [])])
+      .find(c => c.id === categoryId);
+    
+    if (!category) return 0;
+
+    // For main categories, include all subcategory grades
+    const categoryGrades = category.is_main_category
+      ? grades.filter(grade => 
+          grade.student_id === studentId && 
+          (grade.category_id === categoryId || 
+           (category.subcategories || []).some(sc => sc.id === grade.category_id))
+      ) : getCategoryGrades(studentId, categoryId);
+
+    if (categoryGrades.length === 0) return 0;
     
     const total = categoryGrades.reduce((sum, grade) => {
       return sum + (grade.score / grade.max_score * 100);
@@ -512,22 +498,23 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
   const calculateSubjectAverage = (studentId: string, subjectId?: string) => {
     const targetSubjectId = viewMode === 'subjectsTaught' ? selectedSubject : subjectId;
     if (!targetSubjectId) return null;
-  
-    const relevantCategories = gradeCategories.filter(cat => 
-      String(cat.subject_id) === String(targetSubjectId)
+
+    // Only use main categories for the overall calculation
+    const relevantMainCategories = gradeCategories.filter(cat => 
+      cat.is_main_category
     );
-  
-    if (relevantCategories.length === 0) return null;
-  
+
+    if (relevantMainCategories.length === 0) return null;
+
     let weightedSum = 0;
     let totalWeight = 0;
-  
-    relevantCategories.forEach(category => {
+
+    relevantMainCategories.forEach(category => {
       const avg = calculateCategoryAverage(studentId, category.id);
       weightedSum += avg * category.weight;
       totalWeight += category.weight;
     });
-  
+
     return totalWeight > 0 ? weightedSum / totalWeight : 0;
   };
 
@@ -537,7 +524,6 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     let total = 0;
     let count = 0;
   
-    // For My Class view, calculate average across all subjects
     if (viewMode === 'myClass' && assignedClass) {
       const classSubjects = getClassSubjects();
       
@@ -550,9 +536,7 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
         total += subjectAvg;
         count++;
       });
-    } 
-    // For Subjects Taught view, calculate average for the selected subject
-    else if (viewMode === 'subjectsTaught' && selectedSubject) {
+    } else if (viewMode === 'subjectsTaught' && selectedSubject) {
       const subjectAvg = students.reduce((sum, student) => {
         const avg = calculateSubjectAverage(student.user_id, selectedSubject);
         return sum + (avg || 0);
@@ -596,7 +580,6 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
         };
       });
       
-      // Calculate overall average considering all subjects
       const validAverages = performance.map(p => p.average || 0);
       const overallAvg = validAverages.length > 0 
         ? validAverages.reduce((sum, avg) => sum + avg, 0) / validAverages.length
@@ -612,14 +595,16 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     });
   };
 
-  // Grade editing functions (only for Subjects Taught view)
-  const startNewGrade = (studentId: string, categoryId: string) => {
+  // Grade editing functions
+  const startNewGrade = (studentId: string, categoryId: number) => {
     if (!selectedSubject) return;
     
-    // Find the category to get its weight
-    const category = gradeCategories.find(cat => cat.id === categoryId);
-    const categoryWeight = category?.weight || 100;
+    const category = gradeCategories
+      .flatMap(c => [c, ...(c.subcategories || [])])
+      .find(c => c.id === categoryId);
     
+    if (!category) return;
+
     setNewGrade({
       student_id: studentId,
       subject_id: selectedSubject,
@@ -627,8 +612,9 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
       teacher_id: teacherId,
       term_id: selectedTerm ?? undefined,
       score: 0,
-      max_score: categoryWeight,
-      date_given: new Date().toISOString()
+      max_score: 100,
+      date_given: new Date().toISOString(),
+      is_final: false
     });
   };
 
@@ -648,17 +634,15 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
       setIsSaving(true);
       const gradeToSave = editingGrade || newGrade;
   
-      // Add more comprehensive validation
       if (!gradeToSave || 
           !gradeToSave.student_id || 
           !gradeToSave.subject_id || 
           !gradeToSave.category_id || 
           gradeToSave.score === undefined || 
-          gradeToSave.score === null) {  // Explicit null check
+          gradeToSave.score === null) {
         throw new Error('Missing required grade information');
       }
-  
-      // Ensure score is a valid number
+
       const score = Number(gradeToSave.score);
       if (isNaN(score)) {
         throw new Error('Score must be a valid number');
@@ -684,7 +668,8 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
             score: newGrade.score || 0,
             max_score: newGrade.max_score || 100,
             date_given: newGrade.date_given || new Date().toISOString(),
-            term_id: selectedTerm
+            term_id: selectedTerm,
+            is_final: newGrade.is_final || false
           })
           .select();
 
@@ -706,27 +691,26 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
     }
   };
 
-  // Update handleDeleteGrade to set errors
   const handleDeleteGrade = async (gradeId: string) => {
-      try {
+    try {
       setDeleteError(null);
       setIsSaving(true);
       const { error } = await supabase
-          .from('grades')
-          .delete()
-          .eq('id', gradeId);
+        .from('grades')
+        .delete()
+        .eq('id', gradeId);
 
       if (error) throw error;
 
       setGrades(grades.filter(grade => grade.id !== gradeId));
-      showNotification('Grade deleted successfully!', 'success'); // Add this
-      } catch (error) {
+      showNotification('Grade deleted successfully!', 'success');
+    } catch (error) {
       console.error('Error deleting grade:', error);
       setDeleteError('Failed to delete grade. Please try again.');
-      showNotification('Failed to delete grade', 'error'); // Add this
-      } finally {
+      showNotification('Failed to delete grade', 'error');
+    } finally {
       setIsSaving(false);
-      }
+    }
   };
 
   if (isLoading || !dataInitialized) {
@@ -763,26 +747,6 @@ const TeacherGradesManagement: React.FC<TeacherGradesManagementProps> = ({
 
   const classSubjects = getClassSubjects();
   const studentsWithPerformance = getStudentsWithPerformance();
-
-// Before your rankings table
-const categoriesForSelectedSubject = gradeCategories.filter(
-    c => String(c.subject_id) === String(selectedSubject)
-  );
-  
-  if (viewMode === 'subjectsTaught' && selectedSubject && categoriesForSelectedSubject.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
-        <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-lg font-medium text-gray-900">Data Loading Issue</h3>
-        <div className="mt-4 p-4 bg-gray-50 rounded text-left text-sm">
-          <p>Found {gradeCategories.length} total categories but none for subject {selectedSubject}</p>
-          <p>Subject IDs in categories: {[...new Set(gradeCategories.map(c => c.subject_id))].join(', ')}</p>
-          <p>Current view mode: {viewMode}</p>
-          <p>Selected class: {selectedClass}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen text-black">
@@ -833,38 +797,36 @@ const categoriesForSelectedSubject = gradeCategories.filter(
         {/* Control panel */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
-          {/* Compact Term Selector */}
-          <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-600 mb-1">Term</label>
-            <div className="relative">
-              <select
-                className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
-                          border border-gray-300 hover:border-gray-400 
-                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                          transition-colors duration-200
-                          disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60
-                          [&>option[data-current='true']]:text-green-600 [&>option[data-current='true']]:font-medium"
-                value={selectedTerm || ''}
-                onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
-                disabled={availableTerms.length === 0}
-              >
-                <option value="">Select Term</option>
-                {availableTerms.map(term => (
-                  <option key={term.id} value={term.id} data-current={term.is_current}>
-                    {term.name} • {dayjs(term.start_date).format('MMM D')}-{dayjs(term.end_date).format('MMM D')}
-                    {term.is_current && ' • Current'}
-                  </option>
-                ))}
-              </select>
-              
-              {/* Compact dropdown arrow */}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+            <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-600 mb-1">Term</label>
+              <div className="relative">
+                <select
+                  className="w-full appearance-none bg-white rounded-lg px-3 py-2.5 pr-8 
+                            border border-gray-300 hover:border-gray-400 
+                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                            transition-colors duration-200
+                            disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60
+                            [&>option[data-current='true']]:text-green-600 [&>option[data-current='true']]:font-medium"
+                  value={selectedTerm || ''}
+                  onChange={(e) => setSelectedTerm(e.target.value ? Number(e.target.value) : null)}
+                  disabled={availableTerms.length === 0}
+                >
+                  <option value="">Select Term</option>
+                  {availableTerms.map(term => (
+                    <option key={term.id} value={term.id} data-current={term.is_current}>
+                      {term.name} • {dayjs(term.start_date).format('MMM D')}-{dayjs(term.end_date).format('MMM D')}
+                      {term.is_current && ' • Current'}
+                    </option>
+                  ))}
+                </select>
+                
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
 
             {/* Class Selector (only for Subjects Taught view) */}
             {viewMode === 'subjectsTaught' && (
@@ -891,40 +853,39 @@ const categoriesForSelectedSubject = gradeCategories.filter(
               <div className="flex-grow sm:flex-grow-0 min-w-[200px]">
                 <label className="block text-sm font-medium text-gray-500 mb-1">Subject</label>
                 <select
-                    className="w-full bg-white rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={selectedSubject || ''}
-                    onChange={(e) => setSelectedSubject(e.target.value)}
-                    disabled={getSubjectsForSelectedClass().length === 0}
-                    >
-                    <option value="">Select Subject</option>
-                    {getSubjectsForSelectedClass().map(subject => (
-                        <option key={subject.subject_id} value={subject.subject_id}>
-                        {subject.subject_name} ({subject.subject_code})
-                        </option>
-                    ))}
+                  className="w-full bg-white rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedSubject || ''}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  disabled={getSubjectsForSelectedClass().length === 0}
+                >
+                  <option value="">Select Subject</option>
+                  {getSubjectsForSelectedClass().map(subject => (
+                    <option key={subject.subject_id} value={subject.subject_id}>
+                      {subject.subject_name} ({subject.subject_code})
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
 
-          <div className="flex-grow min-w-[250px]">
-            <label className="block text-sm font-medium text-gray-500 mb-1">Search Students</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by name or roll number..."
-                className="w-full bg-white rounded-lg pl-10 pr-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <div className="absolute left-3 top-2.5 text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+            <div className="flex-grow min-w-[250px]">
+              <label className="block text-sm font-medium text-gray-500 mb-1">Search Students</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by name or roll number..."
+                  className="w-full bg-white rounded-lg pl-10 pr-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <div className="absolute left-3 top-2.5 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
 
-            {/* Class Average Badge */}
             <div className="ml-auto flex items-center gap-2">
               <div className="text-sm font-medium text-gray-500">Class Average:</div>
               <div className="flex items-center gap-2">
@@ -947,7 +908,6 @@ const categoriesForSelectedSubject = gradeCategories.filter(
             </div>
           </div>
           
-          {/* Current View Info */}
           <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <div>
               <span className="text-gray-500">View:</span>
@@ -974,7 +934,6 @@ const categoriesForSelectedSubject = gradeCategories.filter(
 
         {viewMode === 'myClass' ? (
           <>
-            {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-white p-4 rounded-lg shadow-sm border">
                 <div className="flex items-center gap-3">
@@ -1026,42 +985,39 @@ const categoriesForSelectedSubject = gradeCategories.filter(
               </div>
             </div>
 
-            {/* Subjects Accordion (My Class View) */}
             <div className="space-y-4">
               {classSubjects.map(subject => {
-                const subjectCategories = gradeCategories.filter(cat => cat.subject_id === subject.subject_id);
                 const isExpanded = expandedSubjects[subject.subject_id] || false;
                 const subjectClassAvg = students.length > 0 
-                ? students.reduce((sum, student) => {
-                    const avg = calculateSubjectAverage(student.user_id, subject.subject_id) || 0;
-                    return sum + avg;
-                  }, 0) / students.length
-                : null;
+                  ? students.reduce((sum, student) => {
+                      const avg = calculateSubjectAverage(student.user_id, subject.subject_id) || 0;
+                      return sum + avg;
+                    }, 0) / students.length
+                  : null;
                 
                 return (
                   <div key={subject.subject_id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                  {/* Subject header */}
-                  <button
-                    onClick={() => toggleSubject(subject.subject_id)}
-                    className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
-                      !teacherSubjects.some(s => s.subject_id === subject.subject_id) ? 'bg-gray-100' : 'bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {isExpanded ? (
-                        <ChevronDown className="w-5 h-5 text-gray-500" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5 text-gray-500" />
-                      )}
-                      <h2 className="text-lg font-medium">
-                        {subject.subject_name} <span className="text-gray-500 text-sm">({subject.subject_code})</span>
-                        {!teacherSubjects.some(s => s.subject_id === subject.subject_id) && (
-                          <span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
-                            Not Teaching
-                          </span>
+                    <button
+                      onClick={() => toggleSubject(subject.subject_id)}
+                      className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                        !teacherSubjects.some(s => s.subject_id === subject.subject_id) ? 'bg-gray-100' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-gray-500" />
                         )}
-                      </h2>
-                    </div>
+                        <h2 className="text-lg font-medium">
+                          {subject.subject_name} <span className="text-gray-500 text-sm">({subject.subject_code})</span>
+                          {!teacherSubjects.some(s => s.subject_id === subject.subject_id) && (
+                            <span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                              Not Teaching
+                            </span>
+                          )}
+                        </h2>
+                      </div>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <span 
@@ -1085,22 +1041,6 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                     
                     {isExpanded && (
                       <div className="p-4 border-t border-gray-200">
-                        {/* Subject Categories */}
-                        <div className="mb-4">
-                          <h3 className="text-sm font-medium text-gray-500 mb-2">Assessment Categories</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {subjectCategories.map(cat => (
-                              <span 
-                                key={cat.id} 
-                                className="text-xs px-2 py-1 bg-gray-100 rounded-full flex items-center"
-                              >
-                                {cat.name} <span className="ml-1 text-gray-500">({cat.weight}%)</span>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* Students Performance Table */}
                         <div className="overflow-x-auto mt-4">
                           <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
                             <thead className="bg-gray-50">
@@ -1108,14 +1048,30 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                   Student
                                 </th>
-                                {subjectCategories.map(category => (
-                                  <th key={category.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    {category.name} <span className="font-normal lowercase">({category.weight}%)</span>
+                                {gradeCategories.map(mainCategory => (
+                                  <th key={mainCategory.id} colSpan={mainCategory.subcategories?.length ? mainCategory.subcategories.length + 1 : 1} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    {mainCategory.name} <span className="font-normal lowercase">({mainCategory.weight}%)</span>
                                   </th>
                                 ))}
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                   Overall
                                 </th>
+                              </tr>
+                              <tr>
+                                <th></th>
+                                {gradeCategories.map(mainCategory => (
+                                  <>
+                                    {mainCategory.subcategories?.map(subcategory => (
+                                      <th key={subcategory.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {subcategory.name}
+                                      </th>
+                                    ))}
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      Avg
+                                    </th>
+                                  </>
+                                ))}
+                                <th></th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -1137,41 +1093,57 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                                       </div>
                                     </td>
                                     
-                                    {subjectCategories.map(category => {
-                                      const categoryAvg = calculateCategoryAverage(student.user_id, category.id);
-                                      const categoryGrades = getCategoryGrades(student.user_id, category.id);
+                                    {gradeCategories.map(mainCategory => {
+                                      const mainCategoryAvg = calculateCategoryAverage(student.user_id, mainCategory.id);
                                       const canEdit = teacherSubjects.some(s => s.subject_id === subject.subject_id);
                                       
                                       return (
-                                        <td key={category.id} className="px-4 py-4 whitespace-nowrap">
-                                          <div className="flex items-center gap-2">
+                                        <>
+                                          {mainCategory.subcategories?.map(subcategory => {
+                                            const subcategoryAvg = calculateCategoryAverage(student.user_id, subcategory.id);
+                                            const subcategoryGrades = getCategoryGrades(student.user_id, subcategory.id);
+                                            
+                                            return (
+                                              <td key={subcategory.id} className="px-4 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-2">
+                                                  <span 
+                                                    className="font-medium" 
+                                                    style={{ color: getScoreColor(subcategoryAvg) }}
+                                                  >
+                                                    {subcategoryAvg?.toFixed(1) || 'N/A'}%
+                                                  </span>
+                                                  
+                                                  {canEdit && subcategoryGrades.some(grade => grade.comments?.trim()) && (
+                                                    <button 
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setViewingComments(
+                                                          subcategoryGrades.filter(grade => grade.comments?.trim())
+                                                        );
+                                                      }}
+                                                      className="relative group text-white bg-blue-600 hover:bg-blue-500 p-1 rounded"
+                                                    >
+                                                      <MessageSquare className="w-4 h-4" />
+                                                      <div className="absolute z-10 w-64 hidden group-hover:block bg-white border rounded-md shadow-lg p-2 left-0 mt-1">
+                                                        <p className="text-xs text-gray-700 line-clamp-3">
+                                                          {subcategoryGrades.find(grade => grade.comments?.trim())?.comments}
+                                                        </p>
+                                                      </div>
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </td>
+                                            );
+                                          })}
+                                          <td className="px-4 py-4 whitespace-nowrap">
                                             <span 
                                               className="font-medium" 
-                                              style={{ color: getScoreColor(categoryAvg) }}
+                                              style={{ color: getScoreColor(mainCategoryAvg) }}
                                             >
-                                              {categoryAvg?.toFixed(1) || 'N/A'}%
+                                              {mainCategoryAvg?.toFixed(1) || 'N/A'}%
                                             </span>
-                                            
-                                            {canEdit && categoryGrades.some(grade => grade.comments?.trim()) && (
-                                              <button 
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setViewingComments(
-                                                    categoryGrades.filter(grade => grade.comments?.trim())
-                                                  );
-                                                }}
-                                                className="relative group text-white bg-blue-600 hover:bg-blue-500 p-1 rounded"
-                                              >
-                                                <MessageSquare className="w-4 h-4" />
-                                                <div className="absolute z-10 w-64 hidden group-hover:block bg-white border rounded-md shadow-lg p-2 left-0 mt-1">
-                                                  <p className="text-xs text-gray-700 line-clamp-3">
-                                                    {categoryGrades.find(grade => grade.comments?.trim())?.comments}
-                                                  </p>
-                                                </div>
-                                              </button>
-                                            )}
-                                          </div>
-                                        </td>
+                                          </td>
+                                        </>
                                       );
                                     })}
                                     
@@ -1207,7 +1179,6 @@ const categoriesForSelectedSubject = gradeCategories.filter(
               })}
             </div>
 
-            {/* Overall Student Performance (My Class View) */}
             <div className="mt-8 bg-white rounded-lg shadow-sm border overflow-hidden">
               <div className="p-4 border-b bg-gray-50">
                 <h2 className="text-lg font-medium flex items-center gap-2">
@@ -1220,17 +1191,17 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr className="bg-gray-50">
-                    <th 
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => requestSort('name')}
-                    >
-                      Student
-                      {sortConfig?.key === 'name' && (
-                        <span className="ml-1">
-                          {sortConfig.direction === 'ascending' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </th>
+                      <th 
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => requestSort('name')}
+                      >
+                        Student
+                        {sortConfig?.key === 'name' && (
+                          <span className="ml-1">
+                            {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </th>
                       {getClassSubjects().map(subject => (
                         <th key={subject.subject_id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex flex-col">
@@ -1323,55 +1294,60 @@ const categoriesForSelectedSubject = gradeCategories.filter(
             </div>
           </>
         ) : (
-          /* Subjects Taught View (Editable) */
           <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
             {students.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+              <div className="p-8 text-center text-gray-500">
                 <p className="text-lg">
-                {!selectedClass 
+                  {!selectedClass 
                     ? 'Please select a class to view students' 
                     : 'No students found in this class'}
                 </p>
-            </div>
+              </div>
             ) : !selectedSubject ? (
-            <div className="p-8 text-center">
+              <div className="p-8 text-center">
                 <Book className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-lg font-medium text-gray-900">Select a subject</h3>
                 <p className="mt-1 text-gray-500">
-                Please select a subject from the dropdown above to view grades.
+                  Please select a subject from the dropdown above to view grades.
                 </p>
-            </div>
+              </div>
             ) : gradeCategories.length === 0 ? (
-            <div className="p-8 text-center">
+              <div className="p-8 text-center">
                 <div className="mx-auto max-w-md">
-                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-lg font-medium text-gray-900">No grade categories set up</h3>
-                <p className="mt-1 text-gray-500">
+                  <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-900">No grade categories set up</h3>
+                  <p className="mt-1 text-gray-500">
                     Contact your administrator to create grade categories for this subject before entering grades.
-                </p>
+                  </p>
                 </div>
-            </div>
+              </div>
             ) : (
-
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 cursor-pointer"
-                      onClick={() => requestSort('name')}
-                    >
-                      Student
-                      {sortConfig?.key === 'name' && (
-                        <span className="ml-1">
-                          {sortConfig.direction === 'ascending' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </th>
-                      {gradeCategories.map(category => (
-                        <th key={category.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {category.name} <span className="font-normal lowercase">({category.weight}%)</span>
-                        </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 cursor-pointer"
+                        onClick={() => requestSort('name')}
+                      >
+                        Student
+                        {sortConfig?.key === 'name' && (
+                          <span className="ml-1">
+                            {sortConfig.direction === 'ascending' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </th>
+                      {gradeCategories.map(mainCategory => (
+                        <React.Fragment key={mainCategory.id}>
+                          {mainCategory.subcategories?.map(subcategory => (
+                            <th key={subcategory.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {subcategory.name}
+                            </th>
+                          ))}
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {mainCategory.name} <span className="font-normal lowercase">({mainCategory.weight}%)</span>
+                          </th>
+                        </React.Fragment>
                       ))}
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -1405,105 +1381,117 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                             </div>
                           </td>
 
-                          {gradeCategories.map(category => {
-                            const categoryAvg = calculateCategoryAverage(student.user_id, category.id);
-                            const categoryGrades = getCategoryGrades(student.user_id, category.id);
-
+                          {gradeCategories.map(mainCategory => {
+                            const mainCategoryAvg = calculateCategoryAverage(student.user_id, mainCategory.id);
+                            
                             return (
-                              <td key={category.id} className="px-6 py-4">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div>
-                                    {categoryGrades.length > 0 ? (
-                                      <div className="flex items-center gap-2">
-                                        <span 
-                                          className="text-sm font-medium"
-                                          style={{ color: getScoreColor(categoryAvg) }}
-                                        >
-                                          {categoryAvg?.toFixed(1) || 'N/A'}%
-                                        </span>
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                          {categoryGrades.length} {categoryGrades.length === 1 ? 'grade' : 'grades'}
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm text-gray-400">No grades</span>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => startNewGrade(student.user_id, category.id)}
-                                    className="text-blue-500 hover:text-blue-700 p-1 bg-slate-300 rounded-full hover:bg-blue-50 transition-colors"
-                                    title="Add grade"
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                </div>
+                              <React.Fragment key={mainCategory.id}>
+                                {mainCategory.subcategories?.map(subcategory => {
+                                  const subcategoryAvg = calculateCategoryAverage(student.user_id, subcategory.id);
+                                  const subcategoryGrades = getCategoryGrades(student.user_id, subcategory.id);
 
-                                {/* Grade list for this category */}
-                                {categoryGrades.length > 0 && (
-                                  <div className="space-y-1 bg-gray-50 p-2 rounded-lg">
-                                    {categoryGrades.map(grade => (
-                                    <div 
-                                        key={grade.id} 
-                                        className="flex items-center justify-between p-1 hover:bg-gray-100 rounded transition-colors"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                        <span 
-                                            className="text-xs font-medium px-2 py-1 rounded"
-                                            style={{ 
-                                            backgroundColor: getScoreColor((grade.score / grade.max_score) * 100) + '20',
-                                            color: getScoreColor((grade.score / grade.max_score) * 100)
-                                            }}
+                                  return (
+                                    <td key={subcategory.id} className="px-6 py-4">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div>
+                                          {subcategoryGrades.length > 0 ? (
+                                            <div className="flex items-center gap-2">
+                                              <span 
+                                                className="text-sm font-medium"
+                                                style={{ color: getScoreColor(subcategoryAvg) }}
+                                              >
+                                                {subcategoryAvg?.toFixed(1) || 'N/A'}%
+                                              </span>
+                                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                                {subcategoryGrades.length} {subcategoryGrades.length === 1 ? 'grade' : 'grades'}
+                                              </span>
+                                            </div>
+                                          ) : (
+                                            <span className="text-sm text-gray-400">No grades</span>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={() => startNewGrade(student.user_id, subcategory.id)}
+                                          className="text-blue-500 hover:text-blue-700 p-1 bg-slate-300 rounded-full hover:bg-blue-50 transition-colors"
+                                          title="Add grade"
                                         >
-                                            {grade.score}/{grade.max_score}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                            {new Date(grade.date_given).toLocaleDateString()}
-                                        </span>
-                                        
-                                        {/* Comment indicator */}
-                                        {grade.comments?.trim() && (
-                                            <button
-                                                onClick={(e) => {
-                                                e.stopPropagation();
-                                                setViewingComments(grade);
-                                                }}
-                                                className="relative group text-white bg-blue-600 hover:bg-blue-500"
+                                          <Plus className="w-4 h-4" />
+                                        </button>
+                                      </div>
+
+                                      {subcategoryGrades.length > 0 && (
+                                        <div className="space-y-1 bg-gray-50 p-2 rounded-lg">
+                                          {subcategoryGrades.map(grade => (
+                                            <div 
+                                              key={grade.id} 
+                                              className="flex items-center justify-between p-1 hover:bg-gray-100 rounded transition-colors"
                                             >
-                                                <MessageSquare className="w-3 h-3" />
-                                                <div className="absolute z-10 w-48 hidden group-hover:block bg-white border rounded-md shadow-lg p-2 left-0 mt-1">
-                                                <p className="text-xs text-gray-700 line-clamp-3">{grade.comments}</p>
-                                                </div>
-                                            </button>
-                                            )}
+                                              <div className="flex items-center gap-2">
+                                                <span 
+                                                  className="text-xs font-medium px-2 py-1 rounded"
+                                                  style={{ 
+                                                    backgroundColor: getScoreColor((grade.score / grade.max_score) * 100) + '20',
+                                                    color: getScoreColor((grade.score / grade.max_score) * 100)
+                                                  }}
+                                                >
+                                                  {grade.score}/{grade.max_score}
+                                                </span>
+                                                <span className="text-xs text-gray-500">
+                                                  {new Date(grade.date_given).toLocaleDateString()}
+                                                </span>
+                                                
+                                                {grade.comments?.trim() && (
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setViewingComments(grade);
+                                                    }}
+                                                    className="relative group text-white bg-blue-600 hover:bg-blue-500"
+                                                  >
+                                                    <MessageSquare className="w-3 h-3" />
+                                                    <div className="absolute z-10 w-48 hidden group-hover:block bg-white border rounded-md shadow-lg p-2 left-0 mt-1">
+                                                      <p className="text-xs text-gray-700 line-clamp-3">{grade.comments}</p>
+                                                    </div>
+                                                  </button>
+                                                )}
+                                              </div>
+                                              <div className="flex gap-1">
+                                                <button
+                                                  onClick={() => startEditGrade(grade)}
+                                                  className="text-gray-500 hover:text-gray-700 p-1 rounded-full bg-slate-300 hover:bg-gray-200 transition-colors"
+                                                  title="Edit grade"
+                                                >
+                                                  <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                  onClick={() => {
+                                                    if (grade.id === undefined) return;
+                                                    setGradeToDelete(grade.id);
+                                                  }}
+                                                  className="text-red-500 hover:text-red-700 p-1 bg-stone-300 rounded-full hover:bg-red-100 transition-colors"
+                                                  title="Delete grade"
+                                                >
+                                                  <X className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
                                         </div>
-                                        <div className="flex gap-1">
-                                        <button
-                                            onClick={() => startEditGrade(grade)}
-                                            className="text-gray-500 hover:text-gray-700 p-1 rounded-full bg-slate-300 hover:bg-gray-200 transition-colors"
-                                            title="Edit grade"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                              onClick={() => {
-                                                if (grade.id === undefined) {
-                                                  console.error("Grade ID is undefined!");  // Optional error logging
-                                                  return;
-                                                }
-                                                setGradeToDelete(grade.id);  // Now guaranteed to be `string`
-                                              }}
-                                            className="text-red-500 hover:text-red-700 p-1 bg-stone-300 rounded-full hover:bg-red-100 transition-colors"
-                                            title="Delete grade"
-                                            aria-label={`Delete grade from ${new Date(grade.date_given).toLocaleDateString()}`}
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                        </div>
-                                    </div>
-                                    ))}
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <span 
+                                      className="text-sm font-bold mr-2"
+                                      style={{ color: getScoreColor(mainCategoryAvg) }}
+                                    >
+                                      {mainCategoryAvg?.toFixed(1) || 'N/A'}%
+                                    </span>
                                   </div>
-                                )}
-                              </td>
+                                </td>
+                              </React.Fragment>
                             );
                           })}
 
@@ -1537,51 +1525,49 @@ const categoriesForSelectedSubject = gradeCategories.filter(
         )}
 
         {gradeToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Confirm Deletion</h2>
                 <button 
-                onClick={() => setGradeToDelete(null)} 
-                className="text-gray-500 bg-white hover:text-gray-700"
+                  onClick={() => setGradeToDelete(null)} 
+                  className="text-gray-500 bg-white hover:text-gray-700"
                 >
-                <X className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                 </button>
-            </div>
-            <p className="mb-6">Are you sure you want to delete this grade? This action cannot be undone.</p>
-            <div className="flex justify-end gap-3">
+              </div>
+              <p className="mb-6">Are you sure you want to delete this grade? This action cannot be undone.</p>
+              <div className="flex justify-end gap-3">
                 <button
-                onClick={() => setGradeToDelete(null)}
-                className="px-4 py-2 border bg-blue-400 border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  onClick={() => setGradeToDelete(null)}
+                  className="px-4 py-2 border bg-blue-400 border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                 >
-                Cancel
+                  Cancel
                 </button>
                 <button
-                onClick={async () => {
+                  onClick={async () => {
                     await handleDeleteGrade(gradeToDelete);
                     setGradeToDelete(null);
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2"
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2"
                 >
-                {isSaving ? (
+                  {isSaving ? (
                     <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Deleting...
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting...
                     </>
-                ) : (
+                  ) : (
                     'Delete Grade'
-                )}
+                  )}
                 </button>
+              </div>
+              {deleteError && (
+                <div className="mt-4 p-2 bg-red-100 text-red-700 rounded text-sm">
+                  {deleteError}
+                </div>
+              )}
             </div>
-            </div>
-           
-            {deleteError && (
-            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded text-sm">
-                {deleteError}
-            </div>
-            )}
-
-        </div>
+          </div>
         )}
 
         {/* Grade Edit Modal */}
@@ -1599,52 +1585,81 @@ const categoriesForSelectedSubject = gradeCategories.filter(
 
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Score
-                        </label>
-                        <input
-                        type="number"
-                        className="w-full px-3 py-2 border bg-white border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={editingGrade?.score ?? newGrade?.score ?? 0}
-                        onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            const max = editingGrade?.max_score ?? newGrade?.max_score ?? 100;
-                            const validatedValue = Math.min(value, max); // Ensure score doesn't exceed max
-                            
-                            if (editingGrade) {
-                              setEditingGrade({ ...editingGrade, score: validatedValue });
-                            } else if (newGrade) {
-                              setNewGrade({ ...newGrade, score: validatedValue });
-                            }
-                          }}
-                        min="0"
-                        max={editingGrade?.max_score ?? newGrade?.max_score ?? 100}
-                        step="0.1"
-                        />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Score
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border bg-white border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingGrade?.score ?? newGrade?.score ?? 0}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        const max = editingGrade?.max_score ?? newGrade?.max_score ?? 100;
+                        const validatedValue = Math.min(value, max);
+                        
+                        if (editingGrade) {
+                          setEditingGrade({ ...editingGrade, score: validatedValue });
+                        } else if (newGrade) {
+                          setNewGrade({ ...newGrade, score: validatedValue });
+                        }
+                      }}
+                      min="0"
+                      max={editingGrade?.max_score ?? newGrade?.max_score ?? 100}
+                      step="0.1"
+                    />
+                  </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Max Score (Category Weight)
-                        </label>
-                        <input
-                        type="number"
-                        className="w-full px-3 py-2 border bg-white border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={editingGrade?.max_score ?? newGrade?.max_score ?? 100}
-                        onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 100;
-                            if (editingGrade) {
-                            setEditingGrade({ ...editingGrade, max_score: value });
-                            } else if (newGrade) {
-                            setNewGrade({ ...newGrade, max_score: value });
-                            }
-                        }}
-                        min="1"
-                        step="1"
-                        disabled // Make this read-only if you don't want it editable
-                        />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Score
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border bg-white border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingGrade?.max_score ?? newGrade?.max_score ?? 100}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 100;
+                        if (editingGrade) {
+                          setEditingGrade({ ...editingGrade, max_score: value });
+                        } else if (newGrade) {
+                          setNewGrade({ ...newGrade, max_score: value });
+                        }
+                      }}
+                      min="1"
+                      step="1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border bg-white border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editingGrade?.category_id ?? newGrade?.category_id ?? ''}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (editingGrade) {
+                        setEditingGrade({ ...editingGrade, category_id: value });
+                      } else if (newGrade) {
+                        setNewGrade({ ...newGrade, category_id: value });
+                      }
+                    }}
+                  >
+                    <option value="">Select Category</option>
+                    {gradeCategories.flatMap(category => [
+                      <option key={category.id} value={category.id}>
+                        {category.name} (Main)
+                      </option>,
+                      ...(category.subcategories?.map(subcategory => (
+                        <option key={subcategory.id} value={subcategory.id}>
+                          &nbsp;&nbsp;↳ {subcategory.name}
+                        </option>
+                      )) || [])
+                    ])}
+                  </select>
                 </div>
 
                 <div>
@@ -1667,6 +1682,29 @@ const categoriesForSelectedSubject = gradeCategories.filter(
                       }
                     }}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Final Grade
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      checked={editingGrade?.is_final ?? newGrade?.is_final ?? false}
+                      onChange={(e) => {
+                        if (editingGrade) {
+                          setEditingGrade({ ...editingGrade, is_final: e.target.checked });
+                        } else if (newGrade) {
+                          setNewGrade({ ...newGrade, is_final: e.target.checked });
+                        }
+                      }}
+                    />
+                    <label className="ml-2 block text-sm text-gray-700">
+                      Mark as final (cannot be edited later)
+                    </label>
+                  </div>
                 </div>
 
                 <div>
@@ -1719,69 +1757,69 @@ const categoriesForSelectedSubject = gradeCategories.filter(
           </div>
         )}
       </div>
+      
       <AnimatePresence>
         {notifications.map((notification) => (
-            <ToastNotification
+          <ToastNotification
             key={notification.id}
             message={notification.message}
             type={notification.type}
             onClose={() => setNotifications((prev) => prev.filter((n) => n.id !== notification.id))}
-            />
+          />
         ))}
       </AnimatePresence>
 
       {viewingComments && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">
+              <h3 className="text-lg font-medium">
                 {Array.isArray(viewingComments) ? 'All Comments' : 'Comment'}
-                </h3>
-                <button onClick={() => setViewingComments(null)} className="text-gray-500 bg-white hover:text-gray-700">
-                <X className="w-5 h-5 " />
-                </button>
+              </h3>
+              <button onClick={() => setViewingComments(null)} className="text-gray-500 bg-white hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
             <div className="flex-1 overflow-y-auto">
-                {Array.isArray(viewingComments) ? (
+              {Array.isArray(viewingComments) ? (
                 <div className="space-y-4">
-                    {viewingComments.map((grade) => (
+                  {viewingComments.map((grade) => (
                     <div key={grade.id} className="border-b pb-4 last:border-0">
-                        <div className="flex justify-between text-sm mb-2">
+                      <div className="flex justify-between text-sm mb-2">
                         <span className="font-medium">{grade.score}/{grade.max_score}</span>
                         <span className="text-gray-500">
-                            {new Date(grade.date_given).toLocaleDateString()}
+                          {new Date(grade.date_given).toLocaleDateString()}
                         </span>
-                        </div>
-                        <p className="text-gray-700 whitespace-pre-wrap">{grade.comments}</p>
+                      </div>
+                      <p className="text-gray-700 whitespace-pre-wrap">{grade.comments}</p>
                     </div>
-                    ))}
+                  ))}
                 </div>
-                ) : (
+              ) : (
                 <div>
-                    <div className="flex justify-between text-sm mb-2">
+                  <div className="flex justify-between text-sm mb-2">
                     <span className="font-medium">{viewingComments.score}/{viewingComments.max_score}</span>
                     <span className="text-gray-500">
-                        {new Date(viewingComments.date_given).toLocaleDateString()}
+                      {new Date(viewingComments.date_given).toLocaleDateString()}
                     </span>
-                    </div>
-                    <p className="text-gray-700 whitespace-pre-wrap">{viewingComments.comments}</p>
+                  </div>
+                  <p className="text-gray-700 whitespace-pre-wrap">{viewingComments.comments}</p>
                 </div>
-                )}
+              )}
             </div>
             
             <div className="mt-4 pt-4 border-t flex justify-end">
-                <button
+              <button
                 onClick={() => setViewingComments(null)}
                 className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
-                >
+              >
                 Close
-                </button>
+              </button>
             </div>
-            </div>
+          </div>
         </div>
-        )}
-
+      )}
     </div>
   );
 };
